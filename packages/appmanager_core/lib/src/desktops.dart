@@ -11,6 +11,8 @@ import 'package:toml/toml.dart';
 import 'bounded.dart';
 import 'desktop_entries.dart';
 import 'launch.dart';
+import 'origins.dart';
+import 'origins.dart' as origins_lib;
 import 'posix.dart';
 
 /// The palette keys every adapter fills (palette.DEFAULT_COLORS).
@@ -44,6 +46,18 @@ abstract class Desktop {
   /// The windows' corner radius in px, or null when unknown.
   Future<int?> windowRounding();
   Future<String?> iconTheme();
+
+  /// The sections of the "by origin" view, in order.
+  List<String> get origins => const ['o-defaults', 'o-system', 'o-flatpak', 'o-user'];
+
+  /// Where xdg-terminal-exec looks for the default terminal.
+  List<String> get terminalLists => origins_lib.terminalLists(session);
+  Set<String> defaultDesktops() => origins_lib.defaultDesktops(session, lists: terminalLists);
+  List<String> defaultRoles(Map app) =>
+      origins_lib.defaultRoles(app, session, lists: terminalLists);
+
+  /// Which of [origins] (without "o-") an app is in.
+  String origin(Map app, Set<String> defaults) => genericOrigin(app, defaults, session);
   Future<bool> launch(Map app) => launchApp(app, session, terminal: terminal());
   List<String>? terminal() => defaultTerminal(session);
 
@@ -94,6 +108,16 @@ final class OmarchyDesktop extends Desktop {
   OmarchyDesktop(super.session);
   @override
   String get name => 'omarchy';
+  late final _index = OmarchyIndex(session);
+  @override
+  List<String> get origins => const ['o-defaults', 'o-omarchy', 'o-other'];
+  @override
+  String origin(Map app, Set<String> defaults) => _index.origin(app, defaults);
+  @override
+  List<String> get terminalLists => origins_lib.terminalLists(
+    session,
+    shipped: [p.join(_index.root, 'default/xdg-terminal-exec/hyprland-xdg-terminals.list')],
+  );
   String get themeDir =>
       p.join(session.home, '.local/state/omarchy/current/theme');
 

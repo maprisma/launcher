@@ -1,22 +1,82 @@
 #!/usr/bin/env python3
-"""The reference's answer for the Dart core's tests: run with -I and the
-fixture's environment. Usage: oracle.py scan"""
+"""The reference's answers for the Dart core's tests; run with -I and the
+fixture's environment.
+
+  oracle.py scan              the app list (gnome-launcher parse_desktop_files)
+  oracle.py groups < ops.json run group operations, print each result
+  oracle.py origins [omarchy] origin of every scanned app, default apps
+"""
 import json
-import os
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent / "reference" / "gnome-launcher"
-sys.path.insert(0, str(ROOT))
+REF = Path(__file__).resolve().parent.parent / "reference"
 sys.dont_write_bytecode = True
+
+
+def use(name):
+    sys.path.insert(0, str(REF / name))
+
+
+def run_groups(spec):
+    """spec: {"data": raw page or null, "apps": [...], "ops": [[name, args...]]}."""
+    import groups
+    data = groups._clean_page(spec.get("data"), "apps")
+    apps = spec.get("apps", [])
+    out = []
+    for name, *args in spec["ops"]:
+        try:
+            if name == "sections":
+                result = [[gid, [a["desktop_id"] for a in members]]
+                          for gid, members in groups.sections(apps, data)]
+            elif name == "group_of":
+                result = [groups.group_of(a, data) for a in apps]
+            elif name == "place":
+                desktop_id, gid, target, after = args
+                ids = [a["desktop_id"] for a in dict(groups.sections(apps, data)).get(gid, [])]
+                groups.place(data, desktop_id, gid, target, ids, after)
+                result = None
+            elif name == "clean_name":
+                result = groups.clean_name(args[0])
+            else:
+                result = getattr(groups, name)(data, *args)
+        except ValueError as error:
+            result = {"error": str(error)}
+        out.append(result)
+    return {"results": out, "data": data}
 
 
 def main(argv):
     if argv[1:] == ["scan"]:
+        use("gnome-launcher")
         import launcher_core
         print(json.dumps(launcher_core.parse_desktop_files()))
         return 0
-    print(__doc__.strip().splitlines()[-1], file=sys.stderr)
+    if argv[1:] == ["groups"]:
+        use("gnome-launcher")
+        print(json.dumps(run_groups(json.load(sys.stdin))))
+        return 0
+    if argv[1:2] == ["origins"]:
+        omarchy = argv[2:] == ["omarchy"]
+        use("gnome-launcher")
+        import launcher_core
+        apps = launcher_core.parse_desktop_files()
+        if omarchy:
+            sys.path.insert(0, str(REF / "omarchy-plugin"))
+            for mod in ("details", "groups", "i18n", "cli_tools", "corners", "desktop"):
+                sys.modules.pop(mod, None)
+            import details
+            index = details.omarchy_index()
+            defaults = details.default_desktops()
+            origin = {a["desktop_id"]: details.origin_section(a, index, defaults) for a in apps}
+        else:
+            import details
+            defaults = details.default_desktops()
+            origin = {a["desktop_id"]: details.origin_section(a, defaults) for a in apps}
+        roles = {a["desktop_id"]: details.default_roles(a) for a in apps}
+        print(json.dumps({"defaults": sorted(defaults), "origin": origin, "roles": roles}))
+        return 0
+    print(__doc__, file=sys.stderr)
     return 2
 
 

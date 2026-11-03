@@ -24,6 +24,13 @@ final class Posix {
         IntPtr Function(Int, Pointer<Uint8>, IntPtr),
         int Function(int, Pointer<Uint8>, int)
       >('read');
+  static final _write = _lib
+      .lookupFunction<
+        IntPtr Function(Int, Pointer<Uint8>, IntPtr),
+        int Function(int, Pointer<Uint8>, int)
+      >('write');
+  static final _fsync = _lib
+      .lookupFunction<Int Function(Int), int Function(int)>('fsync');
   static final _access = _lib
       .lookupFunction<
         Int Function(Pointer<Utf8>, Int),
@@ -46,6 +53,32 @@ final class Posix {
       _emptyPath = 0x1000;
 
   int get uid => _uid();
+
+  /// Create [path] new (O_EXCL, never through a symlink) as 0600 and write
+  /// [bytes] to it, synced. False when it exists or a write fails.
+  bool writeNewPrivate(String path, List<int> bytes) {
+    final fd =
+        _withPath(
+          path,
+          (name) => _open(name, 0x1 | 0x40 | 0x80 | _noFollow | _cloexec, 0x180),
+        ) ??
+        -1;
+    if (fd < 0) return false;
+    final buffer = calloc<Uint8>(bytes.isEmpty ? 1 : bytes.length);
+    try {
+      buffer.asTypedList(bytes.length).setAll(0, bytes);
+      var done = 0;
+      while (done < bytes.length) {
+        final n = _write(fd, buffer + done, bytes.length - done);
+        if (n <= 0) return false;
+        done += n;
+      }
+      return _fsync(fd) == 0;
+    } finally {
+      calloc.free(buffer);
+      _close(fd);
+    }
+  }
 
   T? _withPath<T>(String path, T Function(Pointer<Utf8>) action) {
     if (path.isEmpty || path.contains('\x00')) return null;

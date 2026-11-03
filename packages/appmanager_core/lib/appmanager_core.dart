@@ -13,3 +13,5 @@ export 'src/core.dart';
 export 'src/desktops.dart';
 export 'src/icon_theme.dart';
 export 'src/launch.dart';
+export 'src/config.dart';
+export 'src/origins.dart';
