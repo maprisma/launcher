@@ -1,5 +1,21 @@
 import 'dart:async';
 
+import 'package:appmanager_core/appmanager_core.dart'
+    as sizes
+    show
+        cardPadding,
+        defaultIconSizes,
+        folderAppIcon,
+        folderColumns,
+        folderFit,
+        folderIconsHeight,
+        folderRows,
+        folderTileSize,
+        gridColumns,
+        iconColumns,
+        tileSpacing,
+        tileTextHeight;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -9,10 +25,13 @@ import 'core_call.dart';
 import 'drag_drop.dart';
 import 'theme.dart';
 
-enum Layout { list, icons }
+part 'overview.dart';
 
 /// The narrow window's views (launcher_core.saved_view).
 enum AppView { list, groups, origin }
+
+/// The wide window's layouts (launcher_core.WIDE_LAYOUTS).
+enum WideLayout { folders, cards, icons }
 
 const builtinGroupNames = {
   'office': 'Office',
@@ -33,7 +52,7 @@ const originNames = {
   'o-other': 'Other',
 };
 
-/// One heading or one entry of the shown list.
+/// One heading or one entry of the narrow list.
 sealed class ListItem {}
 
 final class HeadingRow extends ListItem {
@@ -52,17 +71,9 @@ final class AppRow extends ListItem {
 }
 
 class AppsPage extends StatefulWidget {
-  const AppsPage({
-    super.key,
-    required this.core,
-    required this.desktop,
-    this.initialLayout = Layout.list,
-    this.shownAgain,
-    this.onHide,
-  });
+  const AppsPage({super.key, required this.core, required this.desktop, this.shownAgain, this.onHide});
   final CoreCall core;
   final String desktop;
-  final Layout initialLayout;
   final Listenable? shownAgain;
   final VoidCallback? onHide;
   @override
@@ -74,20 +85,32 @@ class AppsPageState extends State<AppsPage> {
   final byKey = <String, Map<String, dynamic>>{};
   List<Map<String, dynamic>> groups = [];
   List<String> collapsed = [];
+
+  /// The narrow view's sections (groups or origin), and the groups for the
+  /// overview's folders and footer, both for the entries shown.
   List<(String, List<String>)> sections = [];
+  List<(String, List<String>)> groupSections = [];
   bool loading = true;
   bool showHidden = false;
   String query = '';
   AppView view = AppView.list;
-  late Layout layout = widget.initialLayout;
+  WideLayout wideLayout = WideLayout.folders;
+  List<WideLayout> shownLayouts = WideLayout.values;
+  Map<String, int> iconSizes = {...sizes.defaultIconSizes};
+
+  /// The overview's group ("all" or a group id); during a search the one
+  /// picked for this search only.
+  String overviewFilter = 'all';
+  String? searchFilter;
+  bool wide = false;
   String? selectedKey;
   int _columns = 1;
-  int _sectionsAsked = 0;
+  int _asked = 0;
   final filter = TextEditingController();
   final filterFocus = FocusNode();
   final scroll = ScrollController();
   final _selectedItem = GlobalKey();
-  static const rowHeight = 56.0, tileWidth = 132.0, tileHeight = 140.0;
+  static const rowHeight = 56.0;
 
   @override
   void initState() {
@@ -117,8 +140,19 @@ class AppsPageState extends State<AppsPage> {
     if (result['groups'] case final List list) {
       groups = [for (final g in list) Map<String, dynamic>.from(g)];
     }
-    if (result['collapsed'] case final List list) {
-      collapsed = list.cast<String>();
+    if (result['collapsed'] case final List list) collapsed = list.cast<String>();
+  }
+
+  void _takeSettings(Map<String, dynamic> settings) {
+    view = AppView.values.byName(settings['view'] as String? ?? 'list');
+    wideLayout = WideLayout.values.byName(settings['wide_layout'] as String? ?? 'folders');
+    shownLayouts = [
+      for (final l in WideLayout.values)
+        if ((settings['shown_layouts'] as List? ?? const []).contains(l.name)) l,
+    ];
+    if (shownLayouts.isEmpty) shownLayouts = WideLayout.values;
+    if (settings['icon_sizes'] case final Map m) {
+      iconSizes = {for (final e in m.entries) '${e.key}': e.value as int};
     }
   }
 
@@ -133,7 +167,7 @@ class AppsPageState extends State<AppsPage> {
           ..clear()
           ..addEntries(apps.map((a) => MapEntry(a['key'] as String, a)));
         _takeGroups(result);
-        view = AppView.values.byName(settings['view'] as String? ?? 'list');
+        _takeSettings(settings);
         loading = false;
       });
       await _refreshSections();
@@ -144,53 +178,48 @@ class AppsPageState extends State<AppsPage> {
     }
   }
 
+  bool get filtering => query.trim().isNotEmpty;
+
   /// launcher.refresh_list's shown(): not hidden (unless shown), name has the query.
   List<Map<String, dynamic>> get filtered {
     final q = query.toLowerCase().trim();
     return [
       for (final a in apps)
-        if ((showHidden || a['hidden'] != true) &&
-            (a['name'] as String).toLowerCase().contains(q))
-          a,
+        if ((showHidden || a['hidden'] != true) && (a['name'] as String).toLowerCase().contains(q)) a,
     ];
   }
 
+  static List<(String, List<String>)> _parseSections(Map<String, dynamic> result) => [
+    for (final s in result['sections'] as List) (s['id'] as String, (s['keys'] as List).cast<String>()),
+  ];
+
   Future<void> _refreshSections() async {
-    if (view == AppView.list) {
-      if (mounted) setState(() => sections = []);
-      return;
-    }
-    final asked = ++_sectionsAsked;
+    final asked = ++_asked;
+    final keys = [for (final a in filtered) a['key']];
     try {
-      final result = await widget.core('apps.sections', {
-        'view': view.name,
-        'keys': [for (final a in filtered) a['key']],
-      });
-      if (!mounted || asked != _sectionsAsked) return;
+      final byGroup = await widget.core('apps.sections', {'view': 'groups', 'keys': keys});
+      final byView = view == AppView.origin
+          ? await widget.core('apps.sections', {'view': 'origin', 'keys': keys})
+          : byGroup;
+      if (!mounted || asked != _asked) return;
       setState(() {
-        _takeGroups(result);
-        sections = [
-          for (final s in result['sections'] as List)
-            (s['id'] as String, (s['keys'] as List).cast<String>()),
-        ];
+        _takeGroups(byGroup);
+        groupSections = _parseSections(byGroup);
+        sections = view == AppView.list ? [] : _parseSections(byView);
       });
     } on ServiceError catch (e) {
       _tell('Could not sort the apps (${e.code}).');
     }
   }
 
-  /// The rows shown: headings and entries. Empty sections show while
-  /// browsing (to fill them), never while filtering; Other and the origin
-  /// sections only with entries.
+  /// The narrow list's rows. Empty sections show while browsing (to fill
+  /// them), never while filtering; Other and origin sections only with entries.
   List<ListItem> get rows {
     final list = filtered;
     if (view == AppView.list || sections.isEmpty) return [for (final a in list) AppRow(a)];
-    final filtering = query.trim().isNotEmpty;
     final out = <ListItem>[];
     for (final (id, keys) in sections) {
-      if (keys.isEmpty && (filtering || id == 'other' || id.startsWith('o-') || id == '_running')) {
-        continue;
-      }
+      if (keys.isEmpty && (filtering || id == 'other' || id.startsWith('o-') || id == '_running')) continue;
       final folded = collapsed.contains(id) && !filtering;
       out.add(HeadingRow(id, keys.length, folded));
       if (!folded) {
@@ -202,13 +231,17 @@ class AppsPageState extends State<AppsPage> {
     return out;
   }
 
-  List<Map<String, dynamic>> get visibleApps => [
-    for (final r in rows)
-      if (r is AppRow) r.app,
-  ];
+  /// The entries the keys move through, in the order shown.
+  List<Map<String, dynamic>> get visibleApps => wide
+      ? overviewMembers
+      : [
+          for (final r in rows)
+            if (r is AppRow) r.app,
+        ];
 
   String groupName(String id) {
     if (originNames.containsKey(id)) return originNames[id]!;
+    if (id == 'all') return 'All';
     if (id == 'other') return 'Other';
     if (id == '_running') return 'Running';
     final g = groups.where((g) => g['id'] == id).firstOrNull;
@@ -216,6 +249,8 @@ class AppsPageState extends State<AppsPage> {
     final name = g['name'] as String? ?? '';
     return name.isNotEmpty ? name : builtinGroupNames[id] ?? id;
   }
+
+  bool isNewGroup(String id) => groups.any((g) => g['id'] == id && g['new'] == true);
 
   // --- actions ---------------------------------------------------------------
 
@@ -225,10 +260,7 @@ class AppsPageState extends State<AppsPage> {
 
   Future<void> _launch(Map app, {String? action}) async {
     try {
-      await widget.core(action == null ? 'apps.launch' : 'apps.action', {
-        'key': app['key'],
-        'action': ?action,
-      });
+      await widget.core(action == null ? 'apps.launch' : 'apps.action', {'key': app['key'], 'action': ?action});
       _clearFilter();
       // On Omarchy the window steps aside after a start, as the bar popup did.
       if (widget.desktop == 'omarchy') widget.onHide?.call();
@@ -242,19 +274,35 @@ class AppsPageState extends State<AppsPage> {
     setState(() {
       query = '';
       selectedKey = null;
+      searchFilter = null;
     });
     unawaited(_refreshSections());
+  }
+
+  Future<void> _saveSetting(String key, Object value) async {
+    try {
+      final settings = await widget.core('settings.set', {'key': key, 'value': value});
+      if (mounted) setState(() => _takeSettings(settings));
+    } on ServiceError {
+      _tell('Could not save the setting.');
+    }
   }
 
   Future<void> setView(AppView next) async {
     if (next == view) return;
     setState(() => view = next);
     unawaited(_refreshSections());
-    try {
-      await widget.core('settings.set', {'key': 'view', 'value': next.name});
-    } on ServiceError {
-      _tell('Could not save the setting.');
-    }
+    await _saveSetting('view', next.name);
+  }
+
+  /// set_wide_layout: the folders start on "All", where the folders are.
+  Future<void> setWideLayout(WideLayout next) async {
+    setState(() {
+      wideLayout = next;
+      overviewFilter = 'all';
+      selectedKey = null;
+    });
+    await _saveSetting('wide_layout', next.name);
   }
 
   /// A group edit through the core; a refusal ("exists already") is shown.
@@ -279,19 +327,25 @@ class AppsPageState extends State<AppsPage> {
   Future<void> _putInGroup(Map app, String gid) => _place(app['key'] as String, gid);
 
   /// Groups move among themselves (Other stays last); entries go into any
-  /// group of the groups view, never into Running or an origin.
+  /// group, never into Running, All or an origin.
   bool _ownGroup(String id) => groups.any((g) => g['id'] == id);
   bool _canDropInto(String id) => _ownGroup(id) || id == 'other';
 
-  void _dropOnHeading(String id, Dragged dragged, bool after) {
+  /// What a group target does with a drop: an entry goes in, a group takes
+  /// its place before or after it.
+  void _dropOnGroup(String id, Dragged dragged, bool after) {
     switch (dragged) {
       case DraggedApp(:final key):
         _place(key, id);
       case DraggedGroup(id: final moved):
-        _editGroups('groups.reorder', {'id': moved, 'target': id, 'after': after})
-            .then((_) => _refreshSections());
+        _editGroups('groups.reorder', {'id': moved, 'target': id, 'after': after}).then((_) => _refreshSections());
     }
   }
+
+  bool _acceptsOnGroup(String id, Dragged d) => switch (d) {
+    DraggedApp() => _canDropInto(id),
+    DraggedGroup(id: final moved) => _ownGroup(id) && moved != id,
+  };
 
   Future<void> _setHidden(Map app, bool hidden) async {
     try {
@@ -317,10 +371,7 @@ class AppsPageState extends State<AppsPage> {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text('Save'),
-          ),
+          FilledButton(onPressed: () => Navigator.pop(context, controller.text), child: const Text('Save')),
         ],
       ),
     );
@@ -344,21 +395,17 @@ class AppsPageState extends State<AppsPage> {
       position: RelativeRect.fromLTRB(at.dx, at.dy, at.dx, at.dy),
       items: [
         if (own) ...[
-          const PopupMenuItem(value: 'rename', child: _MenuLine(Icons.edit, 'Rename…')),
-          PopupMenuItem(
-            value: 'up',
-            enabled: index > 0,
-            child: const _MenuLine(Icons.arrow_upward, 'Move up'),
-          ),
+          const PopupMenuItem(value: 'rename', child: MenuLine(Icons.edit, 'Rename…')),
+          PopupMenuItem(value: 'up', enabled: index > 0, child: const MenuLine(Icons.arrow_upward, 'Move up')),
           PopupMenuItem(
             value: 'down',
             enabled: index < ids.length - 1,
-            child: const _MenuLine(Icons.arrow_downward, 'Move down'),
+            child: const MenuLine(Icons.arrow_downward, 'Move down'),
           ),
-          const PopupMenuItem(value: 'delete', child: _MenuLine(Icons.delete_outline, 'Delete group')),
+          const PopupMenuItem(value: 'delete', child: MenuLine(Icons.delete_outline, 'Delete group')),
           const PopupMenuDivider(),
         ],
-        const PopupMenuItem(value: 'new', child: _MenuLine(Icons.add, 'New group…')),
+        const PopupMenuItem(value: 'new', child: MenuLine(Icons.add, 'New group…')),
       ],
     );
     switch (choice) {
@@ -382,6 +429,7 @@ class AppsPageState extends State<AppsPage> {
           ),
         );
         if (sure == true) {
+          if (overviewFilter == gid) overviewFilter = 'all';
           await _editGroups('groups.delete', {'id': gid});
           await _load();
         }
@@ -390,29 +438,24 @@ class AppsPageState extends State<AppsPage> {
     }
   }
 
-  Future<void> _toggleGroup(String gid) async {
-    await _editGroups('groups.toggle', {'id': gid});
-  }
+  Future<void> _toggleGroup(String gid) => _editGroups('groups.toggle', {'id': gid});
 
   Future<void> _menu(Map app, Offset position) async {
-    final actions = [
-      for (final a in app['actions'] as List? ?? []) Map<String, dynamic>.from(a),
-    ];
+    final actions = [for (final a in app['actions'] as List? ?? []) Map<String, dynamic>.from(a)];
     final hidden = app['hidden'] == true;
     final choice = await showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy),
       items: [
-        const PopupMenuItem(value: '\x00open', child: _MenuLine(Icons.play_arrow, 'Open')),
-        for (final a in actions)
-          PopupMenuItem(value: a['id'] as String, child: _MenuLine(Icons.launch, '${a['name']}')),
+        const PopupMenuItem(value: '\x00open', child: MenuLine(Icons.play_arrow, 'Open')),
+        for (final a in actions) PopupMenuItem(value: a['id'] as String, child: MenuLine(Icons.launch, '${a['name']}')),
         const PopupMenuDivider(),
-        const PopupMenuItem(value: '\x00group', child: _MenuLine(Icons.folder_outlined, 'Move to group…')),
-        const PopupMenuItem(value: '\x00details', child: _MenuLine(Icons.info_outline, 'Details…')),
+        const PopupMenuItem(value: '\x00group', child: MenuLine(Icons.folder_outlined, 'Move to group…')),
+        const PopupMenuItem(value: '\x00details', child: MenuLine(Icons.info_outline, 'Details…')),
         const PopupMenuDivider(),
         PopupMenuItem(
           value: '\x00hide',
-          child: _MenuLine(
+          child: MenuLine(
             hidden ? Icons.visibility : Icons.visibility_off,
             hidden ? 'Unhide from list' : 'Hide from list',
           ),
@@ -444,12 +487,9 @@ class AppsPageState extends State<AppsPage> {
       items: [
         PopupMenuItem(enabled: false, child: Text('Move ${app['name']} to')),
         for (final gid in [for (final g in groups) g['id'] as String, 'other'])
-          PopupMenuItem(
-            value: gid,
-            child: _MenuLine(gid == current ? Icons.check : null, groupName(gid)),
-          ),
+          PopupMenuItem(value: gid, child: MenuLine(gid == current ? Icons.check : null, groupName(gid))),
         const PopupMenuDivider(),
-        const PopupMenuItem(value: '\x00new', child: _MenuLine(Icons.add, 'New group…')),
+        const PopupMenuItem(value: '\x00new', child: MenuLine(Icons.add, 'New group…')),
       ],
     );
     if (choice == null) return;
@@ -468,10 +508,7 @@ class AppsPageState extends State<AppsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if ((app['description'] as String? ?? '').isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Text('${app['description']}'),
-              ),
+              Padding(padding: const EdgeInsets.only(bottom: 12), child: Text('${app['description']}')),
             for (final (label, value) in [
               ('Starts', app['exec']),
               ('Desktop file', app['desktop_path']),
@@ -498,41 +535,51 @@ class AppsPageState extends State<AppsPage> {
           ],
         ),
       ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
-      ],
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
     ),
   );
 
   // --- keys ------------------------------------------------------------------
 
-  /// launcher.on_key: Esc clears the filter, then hides; Enter starts the
-  /// selected app (or folds the group); the arrows move the selection.
+  /// launcher.on_key / on_escape: Esc clears the filter, then leaves an open
+  /// folder, then hides; Enter starts the selected app; the arrows move the
+  /// selection; Ctrl+G: next view (narrow) or next group (wide).
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
-    final list = visibleApps;
     final key = event.logicalKey;
-    final ctrl = HardwareKeyboard.instance.isControlPressed;
+    final keyboard = HardwareKeyboard.instance;
     if (key == LogicalKeyboardKey.escape) {
-      query.isNotEmpty ? _clearFilter() : widget.onHide?.call();
+      if (query.isNotEmpty) {
+        _clearFilter();
+      } else if (wide && overviewFilter != 'all') {
+        setState(() => overviewFilter = 'all');
+      } else {
+        widget.onHide?.call();
+      }
       return KeyEventResult.handled;
     }
-    if (ctrl && key == LogicalKeyboardKey.keyG) {
-      final order = AppView.values;
-      setView(order[(order.indexOf(view) + 1) % order.length]);
+    if (keyboard.isControlPressed && key == LogicalKeyboardKey.keyG) {
+      if (wide) {
+        nextOverviewFilter(keyboard.isShiftPressed ? -1 : 1);
+      } else {
+        final order = AppView.values;
+        setView(order[(order.indexOf(view) + 1) % order.length]);
+      }
       return KeyEventResult.handled;
     }
+    final list = visibleApps;
     var index = list.indexWhere((a) => a['key'] == selectedKey);
     if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
       if (list.isNotEmpty) _launch(list[index < 0 ? 0 : index]);
       return KeyEventResult.handled;
     }
-    final columns = layout == Layout.icons ? _columns : 1;
+    final grid = wide && !showingFolders;
+    final columns = grid ? _columns : 1;
     final move = switch (key) {
       LogicalKeyboardKey.arrowDown => columns,
       LogicalKeyboardKey.arrowUp => -columns,
-      LogicalKeyboardKey.arrowRight when layout == Layout.icons => 1,
-      LogicalKeyboardKey.arrowLeft when layout == Layout.icons => -1,
+      LogicalKeyboardKey.arrowRight when grid => 1,
+      LogicalKeyboardKey.arrowLeft when grid => -1,
       _ => null,
     };
     if (move != null && list.isNotEmpty) {
@@ -553,169 +600,175 @@ class AppsPageState extends State<AppsPage> {
   // --- build -----------------------------------------------------------------
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Scaffold(
+    body: Focus(
+      onKeyEvent: _onKey,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // grid_columns(card width) > 1: the overview, as gnome-launcher.
+          wide = sizes.gridColumns(constraints.maxWidth.floor()) > 1;
+          return Column(
+            children: [
+              _header(),
+              Expanded(
+                child: loading
+                    ? const Center(child: CircularProgressIndicator())
+                    : wide
+                    ? _overviewBody()
+                    : _narrowBody(),
+              ),
+              if (wide) _footerBar() else _narrowFooter(),
+            ],
+          );
+        },
+      ),
+    ),
+  );
+
+  Widget _header() => Padding(
+    padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+    child: Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: filter,
+            focusNode: filterFocus,
+            autofocus: true,
+            decoration: const InputDecoration(hintText: 'Type to filter', prefixIcon: Icon(Icons.search, size: 20)),
+            onChanged: (text) {
+              setState(() {
+                query = text;
+                selectedKey = null;
+                if (text.trim().isEmpty) searchFilter = null;
+              });
+              unawaited(_refreshSections());
+            },
+          ),
+        ),
+        if (!wide) ...[
+          const SizedBox(width: 8),
+          SegmentedButton<AppView>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: AppView.list, icon: Icon(Icons.sort_by_alpha), tooltip: 'A–Z (Ctrl+G)'),
+              ButtonSegment(value: AppView.groups, icon: Icon(Icons.folder_outlined), tooltip: 'Groups (Ctrl+G)'),
+              ButtonSegment(
+                value: AppView.origin,
+                icon: Icon(Icons.inventory_2_outlined),
+                tooltip: 'By origin (Ctrl+G)',
+              ),
+            ],
+            selected: {view},
+            onSelectionChanged: (s) => setView(s.first),
+          ),
+        ],
+        _hiddenToggle(),
+        IconButton(tooltip: 'Reload', onPressed: _load, icon: const Icon(Icons.refresh)),
+      ],
+    ),
+  );
+
+  Widget _hiddenToggle() {
+    final count = apps.where((a) => a['hidden'] == true).length;
+    if (count == 0) return const SizedBox.shrink();
+    return IconButton(
+      tooltip: showHidden ? 'Hide hidden apps' : 'Show hidden apps ($count)',
+      isSelected: showHidden,
+      onPressed: () {
+        setState(() => showHidden = !showHidden);
+        unawaited(_refreshSections());
+      },
+      icon: const Icon(Icons.visibility_outlined),
+      selectedIcon: const Icon(Icons.visibility_off_outlined),
+    );
+  }
+
+  // --- the narrow list -------------------------------------------------------
+
+  Widget _empty() => Center(
+    child: Text(
+      query.isEmpty ? 'No apps found.' : 'No app matches “$query”.',
+      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+    ),
+  );
+
+  Widget _narrowBody() {
     final shown = rows;
-    final scheme = Theme.of(context).colorScheme;
-    final muted = TextStyle(color: scheme.onSurfaceVariant, fontSize: 12);
-    final hiddenCount = apps.where((a) => a['hidden'] == true).length;
-    final count = filtered.length;
-    final first = visibleApps.firstOrNull?['key'];
-    final selected = selectedKey ?? (query.isNotEmpty ? first : null);
-    return Scaffold(
-      body: Focus(
-        onKeyEvent: _onKey,
-        child: Column(
+    if (shown.isEmpty) return _empty();
+    final first = visibleApps.firstOrNull;
+    final selected = selectedKey ?? (filtering && first != null ? first['key'] as String : null);
+    final slivers = <Widget>[];
+    var chunk = <Map<String, dynamic>>[];
+    String? chunkSection;
+    void flush() {
+      if (chunk.isEmpty) return;
+      final members = chunk, section = chunkSection;
+      slivers.add(
+        SliverFixedExtentList.builder(
+          itemExtent: rowHeight,
+          itemCount: members.length,
+          itemBuilder: (context, i) => _listRow(members[i], members[i]['key'] == selected, section),
+        ),
+      );
+      chunk = [];
+    }
+
+    for (final row in shown) {
+      switch (row) {
+        case AppRow(:final app, :final section):
+          chunkSection = section;
+          chunk.add(app);
+        case HeadingRow():
+          flush();
+          slivers.add(SliverToBoxAdapter(child: _heading(row)));
+      }
+    }
+    flush();
+    return CustomScrollView(
+      controller: scroll,
+      slivers: [
+        for (final s in slivers) SliverPadding(padding: const EdgeInsets.symmetric(horizontal: 8), sliver: s),
+        const SliverToBoxAdapter(child: SizedBox(height: 8)),
+      ],
+    );
+  }
+
+  Widget _narrowFooter() {
+    final muted = TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 8, 4),
+      child: SizedBox(
+        height: 36,
+        child: Row(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: filter,
-                      focusNode: filterFocus,
-                      autofocus: true,
-                      decoration: const InputDecoration(
-                        hintText: 'Type to filter',
-                        prefixIcon: Icon(Icons.search, size: 20),
-                      ),
-                      onChanged: (text) {
-                        setState(() {
-                          query = text;
-                          selectedKey = null;
-                        });
-                        unawaited(_refreshSections());
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  SegmentedButton<AppView>(
-                    showSelectedIcon: false,
-                    segments: const [
-                      ButtonSegment(value: AppView.list, icon: Icon(Icons.sort_by_alpha), tooltip: 'A–Z (Ctrl+G)'),
-                      ButtonSegment(value: AppView.groups, icon: Icon(Icons.folder_outlined), tooltip: 'Groups (Ctrl+G)'),
-                      ButtonSegment(value: AppView.origin, icon: Icon(Icons.inventory_2_outlined), tooltip: 'By origin (Ctrl+G)'),
-                    ],
-                    selected: {view},
-                    onSelectionChanged: (s) => setView(s.first),
-                  ),
-                  const SizedBox(width: 8),
-                  SegmentedButton<Layout>(
-                    showSelectedIcon: false,
-                    segments: const [
-                      ButtonSegment(value: Layout.list, icon: Icon(Icons.view_list), tooltip: 'List'),
-                      ButtonSegment(value: Layout.icons, icon: Icon(Icons.grid_view), tooltip: 'Icons'),
-                    ],
-                    selected: {layout},
-                    onSelectionChanged: (s) => setState(() => layout = s.first),
-                  ),
-                  IconButton(tooltip: 'Reload', onPressed: _load, icon: const Icon(Icons.refresh)),
-                ],
-              ),
-            ),
-            Expanded(
-              child: loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : shown.isEmpty
-                  ? Center(
-                      child: Text(
-                        query.isEmpty ? 'No apps found.' : 'No app matches “$query”.',
-                        style: muted.copyWith(fontSize: 14),
-                      ),
-                    )
-                  : _scroller(shown, selected),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 8, 4),
-              child: Row(
-                children: [
-                  Text('$count of ${apps.length} apps', style: muted),
-                  const Spacer(),
-                  if (hiddenCount > 0)
-                    TextButton.icon(
-                      onPressed: () {
-                        setState(() => showHidden = !showHidden);
-                        unawaited(_refreshSections());
-                      },
-                      icon: Icon(showHidden ? Icons.visibility_off : Icons.visibility, size: 16),
-                      label: Text(showHidden ? 'Hide hidden apps' : 'Show hidden ($hiddenCount)'),
-                    ),
-                  if (view == AppView.groups)
-                    DropSlot(
-                      accepts: (d) => d is DraggedApp,
-                      onDrop: (d, _) => _newGroup(app: byKey[(d as DraggedApp).key]),
-                      child: Tooltip(
-                        message: 'New group (or drop an app here to start one with it)',
-                        child: TextButton.icon(
-                          onPressed: _newGroup,
-                          icon: const Icon(Icons.create_new_folder_outlined, size: 16),
-                          label: const Text('New group'),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+            Text('${filtered.length} of ${apps.length} apps', style: muted),
+            const Spacer(),
+            if (view == AppView.groups) _newGroupButton(compact: false),
           ],
         ),
       ),
     );
   }
 
-  Widget _scroller(List<ListItem> shown, String? selected) => LayoutBuilder(
-    builder: (context, constraints) {
-      _columns = (constraints.maxWidth / tileWidth).floor().clamp(1, 99);
-      final slivers = <Widget>[];
-      var chunk = <Map<String, dynamic>>[];
-      String? chunkSection;
-      void flush() {
-        if (chunk.isEmpty) return;
-        final apps = chunk, section = chunkSection;
-        slivers.add(
-          layout == Layout.icons
-              ? SliverGrid.builder(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: _columns,
-                    mainAxisExtent: tileHeight,
-                  ),
-                  itemCount: apps.length,
-                  itemBuilder: (context, i) => _tile(apps[i], apps[i]['key'] == selected, section),
-                )
-              : SliverFixedExtentList.builder(
-                  itemExtent: rowHeight,
-                  itemCount: apps.length,
-                  itemBuilder: (context, i) => _listRow(apps[i], apps[i]['key'] == selected, section),
-                ),
-        );
-        chunk = [];
-      }
-
-      for (final row in shown) {
-        switch (row) {
-          case AppRow(:final app, :final section):
-            chunkSection = section;
-            chunk.add(app);
-          case HeadingRow():
-            flush();
-            slivers.add(SliverToBoxAdapter(child: _heading(row)));
-        }
-      }
-      flush();
-      return CustomScrollView(
-        controller: scroll,
-        slivers: [
-          for (final s in slivers) SliverPadding(padding: const EdgeInsets.symmetric(horizontal: 8), sliver: s),
-          const SliverToBoxAdapter(child: SizedBox(height: 8)),
-        ],
-      );
-    },
+  Widget _newGroupButton({required bool compact}) => DropSlot(
+    accepts: (d) => d is DraggedApp,
+    onDrop: (d, _) => _newGroup(app: byKey[(d as DraggedApp).key]),
+    child: Tooltip(
+      message: 'New group (or drop an app here to start one with it)',
+      child: compact
+          ? FooterItem(icon: Icons.add, label: 'New group', onTap: _newGroup)
+          : TextButton.icon(
+              onPressed: _newGroup,
+              icon: const Icon(Icons.create_new_folder_outlined, size: 16),
+              label: const Text('New group'),
+            ),
+    ),
   );
 
   /// make_group_row: click folds, ⋮ has rename, move, delete and new group.
   Widget _heading(HeadingRow row) {
     final scheme = Theme.of(context).colorScheme;
     final own = !row.id.startsWith('o-') && row.id != '_running';
-    final isNew = groups.any((g) => g['id'] == row.id && g['new'] == true);
     final heading = Padding(
       padding: const EdgeInsets.only(top: 6),
       child: InkWell(
@@ -732,22 +785,16 @@ class AppsPageState extends State<AppsPage> {
             children: [
               Icon(row.collapsed ? Icons.chevron_right : Icons.expand_more, size: 18, color: scheme.onSurfaceVariant),
               const SizedBox(width: 6),
-              if (isNew)
+              if (isNewGroup(row.id)) ...[
                 Tooltip(
                   message: 'New group: drag apps onto it to fill it.',
                   child: Icon(Icons.star, size: 14, color: scheme.primary),
                 ),
-              if (isNew) const SizedBox(width: 4),
+                const SizedBox(width: 4),
+              ],
               Text(groupName(row.id), style: const TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text('${row.count}', style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant)),
-              ),
+              CountChip(row.count),
               const Spacer(),
               if (own && row.id != 'other')
                 Builder(
@@ -768,12 +815,9 @@ class AppsPageState extends State<AppsPage> {
     );
     if (view != AppView.groups || !_canDropInto(row.id)) return heading;
     final slot = DropSlot(
-      accepts: (d) => switch (d) {
-        DraggedApp() => true,
-        DraggedGroup(:final id) => _ownGroup(row.id) && id != row.id,
-      },
+      accepts: (d) => _acceptsOnGroup(row.id, d),
       sided: (d) => d is DraggedGroup,
-      onDrop: (d, after) => _dropOnHeading(row.id, d, after),
+      onDrop: (d, after) => _dropOnGroup(row.id, d, after),
       child: heading,
     );
     if (!_ownGroup(row.id)) return slot;
@@ -786,34 +830,38 @@ class AppsPageState extends State<AppsPage> {
     );
   }
 
-  /// An entry: its menu on right-click; in the groups view it can be moved
-  /// (onto a heading, another entry, or New group) and takes drops beside it.
-  Widget _entry(Map app, Widget child, {String? section, bool horizontal = false}) {
+  /// An entry: its menu on right-click; it can be moved onto a group (and,
+  /// with [section], dropped beside: before or after it in that group).
+  Widget _entry(Map app, Widget child, {String? section, bool horizontal = false, bool movable = true}) {
     final shown = GestureDetector(
       onSecondaryTapDown: (d) => _menu(app, d.globalPosition),
       onLongPressStart: (d) => _menu(app, d.globalPosition),
       child: Opacity(opacity: app['hidden'] == true ? .5 : 1, child: child),
     );
-    if (view != AppView.groups || section == null || !_canDropInto(section)) return shown;
+    if (!movable) return shown;
     final key = app['key'] as String;
+    final besides = section != null && _canDropInto(section);
     return Draggable<Dragged>(
       data: DraggedApp(key),
       dragAnchorStrategy: pointerDragAnchorStrategy,
       feedback: appDragFeedback(app['icon_file'] as String?),
       childWhenDragging: Opacity(opacity: .35, child: shown),
-      child: DropSlot(
-        accepts: (d) => d is DraggedApp && d.key != key,
-        sided: (_) => true,
-        horizontal: horizontal,
-        onDrop: (d, after) => _place((d as DraggedApp).key, section, target: key, after: after),
-        child: shown,
-      ),
+      child: !besides
+          ? shown
+          : DropSlot(
+              accepts: (d) => d is DraggedApp && d.key != key,
+              sided: (_) => true,
+              horizontal: horizontal,
+              onDrop: (d, after) => _place((d as DraggedApp).key, section, target: key, after: after),
+              child: shown,
+            ),
     );
   }
 
   Widget _listRow(Map<String, dynamic> app, bool isSelected, String? section) {
     final scheme = Theme.of(context).colorScheme;
     final description = app['description'] as String? ?? '';
+    final size = (iconSizes['list'] ?? 32).toDouble();
     return _entry(
       app,
       ListTile(
@@ -822,61 +870,34 @@ class AppsPageState extends State<AppsPage> {
         selectedTileColor: scheme.secondaryContainer,
         selectedColor: scheme.onSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(corners(context).clamp(0, 10))),
-        leading: AppIcon(app['icon_file'] as String?, size: 32),
+        leading: AppIcon(app['icon_file'] as String?, size: size),
         title: Text('${app['name']}', maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: description.isEmpty ? null : Text(description, maxLines: 1, overflow: TextOverflow.ellipsis),
         onTap: () => _launch(app),
       ),
       section: section,
-    );
-  }
-
-  Widget _tile(Map<String, dynamic> app, bool isSelected, String? section) {
-    final scheme = Theme.of(context).colorScheme;
-    final radius = BorderRadius.circular(corners(context).clamp(0, 12));
-    final description = '${app['description'] ?? ''}';
-    return _entry(
-      app,
-      Padding(
-        key: isSelected ? _selectedItem : null,
-        padding: const EdgeInsets.all(4),
-        child: Material(
-          color: isSelected ? scheme.secondaryContainer : Colors.transparent,
-          borderRadius: radius,
-          child: InkWell(
-            borderRadius: radius,
-            onTap: () => _launch(app),
-            child: Tooltip(
-              message: description.isEmpty ? '${app['name']}' : '${app['name']}\n$description',
-              waitDuration: const Duration(milliseconds: 600),
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Column(
-                  children: [
-                    AppIcon(app['icon_file'] as String?, size: 64),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${app['name']}',
-                      maxLines: 2,
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12.5),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-      section: section,
-      horizontal: true,
+      // Moving needs somewhere to go: the groups view's headings.
+      movable: view == AppView.groups && section != null,
     );
   }
 }
 
-class _MenuLine extends StatelessWidget {
-  const _MenuLine(this.icon, this.text);
+class CountChip extends StatelessWidget {
+  const CountChip(this.count, {super.key});
+  final int count;
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+      decoration: BoxDecoration(color: scheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(10)),
+      child: Text('$count', style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant)),
+    );
+  }
+}
+
+class MenuLine extends StatelessWidget {
+  const MenuLine(this.icon, this.text, {super.key});
   final IconData? icon;
   final String text;
   @override

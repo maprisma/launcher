@@ -25,8 +25,7 @@ Future<void> loadFont(String family, List<String> files) async {
   await loader.load();
 }
 
-String fcMatch(String pattern) =>
-    (Process.runSync('fc-match', [pattern, '--format=%{file}']).stdout as String).trim();
+String fcMatch(String pattern) => (Process.runSync('fc-match', [pattern, '--format=%{file}']).stdout as String).trim();
 
 void main() {
   final key = GlobalKey();
@@ -34,8 +33,8 @@ void main() {
   Future<void> shoot(
     WidgetTester tester,
     String name, {
-    Layout layout = Layout.list,
     AppView view = AppView.list,
+    WideLayout wide = WideLayout.folders,
     String query = '',
     Size size = const Size(920, 640),
   }) async {
@@ -56,6 +55,7 @@ void main() {
       look = await call(core, 'desktop.look');
       list = await call(core, 'apps.list');
       await call(core, 'settings.set', {'key': 'view', 'value': view.name});
+      await call(core, 'settings.set', {'key': 'wide_layout', 'value': wide.name});
     });
     Future<Map<String, dynamic>> fake(String method, [Map<String, dynamic> params = const {}]) async =>
         switch (method) {
@@ -64,7 +64,12 @@ void main() {
           // The other routes only read and write files: they run here.
           _ => await call(core, method, params),
         };
-    await tester.pumpWidget(RepaintBoundary(key: key, child: AppManager(core: fake, look: look, initialLayout: layout)));
+    await tester.pumpWidget(
+      RepaintBoundary(
+        key: key,
+        child: AppManager(core: fake, look: look),
+      ),
+    );
     await tester.pump();
     if (query.isNotEmpty) {
       await tester.enterText(find.byType(TextField), query);
@@ -82,22 +87,30 @@ void main() {
     });
   }
 
-  testWidgets('list', (t) => shoot(t, 'list'), skip: shots == null);
-  testWidgets('icons', (t) => shoot(t, 'icons', layout: Layout.icons), skip: shots == null);
-  testWidgets('filter', (t) => shoot(t, 'filter', query: 'co'), skip: shots == null);
-  testWidgets('groups', (t) => shoot(t, 'groups', view: AppView.groups), skip: shots == null);
+  const narrow = Size(440, 640);
+  testWidgets('list', (t) => shoot(t, 'list', size: narrow), skip: shots == null);
   testWidgets(
-    'origin icons',
-    (t) => shoot(t, 'origin', view: AppView.origin, layout: Layout.icons),
+    'groups',
+    (t) => shoot(t, 'groups', view: AppView.groups, size: narrow),
     skip: shots == null,
   );
+  testWidgets(
+    'origin',
+    (t) => shoot(t, 'origin', view: AppView.origin, size: narrow),
+    skip: shots == null,
+  );
+  testWidgets('folders', (t) => shoot(t, 'folders'), skip: shots == null);
+  testWidgets('cards', (t) => shoot(t, 'cards', wide: WideLayout.cards), skip: shots == null);
+  testWidgets('icons', (t) => shoot(t, 'icons', wide: WideLayout.icons), skip: shots == null);
+  testWidgets(
+    'filter',
+    (t) => shoot(t, 'filter', query: 'co', wide: WideLayout.icons),
+    skip: shots == null,
+  );
+  testWidgets('big folders', (t) => shoot(t, 'folders-big', size: const Size(1524, 860)), skip: shots == null);
 }
 
-Future<Map<String, dynamic>> call(
-  CoreService core,
-  String method, [
-  Map<String, dynamic> params = const {},
-]) async {
+Future<Map<String, dynamic>> call(CoreService core, String method, [Map<String, dynamic> params = const {}]) async {
   final reply = jsonDecode(
     await core.handleAsync(jsonEncode({'id': 1, 'protocol': 1, 'method': method, 'params': params})),
   ) as Map;

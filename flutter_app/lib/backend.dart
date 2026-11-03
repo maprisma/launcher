@@ -63,20 +63,12 @@ final class Backend {
     }
   }
 
-  Future<Map<String, dynamic>> call(
-    String method, [
-    Map<String, dynamic> params = const {},
-  ]) {
+  Future<Map<String, dynamic>> call(String method, [Map<String, dynamic> params = const {}]) {
     if (_closed) return Future.error(StateError('Core closed'));
     final id = ++_id;
     final pending = Completer<Map<String, dynamic>>();
     _pending[id] = pending;
-    _send!.send(jsonEncode({
-      'protocol': protocolVersion,
-      'id': id,
-      'method': method,
-      'params': params,
-    }));
+    _send!.send(jsonEncode({'protocol': protocolVersion, 'id': id, 'method': method, 'params': params}));
     return pending.future.timeout(
       const Duration(seconds: 60),
       onTimeout: () {

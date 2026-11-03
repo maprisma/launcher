@@ -18,8 +18,7 @@ class Corners extends ThemeExtension<Corners> {
   Corners lerp(Corners? other, double t) => other ?? this;
 }
 
-double corners(BuildContext context) =>
-    Theme.of(context).extension<Corners>()?.radius ?? 12;
+double corners(BuildContext context) => Theme.of(context).extension<Corners>()?.radius ?? 12;
 
 /// "windows" follows the desktop's window corners, "rounded" 12, "square" 0.
 double cornerRadius(String setting, int? windowRounding) => switch (setting) {
@@ -83,10 +82,7 @@ ThemeData appTheme(Brightness platform, Map colors, double radius) {
       filled: true,
       fillColor: scheme.surfaceContainer,
       isDense: true,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(radius.clamp(0, 10)),
-        borderSide: BorderSide.none,
-      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(radius.clamp(0, 10)), borderSide: BorderSide.none),
     ),
     snackBarTheme: SnackBarThemeData(
       backgroundColor: scheme.surfaceContainerHigh,

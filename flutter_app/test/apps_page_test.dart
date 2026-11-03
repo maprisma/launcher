@@ -8,6 +8,7 @@ import 'dart:io';
 import 'package:appmanager/apps_page.dart';
 import 'package:appmanager_core/appmanager_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
@@ -24,9 +25,8 @@ void main() {
       ('player', 'Player', 'AudioVideo;'),
       ('misc', 'Misc', ''),
     ]) {
-      File(p.join(apps, '$id.desktop')).writeAsStringSync(
-        '[Desktop Entry]\nType=Application\nName=$name\nExec=/bin/true\nCategories=$cats\n',
-      );
+      File(p.join(apps, '$id.desktop'))
+          .writeAsStringSync('[Desktop Entry]\nType=Application\nName=$name\nExec=/bin/true\nCategories=$cats\n');
     }
     core = CoreService(
       environment: {
@@ -59,11 +59,15 @@ void main() {
   }
 
   testWidgets('groups view: fold, new group with an entry, hide', (tester) async {
-    tester.view.physicalSize = const Size(900, 700);
+    tester.view.physicalSize = const Size(420, 700);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final key = GlobalKey<AppsPageState>();
-    await tester.pumpWidget(MaterialApp(home: AppsPage(key: key, core: call, desktop: 'generic')));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppsPage(key: key, core: call, desktop: 'generic'),
+      ),
+    );
     await settle(tester);
     expect(find.text('Writer'), findsOneWidget);
     expect(find.text('Office'), findsNothing); // the list view has no headings
@@ -99,7 +103,10 @@ void main() {
       }),
     );
     expect(
-      [for (final s in sections!['sections'] as List) if ((s['keys'] as List).isNotEmpty) s['id']],
+      [
+        for (final s in sections!['sections'] as List)
+          if ((s['keys'] as List).isNotEmpty) s['id'],
+      ],
       ['g1'],
     );
 
@@ -118,17 +125,21 @@ void main() {
     await settle(tester);
     expect(find.text('Writer'), findsNothing);
     expect(find.text('0 of 3 apps'), findsOneWidget);
-    await tester.tap(find.text('Show hidden (1)'));
+    await tester.tap(find.byTooltip('Show hidden apps (1)'));
     await settle(tester);
     expect(find.text('Writer'), findsOneWidget);
   });
 
   testWidgets('drag and drop: onto a heading, beside an entry, groups, New group', (tester) async {
-    tester.view.physicalSize = const Size(900, 900);
+    tester.view.physicalSize = const Size(420, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final key = GlobalKey<AppsPageState>();
-    await tester.pumpWidget(MaterialApp(home: AppsPage(key: key, core: call, desktop: 'generic')));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppsPage(key: key, core: call, desktop: 'generic'),
+      ),
+    );
     await settle(tester);
     await key.currentState!.setView(AppView.groups);
     await settle(tester);
@@ -148,7 +159,9 @@ void main() {
       final result = await tester.runAsync(
         () => call('apps.sections', {
           'view': 'groups',
-          'keys': [for (final a in ['misc', 'player', 'writer']) p.join(home.path, 'data/applications/$a.desktop')],
+          'keys': [
+            for (final a in ['misc', 'player', 'writer']) p.join(home.path, 'data/applications/$a.desktop'),
+          ],
         }),
       );
       return [
@@ -181,5 +194,64 @@ void main() {
     await settle(tester);
     expect(find.text('Docs'), findsOneWidget);
     expect(await section('g1'), ['writer']);
+  });
+
+  testWidgets('wide window: folders, open one, Esc, Ctrl+G, drop on the bar, layouts', (tester) async {
+    tester.view.physicalSize = const Size(1500, 1150);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final key = GlobalKey<AppsPageState>();
+    await tester.pumpWidget(MaterialApp(home: AppsPage(key: key, core: call, desktop: 'generic')));
+    await settle(tester);
+    final state = key.currentState!;
+    expect(state.wide, isTrue);
+    expect(state.showingFolders, isTrue);
+    // Folders and the bar both name the groups; Other has Misc, so it shows.
+    expect(find.text('Office'), findsNWidgets(2));
+    expect(find.text('Other'), findsNWidgets(2));
+
+    // A click on the folder (beside its icons) opens it: Writer as a card.
+    await tester.tap(find.text('Office').first);
+    await settle(tester);
+    expect(state.wantedFilter, 'office');
+    expect(find.text('Writer'), findsOneWidget);
+    expect(find.text('Player'), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(tester);
+    expect(state.showingFolders, isTrue);
+
+    // Ctrl+G: the next group in the bar.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyG);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await settle(tester);
+    expect(state.wantedFilter, 'office');
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(tester);
+
+    // Misc's icon (in the Other folder) onto Media in the bar.
+    final misc = find.byWidgetPredicate((w) => w is Tooltip && w.message == 'Misc');
+    final media = find.text('Media').last;
+    final start = tester.getCenter(misc);
+    final gesture = await tester.startGesture(start);
+    for (var i = 1; i <= 10; i++) {
+      await gesture.moveTo(Offset.lerp(start, tester.getCenter(media), i / 10)!);
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await gesture.up();
+    await settle(tester);
+    final sections = (await tester.runAsync(() => call('apps.sections', {
+      'view': 'groups',
+      'keys': [p.join(home.path, 'data/applications/misc.desktop')],
+    })))!;
+    expect([for (final s in sections['sections'] as List) if ((s['keys'] as List).isNotEmpty) s['id']], ['media']);
+
+    // The layouts: cards show every entry, saved in the settings.
+    await tester.tap(find.byTooltip('Cards'));
+    await settle(tester);
+    expect(state.wideLayout, WideLayout.cards);
+    expect(find.text('Writer'), findsOneWidget);
+    expect(find.text('Misc'), findsOneWidget);
+    expect((await tester.runAsync(() => call('settings.get')))!['wide_layout'], 'cards');
   });
 }

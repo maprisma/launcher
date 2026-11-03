@@ -11,22 +11,33 @@ class AppIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fallback = Icon(Icons.apps, size: size * .8,
-        color: Theme.of(context).colorScheme.onSurfaceVariant);
+    final fallback = Icon(Icons.apps, size: size * .8, color: Theme.of(context).colorScheme.onSurfaceVariant);
     final path = file;
     Widget child;
     if (path == null) {
       child = fallback;
     } else if (path.endsWith('.svg') || path.endsWith('.icon') && _isSvg(path)) {
-      child = SvgPicture.file(File(path), width: size, height: size,
-          placeholderBuilder: (_) => SizedBox(width: size, height: size));
+      child = SvgPicture.file(
+        File(path),
+        width: size,
+        height: size,
+        placeholderBuilder: (_) => SizedBox(width: size, height: size),
+      );
     } else {
-      child = Image.file(File(path), width: size, height: size,
-          cacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).round(),
-          filterQuality: FilterQuality.medium,
-          errorBuilder: (_, _, _) => fallback);
+      child = Image.file(
+        File(path),
+        width: size,
+        height: size,
+        cacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).round(),
+        filterQuality: FilterQuality.medium,
+        errorBuilder: (_, _, _) => fallback,
+      );
     }
-    return SizedBox(width: size, height: size, child: Center(child: child));
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Center(child: child),
+    );
   }
 }
 

@@ -7,7 +7,7 @@ import 'apps_page.dart';
 import 'backend.dart';
 import 'core_call.dart';
 
-export 'apps_page.dart' show Layout, AppView;
+export 'apps_page.dart' show AppView, WideLayout;
 export 'core_call.dart';
 import 'theme.dart';
 
@@ -29,14 +29,8 @@ Future<void> main() async {
 }
 
 class AppManager extends StatefulWidget {
-  const AppManager({
-    super.key,
-    required this.core,
-    required this.look,
-    this.initialLayout = Layout.list,
-  });
+  const AppManager({super.key, required this.core, required this.look});
   final CoreCall core;
-  final Layout initialLayout;
   final Map<String, dynamic> look;
   @override
   State<AppManager> createState() => _AppManagerState();
@@ -87,19 +81,13 @@ class _AppManagerState extends State<AppManager> with WidgetsBindingObserver {
     return MaterialApp(
       title: 'App Manager',
       debugShowCheckedModeBanner: false,
-      theme: appTheme(
-        MediaQuery.platformBrightnessOf(context),
-        look['colors'] as Map? ?? {},
-        radius,
-      ),
+      theme: appTheme(MediaQuery.platformBrightnessOf(context), look['colors'] as Map? ?? {}, radius),
       home: AppsPage(
         core: widget.core,
         desktop: '${look['desktop'] ?? ''}',
-        initialLayout: widget.initialLayout,
         shownAgain: shownAgain,
         onHide: () => windowChannel.invokeMethod('hide').ignore(),
       ),
     );
   }
 }
-

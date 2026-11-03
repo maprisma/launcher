@@ -107,6 +107,12 @@ No add-on runs code.
 - **2026-11-03 — drag and drop (groups view):** entries onto a heading (into it), onto an entry (before/after
   it, accent bar), onto New group (starts one with it); group headings onto each other (reorder). In-window
   Flutter drags, no compositor DnD (as gnome-launcher's pointer moves, which COSMIC never started).
-- **Next (parity with gnome-launcher, in this order):** folders/cards/footer layouts, settings page (sizes, corners, layouts, language) + 8 languages, hidden
+- **2026-11-03 — wide window:** as wide as two cards, the list turns into the overview (launcher.py's
+  grid_columns), Folders / Cards / Icons (saved), folders that fill the page (folder_fit and friends ported,
+  equal to Python over 288 window sizes), open a folder by clicking it (Esc back), the group bar at the bottom
+  (All, groups, New group; wheel scrolls it; drop entries or groups on it), Ctrl+G next group.
+  Not yet: Running group, marks on icons (updates, new ★), the filter field's × setting, keyboard focus on
+  folders, footer ‹ › arrows.
+- **Next (parity with gnome-launcher, in this order):** settings page (sizes, corners, layouts, language) + 8 languages, hidden
   entries and marks (new ★, updates), running state, shortcuts + key map per desktop (shortcuts.py),
   Change icon (icons.py), updates (updates.py), admin launch.
