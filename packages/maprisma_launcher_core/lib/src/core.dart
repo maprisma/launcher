@@ -642,6 +642,17 @@ final class CoreService {
     final roles = defaultRoles(app, session);
     final warnings = [if (roles.isNotEmpty) 'default'];
     if (plan == null) return {'kind': null};
+    // Omarchy: its own omarchy-remove-launcher-entry decides how (as the old
+    // App Manager did), also for Omarchy's web apps and TUIs. Browser-made web
+    // apps stay the browser's.
+    final remover = session.which('omarchy-remove-launcher-entry');
+    if (desktop is OmarchyDesktop && remover != null && desktopPath.isNotEmpty && plan.$1 != 'webapp') {
+      final how = await _omarchyRemoval(app);
+      if (how != null) {
+        if (how.$1 == 'package' && (desktop as OmarchyDesktop).basePackages.contains(how.$2)) warnings.add('omarchy');
+        return {'kind': 'omarchy', 'how': how.$1, 'what': how.$2, 'warnings': warnings};
+      }
+    }
     if (plan.$1 == 'package') {
       if (app['sandboxed'] == true && desktopPath.contains('/snapd/')) {
         final name = p.basename(desktopPath).split('_').first;
@@ -657,10 +668,43 @@ final class CoreService {
     return {'kind': plan.$1, 'what': plan.$2, 'warnings': warnings};
   }
 
+  /// What omarchy-remove-launcher-entry will do, in its own order: Omarchy
+  /// web app, TUI, your own entry, a pacman package, a Flatpak; null: nothing.
+  Future<(String, String)?> _omarchyRemoval(Map app) async {
+    final path = app['desktop_path'] as String;
+    final text = readDesktopFile(path);
+    if (text == null) return null;
+    final exec = RegExp(r'^Exec=(.*)$', multiLine: true).firstMatch(text)?[1] ?? '';
+    final name = '${app['name']}';
+    if (RegExp(r'omarchy-launch-webapp|omarchy-webapp-handler').hasMatch(exec)) return ('webapp', name);
+    if (RegExp(r'(^|\s)(\$TERMINAL|xdg-terminal-exec)\s.*-e(\s|$)').hasMatch(exec)) return ('tui', name);
+    final env = session.environment;
+    final userApps = p.join(
+      env['XDG_DATA_HOME']?.isNotEmpty == true ? env['XDG_DATA_HOME']! : p.join(session.home, '.local/share'),
+      'applications',
+    );
+    if (p.dirname(path) == userApps) return ('own', name);
+    final owner = await _managers.ownerOf(path);
+    if (owner != null && owner.$1 == 'pacman') return ('package', owner.$2);
+    if (app['sandboxed'] == true && path.contains('/flatpak/')) return ('flatpak', app['desktop_id'] as String);
+    return null;
+  }
+
   Future<Map<String, dynamic>> _uninstall(Map app) async {
     final plan = await _uninstallPlan(app);
     final what = plan['what'] as String?;
     switch (plan['kind']) {
+      case 'omarchy':
+        final remover = session.which('omarchy-remove-launcher-entry')!;
+        final argv = [remover, app['desktop_id'] as String, '${app['name']}'];
+        // Packages and Flatpaks open Omarchy's floating terminal; the rest is done at once.
+        if (plan['how'] == 'package' || plan['how'] == 'flatpak') {
+          if (!await startDetached(argv, session)) throw ServiceError('uninstall_failed');
+          return {'started': true};
+        }
+        final out = await readBoundedText(argv, timeout: const Duration(seconds: 60), environment: session.environment);
+        if (out == null) throw ServiceError('uninstall_failed');
+        return {'done': true};
       case 'trash':
         final moved = what == null ? null : moveToTrash(what, session);
         if (moved == null) throw ServiceError('uninstall_failed');

@@ -55,6 +55,11 @@ bool isPwa(Map<String, String> values) {
   return icon.startsWith('/') && icon.endsWith('.png');
 }
 
+const _terminalLaunchers = {
+  'xdg-terminal-exec', 'foot', 'footclient', 'alacritty', 'kitty', 'ghostty', 'wezterm', 'xterm',
+  'ptyxis', 'kgx', 'gnome-terminal', 'konsole', 'cosmic-term',
+};
+
 const webAppBrowsers = {
   'google-chrome': 'Chrome',
   'google-chrome-stable': 'Chrome',
@@ -78,6 +83,10 @@ String? browserWebApp(Map app, {String unknown = 'the browser'}) {
     return null;
   }
   if (argv.isEmpty || !argv.any((a) => a.startsWith('--app-id='))) return null;
+  // Omarchy's TUIs are `xdg-terminal-exec --app-id=TUI.x -e x`: a terminal's
+  // --app-id is a window class, not a browser's web app (both references
+  // took them for web apps, so they could not be uninstalled).
+  if (_terminalLaunchers.contains(p.basename(argv.first).toLowerCase())) return null;
   return webAppBrowsers[p.basename(argv.first)] ?? unknown;
 }
 

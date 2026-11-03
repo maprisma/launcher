@@ -47,6 +47,16 @@ void main() {
 
     final session = Session(environment: Platform.environment);
     final apps = await scanApps(session, appIdPrefix: 'io.github.ubruckhaus.Launcher', cacheName: 'gnome-launcher', localized: false);
+    // Deliberate difference: a terminal's --app-id (Omarchy TUIs) is no
+    // browser web app here; the reference says ("webapp", "the browser").
+    final want = Map<String, dynamic>.from(expected['apps'] as Map);
+    for (final a in apps) {
+      final exec = a['exec'] as String;
+      if (exec.contains('--app-id=') && browserWebApp(a) == null) {
+        final plan = uninstallPlan(a, session);
+        (want[a['desktop_id']] as List)[2] = plan == null ? null : [plan.$1, plan.$2];
+      }
+    }
     expect({
       for (final a in apps)
         a['desktop_id']: [
@@ -54,7 +64,7 @@ void main() {
           appProcessName(a),
           switch (uninstallPlan(a, session)) { null => null, final (String, String?) plan => [plan.$1, plan.$2] },
         ],
-    }, expected['apps']);
+    }, want);
   });
 
   test('process names see this test itself', () {

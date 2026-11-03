@@ -731,7 +731,7 @@ class AppsPageState extends State<AppsPage> {
         PopupMenuItem(value: '\x00details', child: MenuLine(Icons.info_outline, tr('Details…'))),
         PopupMenuItem(value: '\x00icon', child: MenuLine(Icons.image_outlined, tr('Change icon…'))),
         const PopupMenuDivider(),
-        if (app['uninstall'] != null && app['cli_command'] == null)
+        if ((app['uninstall'] != null || widget.desktop == 'omarchy') && app['cli_command'] == null)
           PopupMenuItem(value: '\x00uninstall', child: MenuLine(Icons.delete_outline, tr('Uninstall…'))),
         PopupMenuItem(
           value: '\x00hide',
@@ -803,6 +803,14 @@ class AppsPageState extends State<AppsPage> {
         [app['name'], what, _appsPages[what] ?? tr('its apps page')],
       ),
       'flatpak' => trf('Removes the Flatpak {0}. Its data in ~/.var/app stays.', [what]),
+      // Omarchy's own omarchy-remove-launcher-entry, by what it will do.
+      'omarchy' => switch (plan['how']) {
+        'webapp' => trf('Removes the web app {0}, as Omarchy\'s menu does.', [what]),
+        'tui' => trf('Removes the terminal app {0}, as Omarchy\'s menu does.', [what]),
+        'own' => trf('Deletes your own launcher entry for {0}.', [what]),
+        'package' => trf('Removes the package {0} with pacman, in a terminal that asks for your password.', [what]),
+        _ => trf('Removes the Flatpak {0}. Its data in ~/.var/app stays.', [what]),
+      },
       'package' when manager == 'pacman' => trf(
         'Removes the package {0} with pacman, in a terminal that asks for your password.',
         [what],
