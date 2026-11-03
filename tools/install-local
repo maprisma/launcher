@@ -65,12 +65,20 @@ running() {
 # The app's terminal runs commands as descendants (setsid -w … pacman/sudo/omarchy-update).
 busy=()
 for pid in $(running); do
-  # The terminal's command leads its own session on a pseudo terminal (setsid -w -c);
-  # hyprctl, busctl & co. come and go without one.
+  # The terminal's command leads its own session on a pseudo terminal (setsid -c):
+  # a child, or a grandchild when setsid forks. hyprctl, busctl & co. have none.
   while read -r child sid tty; do
     [[ $child == "$sid" && $tty == pts/* ]] || continue
     busy+=("$pid: $(tr '\0' ' ' < "/proc/$child/cmdline" 2>/dev/null | cut -c1-80)")
-  done < <(ps -o pid=,sid=,tty= --ppid "$pid" 2>/dev/null || true)
+  done < <(ps -e -o pid=,ppid=,sid=,tty= 2>/dev/null | awk -v root="$pid" '
+      { parent[$1] = $2; sid[$1] = $3; tty[$1] = $4 }
+      END {
+        for (p in parent) {
+          q = parent[p]; depth = 0
+          while (q != "" && q != root && depth < 4) { q = parent[q]; depth++ }
+          if (q == root) print p, sid[p], tty[p]
+        }
+      }')
 done
 if (( ${#busy[@]} )) && (( ! force )); then
   echo "Maprisma Launcher is running a command in its terminal:" >&2

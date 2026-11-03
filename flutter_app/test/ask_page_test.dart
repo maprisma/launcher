@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:maprisma_launcher/ask_page.dart';
+import 'package:maprisma_launcher/backend.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,6 +18,8 @@ void main() {
           {'command': 'agy', 'name': 'Antigravity', 'installed': false, 'signed_in': false},
         ],
       },
+      'ask.run' when '${params['request']}'.contains('local model') =>
+        throw ServiceError('helper_failed', 'Bad state: llama-server.service did not answer.'),
       'ask.run' when '${params['request']}'.contains('hidden') => {
         'action': 'list_hidden',
         'apps': ['k4'],
@@ -189,5 +192,14 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.send);
     await tester.pumpAndSettle();
     expect(asked.where((a) => a['method'] == 'ask.run'), hasLength(1));
+  });
+
+  testWidgets('a helper that fails says why (the local model server)', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: AskPage(core: fake, apps: apps, actions: actions())));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'ask the local model');
+    await tester.tap(find.byTooltip('Ask'));
+    await tester.pumpAndSettle();
+    expect(find.text('The helper did not answer. llama-server.service did not answer.'), findsOneWidget);
   });
 }

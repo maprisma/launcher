@@ -90,7 +90,9 @@ final class CoreService {
   Future<List<({String provider, String model})>> _piOnlineNow() async {
     final at = _piOnlineAt;
     if (at == null || DateTime.now().difference(at) > const Duration(minutes: 1)) {
-      _piOnline = await piListedModels(session);
+      // pi did not answer in time: keep the last list rather than none.
+      final listed = await piListedModels(session);
+      if (listed != null) _piOnline = listed;
       _piOnlineAt = DateTime.now();
     }
     return _piOnline;

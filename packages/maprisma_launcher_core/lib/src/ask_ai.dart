@@ -120,7 +120,9 @@ const helpers = <Helper>[
     files: ['.hermes/auth.json'],
     env: ['OPENROUTER_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY'],
     login: 'hermes',
-    note: 'Only its in-memory task list: no files, terminal, web or MCP.',
+    note:
+        'Only its in-memory task list: no files, terminal, web or MCP. Its question is passed on the '
+        'command line, which other users of this PC could see while it runs.',
   ),
 ];
 
@@ -129,50 +131,65 @@ const helpers = <Helper>[
 ({String? model, LocalModel? local}) hermesModel(Session session) {
   final bytes = Posix.instance.readRegular(p.join(session.home, '.hermes/config.yaml'), 1024 * 1024);
   if (bytes == null) return (model: null, local: null);
-  final lines = utf8.decode(bytes, allowMalformed: true).split('\n');
   String? model, provider;
   final apis = <String, String>{};
-  String? section, current;
-  for (final line in lines) {
-    if (line.trim().isEmpty || line.trimLeft().startsWith('#')) continue;
-    final indent = line.length - line.trimLeft().length;
-    final m = RegExp(r'^\s*([A-Za-z0-9_.-]+):\s*(.*?)\s*$').firstMatch(line);
-    if (m == null) continue;
-    final key = m[1]!, value = m[2]!.replaceAll(RegExp(r'''^['"]|['"]$'''), '');
-    if (indent == 0) {
-      section = key;
-      current = null;
-    } else if (section == 'model' && indent == 2) {
+  // The block each key is in, by its indentation (any width; a tab as 8).
+  final path = <(int, String)>[];
+  for (final raw in utf8.decode(bytes, allowMalformed: true).split('\n')) {
+    final line = raw.replaceAll('\t', '        ');
+    final m = RegExp(r'^(\s*)([A-Za-z0-9_.-]+):\s*(.*?)\s*$').firstMatch(line);
+    if (m == null || line.trimLeft().startsWith('#')) continue;
+    final indent = m[1]!.length, key = m[2]!;
+    var value = m[3]!;
+    // A quoted value ends at its closing quote; an unquoted one at " #".
+    if (value.startsWith('"') || value.startsWith("'")) {
+      final close = value.indexOf(value[0], 1);
+      value = close > 0 ? value.substring(1, close) : value.substring(1);
+    } else {
+      final hash = value.indexOf(' #');
+      if (hash >= 0) value = value.substring(0, hash).trimRight();
+    }
+    while (path.isNotEmpty && path.last.$1 >= indent) {
+      path.removeLast();
+    }
+    final parents = [for (final (_, k) in path) k];
+    if (parents.length == 1 && parents[0] == 'model') {
       if (key == 'default') model = value;
       if (key == 'provider') provider = value;
-    } else if (section == 'providers' && indent == 2) {
-      current = key;
-    } else if (section == 'providers' && indent == 4 && current != null && key == 'api') {
-      apis[current] = value;
+    } else if (parents.length == 2 && parents[0] == 'providers' && key == 'api') {
+      apis[parents[1]] = value;
     }
+    path.add((indent, key));
   }
   if (model == null || !_piName.hasMatch(model)) return (model: null, local: null);
   final url = Uri.tryParse(apis[provider] ?? '');
-  final local = url != null && provider != null && const {'127.0.0.1', 'localhost', '::1'}.contains(url.host)
-      ? (provider: provider, model: model, host: url.host, port: url.hasPort ? url.port : 80)
+  final isLocal = url != null && provider != null && _piName.hasMatch(provider) &&
+      const {'127.0.0.1', 'localhost', '::1'}.contains(url.host);
+  final LocalModel? local = isLocal
+      ? (provider: provider, model: model, host: url.host, port: url.hasPort ? url.port : (url.scheme == 'https' ? 443 : 80))
       : null;
   return (model: model, local: local);
 }
 
 /// pi's usable models right now (`pi --list-models`: signed-in providers and
 /// local ones), bounded; speech and the like left out.
-Future<List<({String provider, String model})>> piListedModels(Session session) async {
+Future<List<({String provider, String model})>?> piListedModels(Session session) async {
   final pi = session.which('pi');
   if (pi == null) return const [];
-  final out = await readBoundedText([pi, '--list-models'], maxBytes: 256 * 1024, timeout: const Duration(seconds: 5),
-      environment: session.environment);
+  final out = await readBoundedText(
+    [pi, '--list-models'],
+    maxBytes: 256 * 1024,
+    timeout: const Duration(seconds: 5),
+    environment: session.environment,
+  );
+  if (out == null) return null; // Not read now: the caller keeps what it had.
   final found = <({String provider, String model})>[];
-  for (final line in (out ?? '').split('\n').skip(1)) {
+  final seen = <String>{};
+  for (final line in out.split('\n')) {
     final cols = line.trim().split(RegExp(r'\s+'));
-    if (cols.length < 2 || !_piName.hasMatch(cols[0]) || !_piName.hasMatch(cols[1]) || _notChat.hasMatch(cols[1])) {
-      continue;
-    }
-    found.add((provider: cols[0], model: cols[1]));
+    if (cols.length < 2 || cols[0].toLowerCase() == 'provider') continue; // the header
+    if (!_piName.hasMatch(cols[0]) || !_piName.hasMatch(cols[1]) || _notChat.hasMatch(cols[1])) continue;
+    if (seen.add('${cols[0]}/${cols[1]}')) found.add((provider: cols[0], model: cols[1]));
   }
   return found;
 }
@@ -212,7 +229,8 @@ typedef LocalModel = ({String provider, String model, String host, int port});
       if (url == null || !const {'127.0.0.1', 'localhost', '::1'}.contains(url.host)) continue;
       final port = url.hasPort ? url.port : (url.scheme == 'https' ? 443 : 80);
       final seen = <String>{};
-      for (final m in conf['models'] as List? ?? const []) {
+      final models = conf['models'];
+      for (final m in models is List ? models : const []) {
         final id = m is Map ? '${m['id'] ?? ''}' : '$m';
         if (!_piName.hasMatch(id) || _notChat.hasMatch(id) || !seen.add(id)) continue;
         local.add((provider: provider, model: id, host: url.host, port: port));
@@ -280,7 +298,8 @@ List<Map<String, dynamic>> helperStates(
         },
     // pi's online models it can use now (a provider signed in, e.g. DeepSeek).
     for (final m in piOnline)
-      if (!(pi?.local.any((l) => l.provider == m.provider) ?? false) &&
+      if (!(pi?.local.any((l) => l.provider == m.provider && l.model == m.model) ?? false) &&
+          !(pi?.local.any((l) => l.provider == m.provider) ?? false) &&
           !(m.provider == pi?.provider && m.model == pi?.model))
         {
           'command': 'pi:${m.provider}/${m.model}',
@@ -549,13 +568,23 @@ final class AskRunner {
         environment: session.environment,
         includeParentEnvironment: false,
       );
-      process.stdin.add(utf8.encode(prompt));
-      await process.stdin.close();
+      // Its output is read from the start (a full pipe must not stall it);
+      // the question goes to stdin only for helpers that read it there, and
+      // a helper that exits early (a broken pipe) is not an error by itself.
       final out = BytesBuilder(copy: false);
       final outDone = process.stdout.listen((chunk) {
         if (out.length < maxAnswerBytes) out.add(chunk);
       }).asFuture<void>();
       final errDone = process.stderr.drain<void>();
+      process.stdin.done.ignore();
+      if (!helper.argv.contains('{prompt}')) {
+        try {
+          process.stdin.add(utf8.encode(prompt));
+        } on Object {
+          // It went away; its exit code says how.
+        }
+      }
+      unawaited(process.stdin.close().catchError((_) {}));
       final code = await process.exitCode.timeout(
         askTimeout,
         onTimeout: () {
@@ -604,8 +633,13 @@ final class AskRunner {
     };
     final systemctl = session.which('systemctl');
     if (unit == null || systemctl == null) throw StateError('The local model server (${m.provider}) is not running.');
-    final started = await Process.run(systemctl, ['--user', 'start', unit], environment: session.environment);
-    if (started.exitCode != 0) throw StateError('Could not start $unit.');
+    // --no-block: the port is waited for below; a hung unit cannot hang Ask.
+    final started = await readBoundedText(
+      [systemctl, '--user', 'start', '--no-block', unit],
+      timeout: const Duration(seconds: 10),
+      environment: session.environment,
+    );
+    if (started == null) throw StateError('Could not start $unit.');
     for (var i = 0; i < 120; i++) {
       if (await open()) return;
       await Future<void>.delayed(const Duration(milliseconds: 500));

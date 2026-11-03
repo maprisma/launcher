@@ -96,12 +96,20 @@ class _AskPageState extends State<AskPage> {
 
   Map<String, dynamic>? get chosen => helpers.where((h) => h['command'] == helper).firstOrNull;
 
+  /// The core's reason, without Dart's "Bad state: " and at most one line.
+  static String? _why(String? reason) {
+    if (reason == null || reason.trim().isEmpty) return null;
+    final line = reason.replaceFirst(RegExp(r'^(Bad state|StateError|Exception): '), '').split('\n').first.trim();
+    return line.length > 300 ? '${line.substring(0, 300)}…' : line;
+  }
+
   Future<void> _ask({String? answer}) async {
     final text = answer == null ? request.text.trim() : (lastRequest ?? '');
     if (text.isEmpty || helper == null || asking) return;
     setState(() {
       asking = true;
       error = null;
+      if (answer == null) hiddenNow.clear(); // A new question: the apps as they are now.
       if (answer == null) result = null;
       lastRequest = text;
     });
@@ -117,7 +125,8 @@ class _AskPageState extends State<AskPage> {
       if (mounted) {
         setState(
           () => error = e.code == 'helper_failed'
-              ? tr('The helper did not answer.')
+              // Why, when the core knows (e.g. the local model server did not start).
+              ? [tr('The helper did not answer.'), ?_why(e.reason)].join(' ')
               : trf('That did not work ({0}).', [e.code]),
         );
       }
@@ -131,7 +140,10 @@ class _AskPageState extends State<AskPage> {
   /// Ctrl+Enter: a line break at the cursor (Enter alone asks).
   void _newLine() {
     final value = request.value;
+    if (asking) return;
     final sel = value.selection.isValid ? value.selection : TextSelection.collapsed(offset: value.text.length);
+    // The field's own limit (2000) holds for the line break too.
+    if (value.text.length - (sel.end - sel.start) + 1 > 2000) return;
     final text = value.text.replaceRange(sel.start, sel.end, '\n');
     request.value = TextEditingValue(
       text: text,
