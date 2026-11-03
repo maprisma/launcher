@@ -14,6 +14,8 @@ fixture's environment.
   oracle.py admin             gnome-launcher's admin_command for every scanned app
   oracle.py shortcuts < spec  both shortcuts.py: combos, states, COSMIC file, GNOME and Hyprland bindings
   oracle.py tray < spec       the Omarchy plugin's tray.py: menu nodes, find_quit, item_key, titles, labels
+  oracle.py dock < spec       the Omarchy plugin's dock_core.py: settings, edge, sizes, dock_rect, inside,
+                              indicator_color, split_events, pinned operations, dropped_id, items, bar_position
 """
 import json
 import sys
@@ -220,6 +222,73 @@ def bindings_answers(bindings, apps, queries, module):
     }
 
 
+def run_dock(spec):
+    """dock_core's pure functions; the file operations on a temporary settings.json."""
+    import tempfile
+    sys.path.insert(0, str(REF / "omarchy-plugin"))
+    import dock_core as d
+    out = {}
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "settings.json"
+
+        def settings_of(raw):
+            path.write_text(json.dumps(raw))
+            return d.settings(path)
+        out["settings"] = [settings_of(raw) for raw in spec["settings"]]
+        path.write_text(json.dumps(spec["file_start"]))
+        steps = []
+        for name, *args in spec["file_ops"]:
+            try:
+                if name == "set":
+                    d.set_setting(args[0], args[1], path)
+                elif name == "reset":
+                    d.reset(path)
+                elif name == "pin":
+                    d.pin(args[0], path)
+                elif name == "unpin":
+                    d.unpin(args[0], path)
+                elif name == "set_pinned":
+                    d.set_pinned(args[0], path)
+                error = None
+            except (KeyError, ValueError) as e:
+                error = type(e).__name__
+            steps.append([error, d.settings(path), json.loads(path.read_text())])
+        out["file_ops"] = steps
+        shell = Path(tmp) / "shell.json"
+        bars = []
+        for text in spec["bars"]:
+            if text is None:
+                shell.unlink(missing_ok=True)
+            else:
+                shell.write_text(text)
+            bars.append(d.bar_position(shell))
+        out["bars"] = bars
+    out["edges"] = [d.edge({"dock_position": pos}, bar) for pos, bar in spec["edges"]]
+    out["sizes"] = [list(d.sizes({**d.DEFAULTS, **dock})) for dock in spec["sizes"]]
+    out["rects"] = [(lambda r: [list(r[0]), list(r[1])] if r else None)(d.dock_rect(layers, monitors))
+                    for layers, monitors in spec["rects"]]
+    out["inside"] = [bool(d.inside(point, tuple(rect))) for point, rect in spec["inside"]]
+    out["colors"] = [d.indicator_color(dock, colors) for dock, colors in spec["colors"]]
+    out["new_window"] = [d.has_new_window_action(app) for app in spec["new_window"]]
+    events = []
+    for chunks, limit in spec["events"]:
+        buffer, skipping, lines = b"", False, []
+        for chunk in chunks:
+            got, buffer, skipping = d.split_events(buffer, bytes(chunk), skipping, limit)
+            lines.append(got)
+        events.append([lines, list(buffer), skipping])
+    out["events"] = events
+    out["moves"] = [d.move_pinned(ids, i, t, a) for ids, i, t, a in spec["moves"]]
+    out["inserts"] = [d.insert_pinned(ids, i, t, a) for ids, i, t, a in spec["inserts"]]
+    out["drops"] = [d.dropped_id(bytes(x) if isinstance(x, list) else x) for x in spec["drops"]]
+    items = spec["items"]
+    out["clients"] = [c.get("address") for c in d.clients(run=lambda *a, **k: json.dumps(items["clients"]))]
+    clients = d.clients(run=lambda *a, **k: json.dumps(items["clients"]))
+    out["items"] = [[app["desktop_id"], [w.get("address") for w in windows], pinned]
+                    for app, windows, pinned in d.items(items["apps"], items["pinned"], clients)]
+    return out
+
+
 def main(argv):
     if argv[1:] == ["scan"]:
         use("gnome-launcher")
@@ -328,6 +397,9 @@ def main(argv):
             "titles": [tray._title(props) for props in spec["titles"]],
             "labels": [tray.clean_label(x) for x in spec["labels"]],
         }))
+        return 0
+    if argv[1:] == ["dock"]:
+        print(json.dumps(run_dock(json.load(sys.stdin))))
         return 0
     if argv[1:] == ["shortcuts"]:
         print(json.dumps(run_shortcuts(json.load(sys.stdin))))

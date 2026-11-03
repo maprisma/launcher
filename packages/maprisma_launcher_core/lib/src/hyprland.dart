@@ -216,6 +216,17 @@ final class Hyprland {
     return (await _hyprctl(['dispatch', 'focuswindow', 'address:$address'])) != null;
   }
 
+  /// The dock's Close: Hyprland closes the window (the app may still ask to save).
+  Future<bool> closeWindow(String address) async {
+    if (!_address.hasMatch(address)) return false;
+    final lua = await _hyprctl(['dispatch', 'hl.dsp.window.close({window = ${jsonEncode('address:$address')}})']);
+    if (lua != null && lua.trim() == 'ok') return true;
+    return (await _hyprctl(['dispatch', 'closewindow', 'address:$address']))?.trim() == 'ok';
+  }
+
+  /// A window address as Hyprland writes it (0x and hex digits).
+  static bool validAddress(Object? address) => address is String && _address.hasMatch(address);
+
   /// _exec_with_rule: Hyprland starts argv with a rule for its first window.
   Future<bool> execWithRule(List<String> argv, String rule) async {
     final out = await _hyprctl(['eval', 'hl.exec_cmd(${luaString(shlexJoin(argv))}, {$rule})']);

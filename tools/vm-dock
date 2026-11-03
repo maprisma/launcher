@@ -1,0 +1,33 @@
+#!/bin/bash
+# The dock in a throwaway Omarchy VM, headless (never on this desktop): refused without
+# gtk-layer-shell, then installed from a downloaded package; edge, bar overlap, clicks,
+# pin/unpin, auto-hide, off, second start. Nothing is written to the image or this desktop.
+#
+#   tools/vm-dock <folder> [image]
+#
+# <folder> holds bundle/ (flutter build linux --release), gtk-layer-shell-*.pkg.tar.zst
+# (pacman -Sw --cachedir <folder> gtk-layer-shell, or a mirror download checked against
+# the sync database's SHA256SUM) and plugin/ (the Omarchy plugin). The virtual-pointer
+# helper (tools/vm-vp.c) is built into it here. Screenshots: vm-dock-<name>.png here.
+set -euo pipefail
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+dist=$(realpath "$1")
+image=${2:-$(ls -t ~/VMs/omarchy-edge/omarchy-edge-*.qcow2 | head -1)}
+if [[ ! -x $dist/vp ]]; then
+  xml=$dist/wlr-virtual-pointer-unstable-v1.xml
+  [[ -s $xml ]] || curl -sfLo "$xml" \
+    https://gitlab.freedesktop.org/wlroots/wlr-protocols/-/raw/master/unstable/wlr-virtual-pointer-unstable-v1.xml
+  tmp=$(mktemp -d)
+  wayland-scanner client-header "$xml" "$tmp/vp-protocol.h"
+  wayland-scanner private-code "$xml" "$tmp/vp-protocol.c"
+  gcc -O2 -I"$tmp" -o "$dist/vp" "$root/tools/vm-vp.c" "$tmp/vp-protocol.c" -lwayland-client
+  rm -rf "$tmp"
+fi
+out=$(mktemp)
+trap 'rm -f -- "$out"' EXIT
+QEMU_EXTRA="-virtfs local,path=$dist,mount_tag=dist,security_model=none,readonly=on" \
+  bash "$(dirname -- "$image")/vm-boot" "$image" bash -s < "$root/tools/vm-dock.sh" > "$out" 2>&1 || true
+sed -n '/^== SHOT/,/^== ENDSHOT/!p' "$out"
+for shot in $(sed -n 's/^== SHOT //p' "$out"); do
+  sed -n "/^== SHOT $shot\$/{n;p}" "$out" | base64 -d > "vm-dock-$shot.png" 2>/dev/null && echo "Screenshot: vm-dock-$shot.png"
+done

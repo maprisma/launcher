@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'apps_page.dart';
 import 'backend.dart';
 import 'core_call.dart';
+import 'dock_app.dart';
 import 'window_shots.dart';
 import 'i18n.dart';
 
@@ -42,12 +43,17 @@ abstract final class PopupGuard {
   }
 }
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
+  // `maprisma-launcher --dock`: the dock, a process of its own (dock_app.dart).
+  if (args.contains('--dock')) return runDock();
   WidgetsFlutterBinding.ensureInitialized();
   final backend = await Backend.start();
   final look = await backend.call('desktop.look').catchError((_) => <String, dynamic>{});
   final settings = await backend.call('settings.get').catchError((_) => <String, dynamic>{});
   await I18n.use(settings['language'] as String? ?? 'auto');
+  // Omarchy: the dock comes up with the app when it is switched on (a running
+  // one only re-reads its settings); the bar widget starts it with the shell.
+  if (look['desktop'] == 'omarchy') backend.call('dock.start').ignore();
   windowChannel.setMethodCallHandler((call) async {
     if (call.method == 'shown') shownAgain.value++;
     if (call.method == 'focus') windowFocused.value = true;
