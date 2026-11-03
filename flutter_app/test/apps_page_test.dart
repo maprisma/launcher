@@ -416,4 +416,40 @@ void main() {
     await settle(tester);
     expect(asked, contains('packages.install'));
   });
+
+  testWidgets('legend: only the hidden ones, Esc back; Details as a page', (tester) async {
+    tester.view.physicalSize = const Size(420, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(() async {
+      await call('apps.list');
+      await call('apps.hide', {'key': p.join(home.path, 'data/applications/misc.desktop'), 'hidden': true});
+    });
+    final key = GlobalKey<AppsPageState>();
+    await tester.pumpWidget(MaterialApp(home: AppsPage(key: key, core: call, desktop: 'generic')));
+    await settle(tester);
+    expect(find.text('Misc'), findsNothing);
+    await tester.tap(find.byTooltip('What the marks mean'));
+    await settle(tester);
+    await tester.tap(find.text('Hidden: shown only with the eye button'));
+    await settle(tester);
+    expect(key.currentState!.markFilter, 'hidden');
+    expect(find.text('Misc'), findsOneWidget);
+    expect(find.text('Writer'), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(tester);
+    expect(key.currentState!.markFilter, isNull);
+    expect(find.text('Writer'), findsOneWidget);
+
+    await tester.tapAt(tester.getCenter(find.text('Writer')), buttons: kSecondaryButton);
+    await settle(tester);
+    await tester.tap(find.text('Details…'));
+    await settle(tester);
+    expect(find.text('DETAILS'), findsOneWidget);
+    expect(find.text(p.join(home.path, 'data/applications/writer.desktop')), findsOneWidget);
+    expect(find.text('Office'), findsOneWidget); // its group
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await settle(tester);
+    expect(find.text('DETAILS'), findsNothing);
+  });
 }

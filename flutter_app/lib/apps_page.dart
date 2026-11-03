@@ -25,6 +25,7 @@ import 'core_call.dart';
 import 'drag_drop.dart';
 import 'i18n.dart';
 import 'ask_page.dart';
+import 'details_page.dart';
 import 'install_page.dart';
 import 'settings_page.dart';
 import 'theme.dart';
@@ -108,6 +109,10 @@ class AppsPageState extends State<AppsPage> {
   List<(String, List<String>)> groupSections = [];
   bool loading = true;
   bool showHidden = false;
+
+  /// The legend's choice: only entries with this mark (running, update, new,
+  /// hidden); null: all. Esc or a second click clears it.
+  String? markFilter;
   String query = '';
   AppView view = AppView.list;
   WideLayout wideLayout = WideLayout.folders;
@@ -333,14 +338,6 @@ class AppsPageState extends State<AppsPage> {
     return ownPackage(app)?['description'] as String? ?? '';
   }
 
-  String? _packageLine(Map app) {
-    final f = facts[app['key']] as Map?;
-    final pkg = f?['package'] as Map?;
-    if (pkg == null) return null;
-    final version = pkg['version'] as String? ?? '';
-    return '${pkg['name']}${version.isEmpty ? '' : ' $version'} (${sourceText(app) ?? f?['manager']})';
-  }
-
   /// update_note: "Update available: …" for an entry with an update.
   String? updateNote(Map app) {
     if ((updates['flatpaks'] as Map?)?[app['key']] case final List v) {
@@ -353,6 +350,61 @@ class AppsPageState extends State<AppsPage> {
   }
 
   bool isRunning(Map app) => running.contains(app['key']);
+
+  /// has_mark: whether an entry shows this legend mark.
+  bool hasMark(Map app, String mark) => switch (mark) {
+    'running' => isRunning(app),
+    'update' => updateNote(app) != null,
+    'new' => app['new'] == true,
+    'hidden' => app['hidden'] == true,
+    _ => false,
+  };
+
+  /// legend_popover: every mark as it looks, what it means; a click shows
+  /// only those entries.
+  Future<void> _legend(Offset at) async {
+    final marks = markColors(context);
+    Widget dot(Color c) => Container(width: 10, height: 10, decoration: BoxDecoration(color: c, shape: BoxShape.circle));
+    final rows = [
+      ('running', dot(marks.running), tr('Running')),
+      ('update', dot(marks.update), tr('Update available: Update in its menu')),
+      (
+        'new',
+        Icon(Icons.star_rounded, size: 16, color: marks.fresh),
+        tr('New: installed recently (until you open it), or a new group (until it has an entry)'),
+      ),
+      ('hidden', const Icon(Icons.visibility_off, size: 15), tr('Hidden: shown only with the eye button')),
+    ];
+    final choice = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(at.dx, at.dy, at.dx, at.dy),
+      items: [
+        PopupMenuItem(enabled: false, child: Text(tr('What the marks mean'))),
+        for (final (id, mark, text) in rows)
+          PopupMenuItem(
+            value: id,
+            child: Tooltip(
+              message: tr('Show only these (click again or Esc: all)'),
+              child: Row(
+                children: [
+                  SizedBox(width: 22, child: Center(child: mark)),
+                  const SizedBox(width: 8),
+                  Flexible(child: Text(text)),
+                  if (markFilter == id)
+                    const Padding(padding: EdgeInsets.only(left: 6), child: Icon(Icons.check, size: 16)),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+    if (choice == null) return;
+    setState(() {
+      markFilter = markFilter == choice ? null : choice;
+      selectedKey = null;
+    });
+    unawaited(_refreshSections());
+  }
 
   /// Settings' running_first (the header's ● button) in the narrow window;
   /// the wide window always has Running when anything runs.
@@ -383,7 +435,10 @@ class AppsPageState extends State<AppsPage> {
     final q = query.toLowerCase().trim();
     return [
       for (final a in apps)
-        if ((showHidden || a['hidden'] != true) && (a['name'] as String).toLowerCase().contains(q)) a,
+        if ((showHidden || a['hidden'] != true || markFilter == 'hidden') &&
+            (markFilter == null || hasMark(a, markFilter!)) &&
+            (a['name'] as String).toLowerCase().contains(q))
+          a,
     ];
   }
 
@@ -831,51 +886,15 @@ class AppsPageState extends State<AppsPage> {
     return _putInGroup(app, choice);
   }
 
-  Future<void> _details(Map app) => showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      icon: AppIcon(app['icon_file'] as String?, size: 64),
-      title: Text('${app['name']}'),
-      content: SelectionArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if ((app['description'] as String? ?? '').isNotEmpty)
-              Padding(padding: const EdgeInsets.only(bottom: 12), child: Text('${app['description']}')),
-            for (final (label, value) in [
-              (tr('Starts'), app['exec']),
-              (tr('Desktop file'), app['desktop_path']),
-              (tr('Icon'), app['icon_file'] ?? app['icon']),
-              (tr('Group'), groupName('${app['group']}')),
-              (tr('Origin'), originNames['o-${app['origin']}']),
-              (tr('Default for'), (app['roles'] as List? ?? []).join(', ')),
-              (tr('Package'), _packageLine(app)),
-              (tr('Size'), sizeText(app)),
-              (
-                tr('Website'),
-                ((facts[app['key']] as Map?)?['package'] as Map?)?['url'] ?? (facts[app['key']] as Map?)?['website'],
-              ),
-            ])
-              if ('${value ?? ''}'.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(
-                          text: '$label  ',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        TextSpan(text: '$value'),
-                      ],
-                    ),
-                  ),
-                ),
-          ],
-        ),
+  Future<void> _details(Map app) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => DetailsPage(
+        core: widget.core,
+        app: app,
+        facts: facts[app['key']] as Map?,
+        groupName: groupName('${app['group']}'),
+        originName: originNames['o-${app['origin']}'] == null ? null : tr(originNames['o-${app['origin']}']!),
       ),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Close')))],
     ),
   );
 
@@ -932,6 +951,9 @@ class AppsPageState extends State<AppsPage> {
     if (key == LogicalKeyboardKey.escape) {
       if (query.isNotEmpty) {
         _clearFilter();
+      } else if (markFilter != null) {
+        setState(() => markFilter = null);
+        unawaited(_refreshSections());
       } else if (wide && overviewFilter != 'all') {
         setState(() => overviewFilter = 'all');
       } else {
@@ -1067,6 +1089,19 @@ class AppsPageState extends State<AppsPage> {
           ),
         ],
         _runningToggle(),
+        Builder(
+          builder: (context) => IconButton(
+            visualDensity: wide ? null : VisualDensity.compact,
+            tooltip: tr('What the marks mean'),
+            isSelected: markFilter != null,
+            onPressed: () {
+              final box = context.findRenderObject()! as RenderBox;
+              _legend(box.localToGlobal(box.size.bottomLeft(Offset.zero)));
+            },
+            icon: const Icon(Icons.info_outline),
+            selectedIcon: const Icon(Icons.filter_alt),
+          ),
+        ),
         _hiddenToggle(),
         IconButton(
           visualDensity: wide ? null : VisualDensity.compact,

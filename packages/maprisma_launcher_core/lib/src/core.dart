@@ -171,6 +171,19 @@ final class CoreService {
       if (!await startDetached([...terminal, 'sh', '-c', helper.login], session)) throw ServiceError('no_terminal');
       return {'started': true};
     },
+    // A website from Details: only http(s), no control characters, the
+    // desktop's opener, never a shell.
+    'open.url': (params) async {
+      final url = _string(params, 'url');
+      final uri = Uri.tryParse(url);
+      if (uri == null || !(uri.isScheme('http') || uri.isScheme('https')) || uri.host.isEmpty ||
+          url.length > 2000 || url.contains(RegExp(r'[\x00-\x20\x7f]'))) {
+        throw ServiceError('bad_params');
+      }
+      final opener = session.which('xdg-open');
+      if (opener == null || !await startDetached([opener, url], session)) throw ServiceError('no_opener');
+      return {'started': true};
+    },
     'packages.managers': (_) async => _managersView(),
     'packages.search': (params) async {
       final query = _string(params, 'query').trim();
