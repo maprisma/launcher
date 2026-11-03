@@ -69,5 +69,17 @@ void main() {
     expect(() => settings.set('nope', 1), throwsArgumentError);
     // Unknown keys of the old app stay in the file.
     expect(settings.raw()['app_icon_size'], 56);
+    expect(settings.read()['language'], 'auto');
+    settings.set('language', 'de');
+    expect(settings.read()['language'], 'de');
+    settings.set('language', 'auto');
+    expect(settings.raw().containsKey('language'), isFalse);
+    expect(() => settings.set('language', 'xx'), throwsArgumentError);
+    store.writeJson('settings.json', {...settings.raw(), 'dock_pinned': ['x'], 'size': [900, 700]});
+    settings.reset();
+    expect(settings.read()['view'], 'list');
+    expect(settings.read()['icon_sizes'], defaultIconSizes);
+    expect(settings.raw()['dock_pinned'], ['x']);
+    expect(settings.read()['size'], [900, 700]);
   });
 }

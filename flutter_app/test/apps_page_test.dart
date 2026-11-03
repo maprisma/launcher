@@ -6,6 +6,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:appmanager/apps_page.dart';
+import 'package:appmanager/i18n.dart';
+import 'package:appmanager/main.dart' show AppManager;
 import 'package:appmanager_core/appmanager_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -54,7 +56,8 @@ void main() {
   Future<void> settle(WidgetTester tester) async {
     for (var i = 0; i < 6; i++) {
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30)));
-      await tester.pump();
+      // Animation time too: page transitions finish.
+      await tester.pump(const Duration(milliseconds: 100));
     }
   }
 
@@ -253,5 +256,56 @@ void main() {
     expect(find.text('Writer'), findsOneWidget);
     expect(find.text('Misc'), findsOneWidget);
     expect((await tester.runAsync(() => call('settings.get')))!['wide_layout'], 'cards');
+  });
+
+  testWidgets('settings: language at once, view buttons, filter field off', (tester) async {
+    tester.view.physicalSize = const Size(420, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    addTearDown(() => I18n.useTable('en', const {}));
+    await tester.pumpWidget(AppManager(core: call, look: const {}));
+    await settle(tester);
+    // No view buttons by default (Ctrl+G still switches).
+    expect(find.byTooltip('Groups (Ctrl+G)'), findsNothing);
+
+    await tester.tap(find.byTooltip('Settings'));
+    await settle(tester);
+    expect(find.text('SETTINGS'), findsOneWidget);
+    await tester.tap(find.text('System'));
+    await settle(tester);
+    await tester.tap(find.text('Deutsch').last);
+    for (var i = 0; i < 4; i++) {
+      await settle(tester);
+    }
+    expect(find.text('EINSTELLUNGEN'), findsOneWidget);
+    expect(find.text('Sprache'), findsOneWidget);
+    expect((await tester.runAsync(() => call('settings.get')))!['language'], 'de');
+
+    // View buttons when small: on.
+    await tester.tap(find.byType(Switch).first);
+    await settle(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(tester);
+    expect(find.byTooltip('Gruppen (Strg+G)'), findsOneWidget);
+    expect(find.text('3 von 3 Apps'), findsOneWidget);
+  });
+
+  testWidgets('filter field off: typing still filters, the title shows it', (tester) async {
+    tester.view.physicalSize = const Size(1500, 1150);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(() => call('settings.set', {'key': 'filter_field', 'value': false}));
+    final key = GlobalKey<AppsPageState>();
+    await tester.pumpWidget(MaterialApp(home: AppsPage(key: key, core: call, desktop: 'generic')));
+    await settle(tester);
+    expect(find.byType(TextField), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyW);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyR);
+    await settle(tester);
+    expect(find.text('Filter: wr'), findsOneWidget);
+    expect(key.currentState!.filtered.map((a) => a['name']), ['Writer']);
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await settle(tester);
+    expect(find.text('Filter: w'), findsOneWidget);
   });
 }

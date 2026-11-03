@@ -110,6 +110,7 @@ final class ConfigStore {
 // --- settings.json ---------------------------------------------------------------
 
 const wideLayouts = ['folders', 'cards', 'icons'];
+const languageCodes = ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl'];
 const iconSizeChoices = {
   'list': [20, 24, 28, 32, 36, 44, 52],
   'cards': [32, 40, 44, 48, 56, 64],
@@ -150,7 +151,7 @@ final class Settings {
       'running_first': data['running_first'] == true,
       'view_buttons': data['view_buttons'] == true,
       'filter_field': data['filter_field'] != false,
-      'language': data['language'] is String ? data['language'] : 'system',
+      'language': languageCodes.contains(data['language']) ? data['language'] : 'auto',
       'size': _size(data['size']),
     };
   }
@@ -181,6 +182,19 @@ final class Settings {
     return sizes;
   }
 
+  /// Back to the defaults (Settings › Reset to defaults): the layout and
+  /// look settings go; groups, hidden entries and the window size stay.
+  void reset() {
+    final data = raw();
+    for (final key in const [
+      'view', 'wide_layout', 'shown_layouts', 'corners', 'icon_sizes', 'app_icon_size',
+      'view_buttons', 'filter_field', 'running_first', 'language',
+    ]) {
+      data.remove(key);
+    }
+    store.writeJson('settings.json', data);
+  }
+
   /// Set one setting; a value that does not fit is refused.
   void set(String key, Object? value) {
     final current = read();
@@ -203,7 +217,12 @@ final class Settings {
         if (value is! bool) throw ArgumentError(key);
         stored = value;
       case 'language':
-        if (value is! String || value.length > 16) throw ArgumentError(key);
+        // i18n.save_language: "auto" (the system's) removes the key.
+        if (value == 'auto') {
+          store.writeJson('settings.json', {...raw()}..remove('language'));
+          return;
+        }
+        if (!languageCodes.contains(value)) throw ArgumentError(key);
         stored = value;
       case 'size':
         stored = _size(value);

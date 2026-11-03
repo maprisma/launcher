@@ -76,13 +76,13 @@ extension Overview on AppsPageState {
           TextButton.icon(
             onPressed: () => setOverviewFilter('all'),
             icon: const Icon(Icons.arrow_back, size: 16),
-            label: const Text('All'),
+            label: Text(tr('All')),
           ),
           Icon(Icons.chevron_right, size: 16, color: scheme.onSurfaceVariant),
           const SizedBox(width: 4),
           Text(groupName(wantedFilter), style: const TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(width: 8),
-          Text('Esc goes back', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+          Text(tr('Esc goes back'), style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
         ],
       ),
     );
@@ -171,8 +171,8 @@ extension Overview on AppsPageState {
     );
     final tile = Tooltip(
       message:
-          '${groupName(gid)} · ${members.length} ${members.length == 1 ? 'entry' : 'entries'}\n'
-          'Click to open the group, or an icon to start it. Esc goes back.',
+          '${groupName(gid)} · ${trn('{0} entry', '{0} entries', members.length)}\n'
+          '${tr('Click to open the group, or an icon to start it. Esc goes back.')}',
       waitDuration: const Duration(milliseconds: 800),
       child: InkWell(
         borderRadius: BorderRadius.circular(radius),
@@ -212,7 +212,7 @@ extension Overview on AppsPageState {
     return _entry(
       app,
       Tooltip(
-        message: hidden ? '${app['name']} (Hidden)' : '${app['name']}',
+        message: hidden ? '${app['name']} (${tr('Hidden')})' : '${app['name']}',
         waitDuration: const Duration(milliseconds: 500),
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
@@ -254,7 +254,7 @@ extension Overview on AppsPageState {
   /// make_tile: icon, ⋮ for the actions, name, two lines of description.
   Widget _card(Map<String, dynamic> app, bool isSelected, double iconSize) {
     final scheme = Theme.of(context).colorScheme;
-    final description = (app['description'] as String? ?? '').trim();
+    final description = tr((app['description'] as String? ?? '').trim());
     final radius = BorderRadius.circular(corners(context));
     return _entry(
       app,
@@ -280,7 +280,7 @@ extension Overview on AppsPageState {
                     const Spacer(),
                     Builder(
                       builder: (context) => IconButton(
-                        tooltip: 'App actions',
+                        tooltip: tr('App actions'),
                         visualDensity: VisualDensity.compact,
                         icon: const Icon(Icons.more_vert, size: 18),
                         onPressed: () {
@@ -312,7 +312,7 @@ extension Overview on AppsPageState {
                     children: [
                       Icon(Icons.visibility_off, size: 13, color: scheme.onSurfaceVariant),
                       const SizedBox(width: 4),
-                      Text('Hidden', style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant)),
+                      Text(tr('Hidden'), style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant)),
                     ],
                   ),
               ],
@@ -327,7 +327,7 @@ extension Overview on AppsPageState {
   Widget _iconTile(Map<String, dynamic> app, bool isSelected, double iconSize) {
     final scheme = Theme.of(context).colorScheme;
     final radius = BorderRadius.circular(corners(context).clamp(0, 12));
-    final description = (app['description'] as String? ?? '').trim();
+    final description = tr((app['description'] as String? ?? '').trim());
     return _entry(
       app,
       Material(
@@ -399,7 +399,10 @@ extension Overview on AppsPageState {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Text('${filtered.length} apps', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+            child: Text(
+              trn('{0} app', '{0} apps', filtered.length),
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            ),
           ),
           if (shownLayouts.length > 1)
             SegmentedButton<WideLayout>(
@@ -410,9 +413,9 @@ extension Overview on AppsPageState {
                   ButtonSegment(
                     value: layout,
                     tooltip: switch (layout) {
-                      WideLayout.folders => 'Folders',
-                      WideLayout.cards => 'Cards',
-                      WideLayout.icons => 'Icons',
+                      WideLayout.folders => tr('Folders'),
+                      WideLayout.cards => tr('Cards'),
+                      WideLayout.icons => tr('Icons'),
                     },
                     icon: Icon(switch (layout) {
                       WideLayout.folders => Icons.folder_copy_outlined,
@@ -432,7 +435,7 @@ extension Overview on AppsPageState {
   Widget _footerChip(String id, int count, bool on) {
     final item = Tooltip(
       message:
-          '${groupName(id)} · $count ${count == 1 ? 'entry' : 'entries'}\n${id == 'all' ? 'Show everything (Ctrl+G: next group)' : 'Show only this group (Ctrl+G: next group). Right click: rename, move or delete.'}',
+          '${groupName(id)} · ${trn('{0} entry', '{0} entries', count)}\n${id == 'all' ? tr('Show everything (Ctrl+G: next group)') : tr('Show only this group (Ctrl+G: next group). Right click: rename, move or delete.')}',
       waitDuration: const Duration(milliseconds: 600),
       child: FooterItem(
         icon: id == 'all' ? Icons.home_outlined : Icons.folder_outlined,

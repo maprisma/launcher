@@ -114,6 +114,10 @@ final class CoreService {
       groups.toggleCollapsed(data, gid);
     }),
     'settings.get': (_) async => settings.read(),
+    'settings.reset': (_) async {
+      settings.reset();
+      return settings.read();
+    },
     'settings.set': (params) async {
       try {
         settings.set(_string(params, 'key'), params['value']);

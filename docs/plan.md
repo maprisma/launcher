@@ -113,6 +113,11 @@ No add-on runs code.
   (All, groups, New group; wheel scrolls it; drop entries or groups on it), Ctrl+G next group.
   Not yet: Running group, marks on icons (updates, new ★), the filter field's × setting, keyboard focus on
   folders, footer ‹ › arrows.
-- **Next (parity with gnome-launcher, in this order):** settings page (sizes, corners, layouts, language) + 8 languages, hidden
-  entries and marks (new ★, updates), running state, shortcuts + key map per desktop (shortcuts.py),
+- **2026-11-03 — settings page and 8 languages:** gear in the header; language (System + 8), layouts small /
+  wide, layouts in the footer, view buttons when small (off by default, as the reference), corners, filter field
+  (off: typing still filters, the header shows it), four icon sizes, Reset to defaults; all apply at once.
+  Translations: `tools/i18n.py` builds `flutter_app/assets/translations/` from the Omarchy plugin's tables plus
+  `i18n/extra.json` (App Manager's own texts); a test fails when a text lacks a language or the files are stale.
+  Group names from the core stay English in the name check (a German "Büro" could be added once more).
+- **Next (parity with gnome-launcher, in this order):** marks (new ★, updates), running state, shortcuts + key map per desktop (shortcuts.py),
   Change icon (icons.py), updates (updates.py), admin launch.

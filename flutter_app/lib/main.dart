@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'apps_page.dart';
 import 'backend.dart';
 import 'core_call.dart';
+import 'i18n.dart';
 
 export 'apps_page.dart' show AppView, WideLayout;
 export 'core_call.dart';
@@ -22,23 +23,32 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final backend = await Backend.start();
   final look = await backend.call('desktop.look').catchError((_) => <String, dynamic>{});
+  final settings = await backend.call('settings.get').catchError((_) => <String, dynamic>{});
+  await I18n.use(settings['language'] as String? ?? 'auto');
   windowChannel.setMethodCallHandler((call) async {
     if (call.method == 'shown') shownAgain.value++;
   });
-  runApp(AppManager(core: backend.call, look: look));
+  runApp(AppManager(core: backend.call, look: look, settings: settings));
 }
 
 class AppManager extends StatefulWidget {
-  const AppManager({super.key, required this.core, required this.look});
+  const AppManager({super.key, required this.core, required this.look, this.settings = const {}});
   final CoreCall core;
   final Map<String, dynamic> look;
+  final Map<String, dynamic> settings;
   @override
   State<AppManager> createState() => _AppManagerState();
 }
 
 class _AppManagerState extends State<AppManager> with WidgetsBindingObserver {
   late Map<String, dynamic> look = widget.look;
-  String cornersSetting = 'windows';
+  late String cornersSetting = widget.settings['corners'] as String? ?? 'windows';
+
+  /// Settings › Corners and Language take effect at once.
+  void _onSettings(Map<String, dynamic> settings) {
+    setState(() => cornersSetting = settings['corners'] as String? ?? 'windows');
+    I18n.use(settings['language'] as String? ?? 'auto');
+  }
 
   @override
   void initState() {
@@ -78,15 +88,20 @@ class _AppManagerState extends State<AppManager> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final radius = cornerRadius(cornersSetting, look['rounding'] as int?);
-    return MaterialApp(
-      title: 'App Manager',
-      debugShowCheckedModeBanner: false,
-      theme: appTheme(MediaQuery.platformBrightnessOf(context), look['colors'] as Map? ?? {}, radius),
-      home: AppsPage(
-        core: widget.core,
-        desktop: '${look['desktop'] ?? ''}',
-        shownAgain: shownAgain,
-        onHide: () => windowChannel.invokeMethod('hide').ignore(),
+    return ValueListenableBuilder(
+      valueListenable: I18n.changed,
+      builder: (context, _, _) => MaterialApp(
+        title: 'App Manager',
+        debugShowCheckedModeBanner: false,
+        theme: appTheme(MediaQuery.platformBrightnessOf(context), look['colors'] as Map? ?? {}, radius),
+        home: AppsPage(
+          core: widget.core,
+          desktop: '${look['desktop'] ?? ''}',
+          shownAgain: shownAgain,
+          onHide: () => windowChannel.invokeMethod('hide').ignore(),
+          onSettings: _onSettings,
+          windowRounding: look['rounding'] as int?,
+        ),
       ),
     );
   }

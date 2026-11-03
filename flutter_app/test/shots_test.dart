@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:appmanager/i18n.dart';
 import 'package:appmanager/main.dart';
 import 'package:appmanager_core/appmanager_core.dart';
 import 'package:flutter/material.dart';
@@ -35,6 +36,8 @@ void main() {
     String name, {
     AppView view = AppView.list,
     WideLayout wide = WideLayout.folders,
+    String language = 'en',
+    bool settingsPage = false,
     String query = '',
     Size size = const Size(920, 640),
   }) async {
@@ -56,6 +59,10 @@ void main() {
       list = await call(core, 'apps.list');
       await call(core, 'settings.set', {'key': 'view', 'value': view.name});
       await call(core, 'settings.set', {'key': 'wide_layout', 'value': wide.name});
+      await call(core, 'settings.set', {'key': 'language', 'value': language});
+      // Uwe's copied settings switch the filter field off; the shots want it.
+      await call(core, 'settings.set', {'key': 'filter_field', 'value': true});
+      await I18n.use(language);
     });
     Future<Map<String, dynamic>> fake(String method, [Map<String, dynamic> params = const {}]) async =>
         switch (method) {
@@ -71,6 +78,12 @@ void main() {
       ),
     );
     await tester.pump();
+    if (settingsPage) {
+      await tester.tap(find.byIcon(Icons.settings_outlined));
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
     if (query.isNotEmpty) {
       await tester.enterText(find.byType(TextField), query);
     }
@@ -107,6 +120,12 @@ void main() {
     (t) => shoot(t, 'filter', query: 'co', wide: WideLayout.icons),
     skip: shots == null,
   );
+  testWidgets(
+    'settings de',
+    (t) => shoot(t, 'settings-de', language: 'de', settingsPage: true, size: narrow),
+    skip: shots == null,
+  );
+  testWidgets('folders de', (t) => shoot(t, 'folders-de', language: 'de'), skip: shots == null);
   testWidgets('big folders', (t) => shoot(t, 'folders-big', size: const Size(1524, 860)), skip: shots == null);
 }
 

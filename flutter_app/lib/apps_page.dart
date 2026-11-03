@@ -23,6 +23,8 @@ import 'app_icon.dart';
 import 'backend.dart';
 import 'core_call.dart';
 import 'drag_drop.dart';
+import 'i18n.dart';
+import 'settings_page.dart';
 import 'theme.dart';
 
 part 'overview.dart';
@@ -71,9 +73,21 @@ final class AppRow extends ListItem {
 }
 
 class AppsPage extends StatefulWidget {
-  const AppsPage({super.key, required this.core, required this.desktop, this.shownAgain, this.onHide});
+  const AppsPage({
+    super.key,
+    required this.core,
+    required this.desktop,
+    this.shownAgain,
+    this.onHide,
+    this.onSettings,
+    this.windowRounding,
+  });
   final CoreCall core;
   final String desktop;
+
+  /// The settings changed (corners, language): the app's theme follows.
+  final ValueChanged<Map<String, dynamic>>? onSettings;
+  final int? windowRounding;
   final Listenable? shownAgain;
   final VoidCallback? onHide;
   @override
@@ -97,6 +111,9 @@ class AppsPageState extends State<AppsPage> {
   WideLayout wideLayout = WideLayout.folders;
   List<WideLayout> shownLayouts = WideLayout.values;
   Map<String, int> iconSizes = {...sizes.defaultIconSizes};
+  Map<String, dynamic> settings = const {};
+  bool get viewButtons => settings['view_buttons'] == true;
+  bool get filterFieldShown => !wide || settings['filter_field'] != false;
 
   /// The overview's group ("all" or a group id); during a search the one
   /// picked for this search only.
@@ -108,6 +125,9 @@ class AppsPageState extends State<AppsPage> {
   int _asked = 0;
   final filter = TextEditingController();
   final filterFocus = FocusNode();
+
+  /// The page's own focus: it takes the keys when there is no filter field.
+  final pageFocus = FocusNode(debugLabel: 'apps page');
   final scroll = ScrollController();
   final _selectedItem = GlobalKey();
   static const rowHeight = 56.0;
@@ -124,6 +144,7 @@ class AppsPageState extends State<AppsPage> {
     widget.shownAgain?.removeListener(_onShown);
     filter.dispose();
     filterFocus.dispose();
+    pageFocus.dispose();
     scroll.dispose();
     super.dispose();
   }
@@ -144,6 +165,7 @@ class AppsPageState extends State<AppsPage> {
   }
 
   void _takeSettings(Map<String, dynamic> settings) {
+    this.settings = settings;
     view = AppView.values.byName(settings['view'] as String? ?? 'list');
     wideLayout = WideLayout.values.byName(settings['wide_layout'] as String? ?? 'folders');
     shownLayouts = [
@@ -174,7 +196,7 @@ class AppsPageState extends State<AppsPage> {
     } on Object catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      _tell('Could not read the apps ($e).');
+      _tell(trf('Could not read the apps ({0}).', [e]));
     }
   }
 
@@ -208,7 +230,7 @@ class AppsPageState extends State<AppsPage> {
         sections = view == AppView.list ? [] : _parseSections(byView);
       });
     } on ServiceError catch (e) {
-      _tell('Could not sort the apps (${e.code}).');
+      _tell(trf('Could not sort the apps ({0}).', [e.code]));
     }
   }
 
@@ -240,14 +262,14 @@ class AppsPageState extends State<AppsPage> {
         ];
 
   String groupName(String id) {
-    if (originNames.containsKey(id)) return originNames[id]!;
-    if (id == 'all') return 'All';
-    if (id == 'other') return 'Other';
-    if (id == '_running') return 'Running';
+    if (originNames.containsKey(id)) return tr(originNames[id]!);
+    if (id == 'all') return tr('All');
+    if (id == 'other') return tr('Other');
+    if (id == '_running') return tr('Running');
     final g = groups.where((g) => g['id'] == id).firstOrNull;
-    if (g == null) return 'Other';
+    if (g == null) return tr('Other');
     final name = g['name'] as String? ?? '';
-    return name.isNotEmpty ? name : builtinGroupNames[id] ?? id;
+    return name.isNotEmpty ? name : tr(builtinGroupNames[id] ?? id);
   }
 
   bool isNewGroup(String id) => groups.any((g) => g['id'] == id && g['new'] == true);
@@ -265,7 +287,7 @@ class AppsPageState extends State<AppsPage> {
       // On Omarchy the window steps aside after a start, as the bar popup did.
       if (widget.desktop == 'omarchy') widget.onHide?.call();
     } on ServiceError {
-      _tell('${app['name']} could not be started.');
+      _tell(trf('{0} could not be started.', [app['name']]));
     }
   }
 
@@ -283,8 +305,9 @@ class AppsPageState extends State<AppsPage> {
     try {
       final settings = await widget.core('settings.set', {'key': key, 'value': value});
       if (mounted) setState(() => _takeSettings(settings));
+      widget.onSettings?.call(settings);
     } on ServiceError {
-      _tell('Could not save the setting.');
+      _tell(tr('Could not save the setting'));
     }
   }
 
@@ -312,7 +335,7 @@ class AppsPageState extends State<AppsPage> {
       setState(() => _takeGroups(result));
       return result['result'];
     } on ServiceError catch (e) {
-      _tell(e.reason ?? 'That did not work (${e.code}).');
+      _tell(e.reason != null ? tr(e.reason!) : trf('That did not work ({0}).', [e.code]));
       return null;
     }
   }
@@ -352,35 +375,15 @@ class AppsPageState extends State<AppsPage> {
       await widget.core('apps.hide', {'key': app['key'], 'hidden': hidden});
       await _load();
     } on ServiceError catch (e) {
-      _tell('Could not save (${e.code}).');
+      _tell(trf('Could not save ({0}).', [e.code]));
     }
   }
 
-  Future<String?> _askName(String title, {String initial = ''}) async {
-    final controller = TextEditingController(text: initial);
-    final name = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLength: 40,
-          decoration: const InputDecoration(hintText: 'Name'),
-          onSubmitted: (v) => Navigator.pop(context, v),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, controller.text), child: const Text('Save')),
-        ],
-      ),
-    );
-    controller.dispose();
-    return name;
-  }
+  Future<String?> _askName(String title, {String initial = ''}) =>
+      showDialog<String>(context: context, builder: (_) => NameDialog(title: title, initial: initial));
 
   Future<void> _newGroup({Map? app}) async {
-    final name = await _askName('New group');
+    final name = await _askName(tr('New group'));
     if (name == null) return;
     final gid = await _editGroups('groups.add', {'name': name, 'key': ?app?['key']});
     if (gid != null) await _load();
@@ -395,22 +398,22 @@ class AppsPageState extends State<AppsPage> {
       position: RelativeRect.fromLTRB(at.dx, at.dy, at.dx, at.dy),
       items: [
         if (own) ...[
-          const PopupMenuItem(value: 'rename', child: MenuLine(Icons.edit, 'Rename…')),
-          PopupMenuItem(value: 'up', enabled: index > 0, child: const MenuLine(Icons.arrow_upward, 'Move up')),
+          PopupMenuItem(value: 'rename', child: MenuLine(Icons.edit, tr('Rename…'))),
+          PopupMenuItem(value: 'up', enabled: index > 0, child: MenuLine(Icons.arrow_upward, tr('Move up'))),
           PopupMenuItem(
             value: 'down',
             enabled: index < ids.length - 1,
-            child: const MenuLine(Icons.arrow_downward, 'Move down'),
+            child: MenuLine(Icons.arrow_downward, tr('Move down')),
           ),
-          const PopupMenuItem(value: 'delete', child: MenuLine(Icons.delete_outline, 'Delete group')),
+          PopupMenuItem(value: 'delete', child: MenuLine(Icons.delete_outline, tr('Delete group'))),
           const PopupMenuDivider(),
         ],
-        const PopupMenuItem(value: 'new', child: MenuLine(Icons.add, 'New group…')),
+        PopupMenuItem(value: 'new', child: MenuLine(Icons.add, tr('New group…'))),
       ],
     );
     switch (choice) {
       case 'rename':
-        final name = await _askName('Rename group', initial: groupName(gid));
+        final name = await _askName(tr('Rename group'), initial: groupName(gid));
         if (name != null) await _editGroups('groups.rename', {'id': gid, 'name': name});
       case 'up' || 'down':
         await _editGroups('groups.move', {'id': gid, 'delta': choice == 'up' ? -1 : 1});
@@ -420,11 +423,11 @@ class AppsPageState extends State<AppsPage> {
         final sure = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: Text('Delete “${groupName(gid)}”?'),
-            content: const Text('Its entries move back.'),
+            title: Text(trf('Delete “{0}”?', [groupName(gid)])),
+            content: Text(tr('Its entries move back.')),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-              FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+              TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Cancel'))),
+              FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(tr('Delete'))),
             ],
           ),
         );
@@ -447,17 +450,17 @@ class AppsPageState extends State<AppsPage> {
       context: context,
       position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy),
       items: [
-        const PopupMenuItem(value: '\x00open', child: MenuLine(Icons.play_arrow, 'Open')),
+        PopupMenuItem(value: '\x00open', child: MenuLine(Icons.play_arrow, tr('Open'))),
         for (final a in actions) PopupMenuItem(value: a['id'] as String, child: MenuLine(Icons.launch, '${a['name']}')),
         const PopupMenuDivider(),
-        const PopupMenuItem(value: '\x00group', child: MenuLine(Icons.folder_outlined, 'Move to group…')),
-        const PopupMenuItem(value: '\x00details', child: MenuLine(Icons.info_outline, 'Details…')),
+        PopupMenuItem(value: '\x00group', child: MenuLine(Icons.folder_outlined, tr('Move to group…'))),
+        PopupMenuItem(value: '\x00details', child: MenuLine(Icons.info_outline, tr('Details…'))),
         const PopupMenuDivider(),
         PopupMenuItem(
           value: '\x00hide',
           child: MenuLine(
             hidden ? Icons.visibility : Icons.visibility_off,
-            hidden ? 'Unhide from list' : 'Hide from list',
+            hidden ? tr('Unhide from list') : tr('Hide from list'),
           ),
         ),
       ],
@@ -485,11 +488,11 @@ class AppsPageState extends State<AppsPage> {
       context: context,
       position: RelativeRect.fromLTRB(at.dx, at.dy, at.dx, at.dy),
       items: [
-        PopupMenuItem(enabled: false, child: Text('Move ${app['name']} to')),
+        PopupMenuItem(enabled: false, child: Text(trf('Move {0} to', [app['name']]))),
         for (final gid in [for (final g in groups) g['id'] as String, 'other'])
           PopupMenuItem(value: gid, child: MenuLine(gid == current ? Icons.check : null, groupName(gid))),
         const PopupMenuDivider(),
-        const PopupMenuItem(value: '\x00new', child: MenuLine(Icons.add, 'New group…')),
+        PopupMenuItem(value: '\x00new', child: MenuLine(Icons.add, tr('New group…'))),
       ],
     );
     if (choice == null) return;
@@ -510,12 +513,12 @@ class AppsPageState extends State<AppsPage> {
             if ((app['description'] as String? ?? '').isNotEmpty)
               Padding(padding: const EdgeInsets.only(bottom: 12), child: Text('${app['description']}')),
             for (final (label, value) in [
-              ('Starts', app['exec']),
-              ('Desktop file', app['desktop_path']),
-              ('Icon', app['icon_file'] ?? app['icon']),
-              ('Group', groupName('${app['group']}')),
-              ('Origin', originNames['o-${app['origin']}']),
-              ('Default for', (app['roles'] as List? ?? []).join(', ')),
+              (tr('Starts'), app['exec']),
+              (tr('Desktop file'), app['desktop_path']),
+              (tr('Icon'), app['icon_file'] ?? app['icon']),
+              (tr('Group'), groupName('${app['group']}')),
+              (tr('Origin'), originNames['o-${app['origin']}']),
+              (tr('Default for'), (app['roles'] as List? ?? []).join(', ')),
             ])
               if ('${value ?? ''}'.isNotEmpty)
                 Padding(
@@ -535,9 +538,49 @@ class AppsPageState extends State<AppsPage> {
           ],
         ),
       ),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Close')))],
     ),
   );
+
+  Future<void> openSettings() => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => SettingsPage(
+        core: widget.core,
+        settings: settings,
+        windowRounding: widget.windowRounding,
+        onChanged: (fresh) {
+          setState(() => _takeSettings(fresh));
+          widget.onSettings?.call(fresh);
+          unawaited(_refreshSections());
+        },
+      ),
+    ),
+  );
+
+  /// Typing without the filter field (Settings › Filter field off): the
+  /// keys still filter, the header shows what was typed.
+  bool _typeIntoFilter(KeyEvent event) {
+    if (filterFieldShown) return false;
+    final keyboard = HardwareKeyboard.instance;
+    if (keyboard.isControlPressed || keyboard.isAltPressed || keyboard.isMetaPressed) return false;
+    String next;
+    if (event.logicalKey == LogicalKeyboardKey.backspace) {
+      if (query.isEmpty) return false;
+      next = query.substring(0, query.length - 1);
+    } else {
+      final c = event.character;
+      if (c == null || c.isEmpty || c.codeUnitAt(0) < 32 || c.codeUnitAt(0) == 127) return false;
+      next = query + c;
+    }
+    filter.text = next;
+    setState(() {
+      query = next;
+      selectedKey = null;
+      if (next.trim().isEmpty) searchFilter = null;
+    });
+    unawaited(_refreshSections());
+    return true;
+  }
 
   // --- keys ------------------------------------------------------------------
 
@@ -548,6 +591,7 @@ class AppsPageState extends State<AppsPage> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
     final key = event.logicalKey;
     final keyboard = HardwareKeyboard.instance;
+    if (_typeIntoFilter(event)) return KeyEventResult.handled;
     if (key == LogicalKeyboardKey.escape) {
       if (query.isNotEmpty) {
         _clearFilter();
@@ -602,11 +646,21 @@ class AppsPageState extends State<AppsPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     body: Focus(
+      focusNode: pageFocus,
       onKeyEvent: _onKey,
       child: LayoutBuilder(
         builder: (context, constraints) {
           // grid_columns(card width) > 1: the overview, as gnome-launcher.
           wide = sizes.gridColumns(constraints.maxWidth.floor()) > 1;
+          if (!filterFieldShown) {
+            // No field to type in: the page takes the keys (typing filters).
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              final focused = FocusManager.instance.primaryFocus;
+              if (mounted && (focused == null || focused == filterFocus || !focused.hasPrimaryFocus || focused.context == null)) {
+                pageFocus.requestFocus();
+              }
+            });
+          }
           return Column(
             children: [
               _header(),
@@ -629,33 +683,45 @@ class AppsPageState extends State<AppsPage> {
     padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
     child: Row(
       children: [
-        Expanded(
-          child: TextField(
-            controller: filter,
-            focusNode: filterFocus,
-            autofocus: true,
-            decoration: const InputDecoration(hintText: 'Type to filter', prefixIcon: Icon(Icons.search, size: 20)),
-            onChanged: (text) {
-              setState(() {
-                query = text;
-                selectedKey = null;
-                if (text.trim().isEmpty) searchFilter = null;
-              });
-              unawaited(_refreshSections());
-            },
+        if (!filterFieldShown)
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: Text(
+                query.isEmpty ? tr('App Manager') : trf('Filter: {0}', [query]),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+          )
+        else
+          Expanded(
+            child: TextField(
+              controller: filter,
+              focusNode: filterFocus,
+              autofocus: true,
+              decoration: InputDecoration(hintText: tr('Type to filter'), prefixIcon: Icon(Icons.search, size: 20)),
+              onChanged: (text) {
+                setState(() {
+                  query = text;
+                  selectedKey = null;
+                  if (text.trim().isEmpty) searchFilter = null;
+                });
+                unawaited(_refreshSections());
+              },
+            ),
           ),
-        ),
-        if (!wide) ...[
+        if (!wide && viewButtons) ...[
           const SizedBox(width: 8),
           SegmentedButton<AppView>(
             showSelectedIcon: false,
-            segments: const [
-              ButtonSegment(value: AppView.list, icon: Icon(Icons.sort_by_alpha), tooltip: 'A–Z (Ctrl+G)'),
-              ButtonSegment(value: AppView.groups, icon: Icon(Icons.folder_outlined), tooltip: 'Groups (Ctrl+G)'),
+            style: const ButtonStyle(visualDensity: VisualDensity(horizontal: -4, vertical: -2)),
+            segments: [
+              ButtonSegment(value: AppView.list, icon: Icon(Icons.sort_by_alpha), tooltip: tr('A–Z (Ctrl+G)')),
+              ButtonSegment(value: AppView.groups, icon: Icon(Icons.folder_outlined), tooltip: tr('Groups (Ctrl+G)')),
               ButtonSegment(
                 value: AppView.origin,
                 icon: Icon(Icons.inventory_2_outlined),
-                tooltip: 'By origin (Ctrl+G)',
+                tooltip: tr('By origin (Ctrl+G)'),
               ),
             ],
             selected: {view},
@@ -663,7 +729,18 @@ class AppsPageState extends State<AppsPage> {
           ),
         ],
         _hiddenToggle(),
-        IconButton(tooltip: 'Reload', onPressed: _load, icon: const Icon(Icons.refresh)),
+        IconButton(
+          visualDensity: wide ? null : VisualDensity.compact,
+          tooltip: tr('Reload'),
+          onPressed: _load,
+          icon: const Icon(Icons.refresh),
+        ),
+        IconButton(
+          visualDensity: wide ? null : VisualDensity.compact,
+          tooltip: tr('Settings'),
+          onPressed: openSettings,
+          icon: const Icon(Icons.settings_outlined),
+        ),
       ],
     ),
   );
@@ -672,7 +749,8 @@ class AppsPageState extends State<AppsPage> {
     final count = apps.where((a) => a['hidden'] == true).length;
     if (count == 0) return const SizedBox.shrink();
     return IconButton(
-      tooltip: showHidden ? 'Hide hidden apps' : 'Show hidden apps ($count)',
+      visualDensity: wide ? null : VisualDensity.compact,
+      tooltip: showHidden ? tr('Hide hidden apps') : trf('Show hidden apps ({0})', [count]),
       isSelected: showHidden,
       onPressed: () {
         setState(() => showHidden = !showHidden);
@@ -687,7 +765,7 @@ class AppsPageState extends State<AppsPage> {
 
   Widget _empty() => Center(
     child: Text(
-      query.isEmpty ? 'No apps found.' : 'No app matches “$query”.',
+      query.isEmpty ? tr('No apps found.') : trf('No app matches “{0}”.', [query]),
       style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
     ),
   );
@@ -741,7 +819,7 @@ class AppsPageState extends State<AppsPage> {
         height: 36,
         child: Row(
           children: [
-            Text('${filtered.length} of ${apps.length} apps', style: muted),
+            Text(trf('{0} of {1} apps', [filtered.length, apps.length]), style: muted),
             const Spacer(),
             if (view == AppView.groups) _newGroupButton(compact: false),
           ],
@@ -754,13 +832,13 @@ class AppsPageState extends State<AppsPage> {
     accepts: (d) => d is DraggedApp,
     onDrop: (d, _) => _newGroup(app: byKey[(d as DraggedApp).key]),
     child: Tooltip(
-      message: 'New group (or drop an app here to start one with it)',
+      message: tr('New group (or drop an app here to start one with it)'),
       child: compact
-          ? FooterItem(icon: Icons.add, label: 'New group', onTap: _newGroup)
+          ? FooterItem(icon: Icons.add, label: tr('New group'), onTap: _newGroup)
           : TextButton.icon(
               onPressed: _newGroup,
               icon: const Icon(Icons.create_new_folder_outlined, size: 16),
-              label: const Text('New group'),
+              label: Text(tr('New group')),
             ),
     ),
   );
@@ -787,7 +865,7 @@ class AppsPageState extends State<AppsPage> {
               const SizedBox(width: 6),
               if (isNewGroup(row.id)) ...[
                 Tooltip(
-                  message: 'New group: drag apps onto it to fill it.',
+                  message: tr('New group: drag apps onto it to fill it.'),
                   child: Icon(Icons.star, size: 14, color: scheme.primary),
                 ),
                 const SizedBox(width: 4),
@@ -799,7 +877,7 @@ class AppsPageState extends State<AppsPage> {
               if (own && row.id != 'other')
                 Builder(
                   builder: (context) => IconButton(
-                    tooltip: 'Group actions',
+                    tooltip: tr('Group actions'),
                     visualDensity: VisualDensity.compact,
                     icon: const Icon(Icons.more_vert, size: 18),
                     onPressed: () {
@@ -860,7 +938,7 @@ class AppsPageState extends State<AppsPage> {
 
   Widget _listRow(Map<String, dynamic> app, bool isSelected, String? section) {
     final scheme = Theme.of(context).colorScheme;
-    final description = app['description'] as String? ?? '';
+    final description = tr(app['description'] as String? ?? '');
     final size = (iconSizes['list'] ?? 32).toDouble();
     return _entry(
       app,
@@ -906,6 +984,42 @@ class MenuLine extends StatelessWidget {
       SizedBox(width: 22, child: icon == null ? null : Icon(icon, size: 16)),
       const SizedBox(width: 8),
       Flexible(child: Text(text, overflow: TextOverflow.ellipsis)),
+    ],
+  );
+}
+
+/// The group name dialog; it owns its text field's controller, which lives
+/// until the dialog has animated out.
+class NameDialog extends StatefulWidget {
+  const NameDialog({super.key, required this.title, this.initial = ''});
+  final String title;
+  final String initial;
+  @override
+  State<NameDialog> createState() => _NameDialogState();
+}
+
+class _NameDialogState extends State<NameDialog> {
+  late final controller = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.title),
+    content: TextField(
+      controller: controller,
+      autofocus: true,
+      maxLength: 40,
+      decoration: InputDecoration(hintText: tr('Name')),
+      onSubmitted: (v) => Navigator.pop(context, v),
+    ),
+    actions: [
+      TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Cancel'))),
+      FilledButton(onPressed: () => Navigator.pop(context, controller.text), child: Text(tr('Save'))),
     ],
   );
 }
