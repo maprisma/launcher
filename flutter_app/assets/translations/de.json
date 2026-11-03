@@ -1,8 +1,4 @@
 {
- "\u0004{0} app": [
-  "{0} App",
-  "{0} Apps"
- ],
  "\u0004{0} changed file": [
   "{0} geänderte Datei",
   "{0} geänderte Dateien"
@@ -185,7 +181,7 @@
  "Layout": "Ansicht",
  "Layout when small": "Ansicht klein",
  "Layout when wide": "Ansicht breit",
- "Layouts in the footer": "Ansichten in der Fußleiste",
+ "Layouts in the header": "Ansichten in der Kopfleiste",
  "Left": "Links",
  "Light": "Hell",
  "Like windows": "Wie Fenster",
@@ -383,7 +379,7 @@
  "What the marks mean": "Was die Markierungen bedeuten",
  "Where the icons sit in a full-length dock. A compact dock is always centred.": "Wo die Symbole in einem Dock voller Länge sitzen. Ein kompaktes Dock ist immer zentriert.",
  "Which installed app opens PDFs?": "Welche installierte App öffnet PDFs?",
- "Which layouts the buttons at the right end of the footer offer. At least one stays on; with only one, the buttons are hidden.": "Welche Ansichten die Knöpfe rechts in der Fußleiste anbieten. Mindestens eine bleibt an; bei nur einer sind die Knöpfe ausgeblendet.",
+ "Which layouts the view buttons in the header offer, left of the other buttons. At least one stays on; with only one, they are hidden.": "Welche Ansichten die Ansichtsknöpfe in der Kopfleiste anbieten, links neben den anderen Knöpfen. Mindestens eine bleibt an; bei nur einer sind sie ausgeblendet.",
  "Which package managers Install apps (and later Ask AI) may use. The AUR is off until you choose it: community build scripts, not checked by the distribution.": "Welche Paketmanager „Apps installieren“ (und später Ask AI) nutzen darf. Das AUR ist aus, bis du es wählst: Bauskripte der Community, nicht von der Distribution geprüft.",
  "Window": "Fenster",
  "Without AI, Install apps searches the packages by name.": "Ohne KI sucht „Apps installieren“ die Pakete nach Namen.",

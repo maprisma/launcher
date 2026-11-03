@@ -1,9 +1,4 @@
 {
- "\u0004{0} app": [
-  "{0} aplikacja",
-  "{0} aplikacje",
-  "{0} aplikacji"
- ],
  "\u0004{0} changed file": [
   "{0} zmieniony plik",
   "{0} zmienione pliki",
@@ -191,7 +186,7 @@
  "Layout": "Układ",
  "Layout when small": "Układ wąski",
  "Layout when wide": "Układ szeroki",
- "Layouts in the footer": "Układy w stopce",
+ "Layouts in the header": "Układy w nagłówku",
  "Left": "Lewo",
  "Light": "Jasny",
  "Like windows": "Jak okna",
@@ -389,7 +384,7 @@
  "What the marks mean": "Co oznaczają znaczniki",
  "Where the icons sit in a full-length dock. A compact dock is always centred.": "Gdzie stoją ikony w doku na pełną długość. Kompaktowy dok jest zawsze wyśrodkowany.",
  "Which installed app opens PDFs?": "Która zainstalowana aplikacja otwiera PDF-y?",
- "Which layouts the buttons at the right end of the footer offer. At least one stays on; with only one, the buttons are hidden.": "Jakie układy oferują przyciski po prawej stronie stopki. Co najmniej jeden zostaje włączony; przy jednym przyciski są ukryte.",
+ "Which layouts the view buttons in the header offer, left of the other buttons. At least one stays on; with only one, they are hidden.": "Jakie układy oferują przyciski widoku w nagłówku, na lewo od pozostałych przycisków. Co najmniej jeden zostaje włączony; przy jednym są ukryte.",
  "Which package managers Install apps (and later Ask AI) may use. The AUR is off until you choose it: community build scripts, not checked by the distribution.": "Których menedżerów pakietów może używać „Instaluj aplikacje” (a później Ask AI). AUR jest wyłączony, dopóki go nie wybierzesz: skrypty budowania społeczności, niesprawdzane przez dystrybucję.",
  "Window": "Okno",
  "Without AI, Install apps searches the packages by name.": "Bez AI „Instaluj aplikacje” szuka pakietów po nazwie.",

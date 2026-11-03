@@ -1,8 +1,4 @@
 {
- "\u0004{0} app": [
-  "{0} app",
-  "{0} apps"
- ],
  "\u0004{0} changed file": [
   "{0} gewijzigd bestand",
   "{0} gewijzigde bestanden"
@@ -185,7 +181,7 @@
  "Layout": "Indeling",
  "Layout when small": "Indeling smal",
  "Layout when wide": "Indeling breed",
- "Layouts in the footer": "Indelingen in de voettekst",
+ "Layouts in the header": "Indelingen in de kopbalk",
  "Left": "Links",
  "Light": "Licht",
  "Like windows": "Zoals vensters",
@@ -383,7 +379,7 @@
  "What the marks mean": "Wat de markeringen betekenen",
  "Where the icons sit in a full-length dock. A compact dock is always centred.": "Waar de pictogrammen staan in een dock over de volle lengte. Een compact dock staat altijd in het midden.",
  "Which installed app opens PDFs?": "Welke geïnstalleerde app opent pdf’s?",
- "Which layouts the buttons at the right end of the footer offer. At least one stays on; with only one, the buttons are hidden.": "Welke indelingen de knoppen rechts in de voettekst bieden. Minstens één blijft aan; met maar één zijn de knoppen verborgen.",
+ "Which layouts the view buttons in the header offer, left of the other buttons. At least one stays on; with only one, they are hidden.": "Welke indelingen de weergaveknoppen in de kopbalk bieden, links van de andere knoppen. Minstens één blijft aan; met maar één zijn ze verborgen.",
  "Which package managers Install apps (and later Ask AI) may use. The AUR is off until you choose it: community build scripts, not checked by the distribution.": "Welke pakketbeheerders “Apps installeren” (en later Ask AI) mag gebruiken. De AUR staat uit tot je hem kiest: bouwscripts van de community, niet gecontroleerd door de distributie.",
  "Window": "Venster",
  "Without AI, Install apps searches the packages by name.": "Zonder AI zoekt “Apps installeren” de pakketten op naam.",

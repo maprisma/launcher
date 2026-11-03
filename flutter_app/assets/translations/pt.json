@@ -1,8 +1,4 @@
 {
- "\u0004{0} app": [
-  "{0} app",
-  "{0} apps"
- ],
  "\u0004{0} changed file": [
   "{0} arquivo alterado",
   "{0} arquivos alterados"
@@ -185,7 +181,7 @@
  "Layout": "Disposição",
  "Layout when small": "Esquema estreito",
  "Layout when wide": "Esquema largo",
- "Layouts in the footer": "Esquemas no rodapé",
+ "Layouts in the header": "Esquemas no cabeçalho",
  "Left": "Esquerda",
  "Light": "Claro",
  "Like windows": "Como as janelas",
@@ -383,7 +379,7 @@
  "What the marks mean": "O que significam as marcas",
  "Where the icons sit in a full-length dock. A compact dock is always centred.": "Onde ficam os ícones numa dock de comprimento total. Uma dock compacta fica sempre centrada.",
  "Which installed app opens PDFs?": "Que app instalada abre PDFs?",
- "Which layouts the buttons at the right end of the footer offer. At least one stays on; with only one, the buttons are hidden.": "Que esquemas oferecem os botões à direita do rodapé. Pelo menos um fica ativo; com apenas um, os botões ficam ocultos.",
+ "Which layouts the view buttons in the header offer, left of the other buttons. At least one stays on; with only one, they are hidden.": "Que esquemas oferecem os botões de vista no cabeçalho, à esquerda dos outros botões. Pelo menos um fica ativo; com apenas um, ficam ocultos.",
  "Which package managers Install apps (and later Ask AI) may use. The AUR is off until you choose it: community build scripts, not checked by the distribution.": "Que gestores de pacotes “Instalar apps” (e mais tarde o Ask AI) pode usar. O AUR fica desligado até o escolher: scripts de compilação da comunidade, não verificados pela distribuição.",
  "Window": "Janela",
  "Without AI, Install apps searches the packages by name.": "Sem IA, “Instalar apps” procura os pacotes pelo nome.",

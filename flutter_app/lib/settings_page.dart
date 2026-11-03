@@ -532,9 +532,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     ], (v) => _set('corners', v)),
                   ),
                   _row(
-                    tr('Layouts in the footer'),
+                    tr('Layouts in the header'),
                     tr(
-                      'Which layouts the buttons at the right end of the footer offer. At least one stays on; with only one, the buttons are hidden.',
+                      'Which layouts the view buttons in the header offer, left of the other buttons. At least one stays on; with only one, they are hidden.',
                     ),
                     Wrap(
                       spacing: 6,
@@ -565,11 +565,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   _Section(tr('Icon sizes'), Icons.photo_size_select_large_outlined),
                   for (final (view, label, tip) in [
                     ('list', tr('List'), tr("How large the app icons are in the narrow window's list.")),
-                    (
-                      'cards',
-                      tr('Cards'),
-                      tr('How large the app icons are on the cards; the cards grow with them.'),
-                    ),
+                    ('cards', tr('Cards'), tr('How large the app icons are on the cards; the cards grow with them.')),
                     (
                       'folders',
                       tr('Folders'),

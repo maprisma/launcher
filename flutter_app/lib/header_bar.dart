@@ -61,16 +61,19 @@ extension HeaderBar on AppsPageState {
         ),
       ),
     ),
-    'plugins' => widget.desktop != 'omarchy'
-        ? null
-        : IconButton(
-            visualDensity: _density,
-            tooltip: tr('Omarchy plugins'),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => PluginsPage(core: widget.core, onHide: widget.onHide)),
+    'plugins' =>
+      widget.desktop != 'omarchy'
+          ? null
+          : IconButton(
+              visualDensity: _density,
+              tooltip: tr('Omarchy plugins'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => PluginsPage(core: widget.core, onHide: widget.onHide),
+                ),
+              ),
+              icon: const Icon(Icons.extension_outlined),
             ),
-            icon: const Icon(Icons.extension_outlined),
-          ),
     'settings' => IconButton(
       visualDensity: _density,
       tooltip: tr('Settings'),
@@ -79,6 +82,67 @@ extension HeaderBar on AppsPageState {
     ),
     _ => null,
   };
+
+  /// The view card left of the button card, styled like it: the layouts
+  /// (wide window, more than one chosen in the settings) or A–Z, Groups and
+  /// By origin (narrow window, when the view buttons are on). Null when empty.
+  Widget? _viewCard() {
+    final scheme = Theme.of(context).colorScheme;
+    Widget option(IconData icon, String tooltip, bool on, VoidCallback onPressed) => IconButton(
+      visualDensity: _density,
+      tooltip: tooltip,
+      isSelected: on,
+      color: on ? scheme.primary : null,
+      style: on ? IconButton.styleFrom(backgroundColor: scheme.primary.withValues(alpha: .12)) : null,
+      onPressed: onPressed,
+      icon: Icon(icon),
+    );
+    final List<Widget> buttons;
+    if (wide) {
+      if (shownLayouts.length < 2) return null;
+      buttons = [
+        for (final layout in shownLayouts)
+          option(
+            switch (layout) {
+              WideLayout.folders => Icons.folder_copy_outlined,
+              WideLayout.cards => Icons.view_agenda_outlined,
+              WideLayout.icons => Icons.apps,
+              WideLayout.cube => Icons.view_in_ar_outlined,
+            },
+            switch (layout) {
+              WideLayout.folders => tr('Folders'),
+              WideLayout.cards => tr('Cards'),
+              WideLayout.icons => tr('Icons'),
+              WideLayout.cube => tr('Cube'),
+            },
+            layout == wideLayout,
+            () => setWideLayout(layout),
+          ),
+      ];
+    } else {
+      if (!viewButtons) return null;
+      buttons = [
+        option(Icons.sort_by_alpha, tr('A–Z (Ctrl+G)'), view == AppView.list, () => setView(AppView.list)),
+        option(Icons.folder_outlined, tr('Groups (Ctrl+G)'), view == AppView.groups, () => setView(AppView.groups)),
+        option(
+          Icons.inventory_2_outlined,
+          tr('By origin (Ctrl+G)'),
+          view == AppView.origin,
+          () => setView(AppView.origin),
+        ),
+      ];
+    }
+    return Container(
+      key: const ValueKey('view-card'),
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(corners(context).clamp(4, 14)),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: buttons),
+    );
+  }
 
   IconData _headerIcon(String id) => switch (id) {
     'running' => Icons.fiber_manual_record_outlined,

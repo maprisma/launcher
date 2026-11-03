@@ -808,7 +808,8 @@ class AppsPageState extends State<AppsPage> {
         ],
         if (actions.isNotEmpty) ...[
           const PopupMenuDivider(),
-          for (final a in actions) PopupMenuItem(value: a['id'] as String, child: MenuLine(Icons.launch, '${a['name']}')),
+          for (final a in actions)
+            PopupMenuItem(value: a['id'] as String, child: MenuLine(Icons.launch, '${a['name']}')),
         ],
         if (hasWindows || canQuit) ...[
           const PopupMenuDivider(),
@@ -1004,7 +1005,8 @@ class AppsPageState extends State<AppsPage> {
     if (go != true) return;
     // A package (or Omarchy's package/Flatpak removal): in the app's own
     // terminal, which asks for the password; the old way if it cannot.
-    final needsTerminal = kind == 'package' || (kind == 'omarchy' && (plan['how'] == 'package' || plan['how'] == 'flatpak'));
+    final needsTerminal =
+        kind == 'package' || (kind == 'omarchy' && (plan['how'] == 'package' || plan['how'] == 'flatpak'));
     if (needsTerminal && mounted) {
       final code = await runInTerminal(
         context,
@@ -1095,10 +1097,7 @@ class AppsPageState extends State<AppsPage> {
       context: context,
       position: RelativeRect.fromLTRB(at.dx, at.dy, at.dx, at.dy),
       items: [
-        PopupMenuItem(
-          value: '\x00all',
-          child: MenuLine(Icons.close, trf('Close all windows ({0})', [windows.length])),
-        ),
+        PopupMenuItem(value: '\x00all', child: MenuLine(Icons.close, trf('Close all windows ({0})', [windows.length]))),
         const PopupMenuDivider(),
         for (final w in windows)
           PopupMenuItem(
@@ -1107,10 +1106,7 @@ class AppsPageState extends State<AppsPage> {
               children: [
                 const SizedBox(width: 22, child: Icon(Icons.close, size: 16)),
                 const SizedBox(width: 8),
-                if (w['workspace'] is int) ...[
-                  CountChip(w['workspace'] as int),
-                  const SizedBox(width: 8),
-                ],
+                if (w['workspace'] is int) ...[CountChip(w['workspace'] as int), const SizedBox(width: 8)],
                 Flexible(
                   child: Text(
                     '${w['title'] ?? ''}'.isNotEmpty ? '${w['title']}' : '${app['name']}',
@@ -1452,11 +1448,11 @@ class AppsPageState extends State<AppsPage> {
     child: LayoutBuilder(builder: (context, box) => _headerRow(box.maxWidth)),
   );
 
-  /// The field (at least 130 px), the view buttons, the button card (the
-  /// rest; it scrolls sideways when even that is too little).
+  /// The field (at least 130 px), then the view card and the button card
+  /// (the rest; they scroll sideways when even that is too little).
   Widget _headerRow(double width) {
-    final viewButtonsShown = !wide && viewButtons;
-    final cardMax = math.max(48.0, width - 130 - 14 - (viewButtonsShown ? 150 : 0));
+    final cardMax = math.max(48.0, width - 130 - 14);
+    final viewCard = _viewCard();
     return Row(
       children: [
         if (!filterFieldShown)
@@ -1486,28 +1482,19 @@ class AppsPageState extends State<AppsPage> {
               },
             ),
           ),
-        if (viewButtonsShown) ...[
-          const SizedBox(width: 8),
-          SegmentedButton<AppView>(
-            showSelectedIcon: false,
-            style: const ButtonStyle(visualDensity: VisualDensity(horizontal: -4, vertical: -2)),
-            segments: [
-              ButtonSegment(value: AppView.list, icon: Icon(Icons.sort_by_alpha), tooltip: tr('A–Z (Ctrl+G)')),
-              ButtonSegment(value: AppView.groups, icon: Icon(Icons.folder_outlined), tooltip: tr('Groups (Ctrl+G)')),
-              ButtonSegment(
-                value: AppView.origin,
-                icon: Icon(Icons.inventory_2_outlined),
-                tooltip: tr('By origin (Ctrl+G)'),
-              ),
-            ],
-            selected: {view},
-            onSelectionChanged: (s) => setView(s.first),
-          ),
-        ],
         const SizedBox(width: 6),
         ConstrainedBox(
           constraints: BoxConstraints(maxWidth: cardMax),
-          child: SingleChildScrollView(scrollDirection: Axis.horizontal, child: _headerCard()),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (viewCard != null) ...[viewCard, const SizedBox(width: 6)],
+                _headerCard(),
+              ],
+            ),
+          ),
         ),
       ],
     );
@@ -1770,10 +1757,7 @@ class MenuLine extends StatelessWidget {
       SizedBox(width: 22, child: icon == null ? null : Icon(icon, size: 16)),
       const SizedBox(width: 8),
       Expanded(child: Text(text, overflow: TextOverflow.ellipsis)),
-      if (trailing != null) ...[
-        const SizedBox(width: 8),
-        Icon(trailing, size: 16),
-      ],
+      if (trailing != null) ...[const SizedBox(width: 8), Icon(trailing, size: 16)],
     ],
   );
 }

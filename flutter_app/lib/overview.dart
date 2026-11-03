@@ -517,7 +517,13 @@ extension Overview on AppsPageState {
         border: Border.all(color: isFront ? scheme.primary.withValues(alpha: .6) : scheme.outlineVariant),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Column(children: [header, Divider(height: 1, color: scheme.outlineVariant), Expanded(child: grid)]),
+      child: Column(
+        children: [
+          header,
+          Divider(height: 1, color: scheme.outlineVariant),
+          Expanded(child: grid),
+        ],
+      ),
     );
     if (_canDropInto(gid)) {
       card = DropSlot(
@@ -532,13 +538,16 @@ extension Overview on AppsPageState {
   // --- the footer --------------------------------------------------------------
 
   /// fill_filter_bar: All and the groups (each a place to drop an entry or
-  /// a group), New group last; the layouts on the right.
+  /// a group), New group last, centred; the layouts sit in the header.
   Widget _footerBar() {
     final scheme = Theme.of(context).colorScheme;
     // The cube has no "All" page: its front face is the chosen one.
     final wanted = showingCube ? (cubeFront ?? wantedFilter) : wantedFilter;
     final barSections = showingCube && cubeByOrigin
-        ? [('all', [for (final a in filtered) a['key'] as String]), ...cubeSections]
+        ? [
+            ('all', [for (final a in filtered) a['key'] as String]),
+            ...cubeSections,
+          ]
         : overviewSections;
     final strip = ScrollController();
     return Container(
@@ -558,48 +567,20 @@ extension Overview on AppsPageState {
                   strip.jumpTo((strip.offset + delta).clamp(0, strip.position.maxScrollExtent));
                 }
               },
-              child: ListView(
-                controller: strip,
-                scrollDirection: Axis.horizontal,
-                children: [
-                  for (final (id, keys) in barSections) _footerChip(id, keys.length, id == wanted),
-                  if (!(showingCube && cubeByOrigin)) _newGroupButton(compact: true),
-                ],
+              // Centred while the groups fit; scrolls sideways when they do not.
+              child: Center(
+                child: ListView(
+                  controller: strip,
+                  shrinkWrap: true,
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    for (final (id, keys) in barSections) _footerChip(id, keys.length, id == wanted),
+                    if (!(showingCube && cubeByOrigin)) _newGroupButton(compact: true),
+                  ],
+                ),
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Text(
-              trn('{0} app', '{0} apps', filtered.length),
-              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-            ),
-          ),
-          if (shownLayouts.length > 1)
-            SegmentedButton<WideLayout>(
-              showSelectedIcon: false,
-              style: const ButtonStyle(visualDensity: VisualDensity.compact),
-              segments: [
-                for (final layout in shownLayouts)
-                  ButtonSegment(
-                    value: layout,
-                    tooltip: switch (layout) {
-                      WideLayout.folders => tr('Folders'),
-                      WideLayout.cards => tr('Cards'),
-                      WideLayout.icons => tr('Icons'),
-                      WideLayout.cube => tr('Cube'),
-                    },
-                    icon: Icon(switch (layout) {
-                      WideLayout.folders => Icons.folder_copy_outlined,
-                      WideLayout.cards => Icons.view_agenda_outlined,
-                      WideLayout.icons => Icons.apps,
-                      WideLayout.cube => Icons.view_in_ar_outlined,
-                    }),
-                  ),
-              ],
-              selected: {wideLayout},
-              onSelectionChanged: (s) => setWideLayout(s.first),
-            ),
         ],
       ),
     );
