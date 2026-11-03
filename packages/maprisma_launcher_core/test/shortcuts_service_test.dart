@@ -331,6 +331,21 @@ void main() {
     });
   });
 
+  test('a COSMIC shortcut file that is a FIFO or too large: read-only, no hang', () {
+    final home = Directory.systemTemp.createTempSync('am-cosmic-fifo-');
+    addTearDown(() => home.deleteSync(recursive: true));
+    final config = p.join(home.path, '.config');
+    final custom = p.join(config, 'cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom');
+    Directory(p.dirname(custom)).createSync(recursive: true);
+    expect(Process.runSync('mkfifo', [custom]).exitCode, 0);
+    final session = Session(environment: {'HOME': home.path, 'XDG_CONFIG_HOME': config, 'PATH': '/nonexistent'});
+    final store = ConfigStore(session);
+    expect(backendFor(CosmicDesktop(session), store, cosmicDefaults: p.join(home.path, 'none')), isNull);
+    File(custom).deleteSync();
+    File(custom).writeAsStringSync('{\n${'    // x\n' * 200000}}\n');
+    expect(backendFor(CosmicDesktop(session), store, cosmicDefaults: p.join(home.path, 'none')), isNull);
+  });
+
   group('Omarchy with a fake hyprctl', () {
     late Fixture f;
     late String hypr;
@@ -395,6 +410,16 @@ void main() {
       File(p.join(f.bin, 'error-on.txt')).writeAsStringSync('"Files"');
       expect(await f.code('shortcuts.set', {'key': f.files, 'mods': ['SUPER', 'ALT'], 'combo_key': 'N'}), 'not_applied');
       expect(File(p.join(hypr, 'maprisma-launcher-shortcuts.lua')).readAsStringSync(), before);
+      expect((await f.call('shortcuts.labels'))['labels'], {f.firefox: ['Super + Alt + F']});
+    });
+
+    test('a configuration error that was there before is not ours: the first shortcut still saves', () async {
+      File(p.join(hypr, 'hyprland.lua')).writeAsStringSync('require("hypr.bindings")\n-- broken already\n');
+      File(p.join(f.bin, 'module.txt')).writeAsStringSync(p.join(hypr, 'hyprland.lua'));
+      File(p.join(f.bin, 'error-on.txt')).writeAsStringSync('broken already');
+      expect(File(p.join(hypr, 'maprisma-launcher-shortcuts.lua')).existsSync(), isFalse);
+      await f.call('shortcuts.set', {'key': f.firefox, 'mods': ['SUPER', 'ALT'], 'combo_key': 'F'});
+      expect(File(p.join(hypr, 'maprisma-launcher-shortcuts.lua')).readAsStringSync(), contains('"Firefox"'));
       expect((await f.call('shortcuts.labels'))['labels'], {f.firefox: ['Super + Alt + F']});
     });
 

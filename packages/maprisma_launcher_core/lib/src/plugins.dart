@@ -225,8 +225,13 @@ final class ShellPlugins {
     }
     final omarchy = session.which('omarchy');
     if (omarchy == null) return (false, 'no omarchy command');
-    final out = await readBoundedText([omarchy, 'plugin', 'update', id, '--yes'],
+    final (code, output) = await runBounded([omarchy, 'plugin', 'update', id, '--yes'],
         maxBytes: 64 * 1024, timeout: const Duration(seconds: 180), environment: _gitEnv);
-    return out == null ? (false, 'the update failed') : (true, '');
+    if (code == 0) return (true, '');
+    // The command's last line says why (local changes, validation …).
+    final lines = [for (final l in output.split('\n')) if (l.trim().isNotEmpty) l.trim()];
+    var message = lines.isNotEmpty ? lines.last : (code == null ? 'timed out or too much output' : 'exit $code');
+    if (message.startsWith('omarchy-plugin-update: ')) message = message.substring('omarchy-plugin-update: '.length);
+    return (false, message.length > 300 ? message.substring(0, 300) : message);
   }
 }

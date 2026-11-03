@@ -131,6 +131,15 @@ esac
     expect(calls.where((c) => c.contains('bad name')), isEmpty);
     expect(calls.every((c) => c.startsWith('--user --json=short --timeout=1.5 -- ')), isTrue);
     expect(calls.last, '--user --json=short --timeout=1.5 -- call :1.9 /MenuBar com.canonical.dbusmenu Event isvu 12 clicked i 0 0');
+    // A shared interpreter or Electron runtime, or a desktop entry's Exec
+    // program, never claims the icon (only argv of AppImages/CLI tools does).
+    expect(Tray.belongsTo(found.$1, {'desktop_id': 'x', 'name': 'X', 'exec': 'python3 /opt/x.py'}), isFalse);
+    expect(Tray.belongsTo({...found.$1, 'tray_programs': {'electron34'}},
+        {'desktop_id': 'y', 'name': 'Y', 'exec': 'electron34 /usr/lib/y/app.asar'}), isFalse);
+    expect(Tray.belongsTo({...found.$1, 'tray_programs': {'python3'}},
+        {'desktop_id': 'z', 'name': 'Z', 'exec': 'env A=1 python3 z.py'}), isFalse);
+    expect(Tray.belongsTo({...found.$1, 'tray_programs': {'lm-studio'}},
+        {'desktop_id': 'lms', 'name': 'LMS', 'exec': '', 'argv': ['/home/u/Apps/lm-studio.AppImage']}), isTrue);
     // Another app has no icon: no Quit.
     expect(await tray.quitFor({'desktop_id': 'gimp', 'name': 'GIMP', 'exec': 'gimp %U'}), isNull);
   });

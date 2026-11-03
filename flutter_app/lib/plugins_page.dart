@@ -61,13 +61,16 @@ class _PluginsPageState extends State<PluginsPage> {
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text(text)));
 
-  Future<void> _do(String route, Map<String, dynamic> params, {String? done}) async {
+  /// [failed]: what to say first when it does not work; the command's own
+  /// reason (untranslated, from Omarchy) follows it.
+  Future<void> _do(String route, Map<String, dynamic> params, {String? done, String? failed}) async {
     try {
       await widget.core(route, params);
       if (done != null) _tell(done);
       await _load();
     } on ServiceError catch (e) {
-      _tell(e.reason ?? trf('That did not work ({0}).', [e.code]));
+      final head = failed ?? trf('That did not work ({0}).', [e.code]);
+      _tell(e.reason == null || e.reason!.isEmpty ? head : '$head: ${e.reason}');
     }
   }
 
@@ -166,7 +169,12 @@ class _PluginsPageState extends State<PluginsPage> {
         await _do('plugins.bar', {'plugin_id': plugin['plugin_id'], 'placed': true, 'section': c.substring(3)});
       case 'update':
         _tell(trf('Updating {0}…', [plugin['name']]));
-        await _do('plugins.update', {'plugin_id': plugin['plugin_id']}, done: trf('{0} updated', [plugin['name']]));
+        await _do(
+          'plugins.update',
+          {'plugin_id': plugin['plugin_id']},
+          done: trf('{0} updated', [plugin['name']]),
+          failed: trf('Could not update {0}', [plugin['name']]),
+        );
         await _checkUpdates();
       case 'folder':
         await Clipboard.setData(ClipboardData(text: '${plugin['plugin_dir']}'));

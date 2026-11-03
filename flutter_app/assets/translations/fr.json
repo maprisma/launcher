@@ -73,6 +73,7 @@
  "Could not sort the apps ({0}).": "Impossible de trier les applications ({0}).",
  "Could not start the update": "Impossible de lancer la mise à jour",
  "Could not uninstall {0}": "Impossible de désinstaller {0}",
+ "Could not update {0}": "Impossible de mettre à jour {0}",
  "Current default: {0}. Check to make the selected modifiers the default; uncheck to go back to Super + Shift.": "Défaut actuel : {0}. Cochez pour faire des modificateurs choisis le défaut ; décochez pour revenir à Super + Maj.",
  "Default": "Par défaut",
  "Default app for": "App par défaut pour",

@@ -36,8 +36,15 @@ abstract class ShortcutBackend {
 /// Bounded `program args…`: stdout, or null when it fails.
 typedef Runner = Future<String?> Function(List<String> argv, {Duration timeout});
 
-Future<String?> boundedRun(List<String> argv, {Duration timeout = const Duration(seconds: 3)}) =>
-    readBoundedText(argv, maxBytes: 4 * 1024 * 1024, timeout: timeout);
+Future<String?> boundedRun(
+  List<String> argv, {
+  Duration timeout = const Duration(seconds: 3),
+  Map<String, String>? environment,
+}) => readBoundedText(argv, maxBytes: 4 * 1024 * 1024, timeout: timeout, environment: environment);
+
+/// boundedRun in the session's environment.
+Runner sessionRun(Session session) =>
+    (argv, {timeout = const Duration(seconds: 3)}) => boundedRun(argv, timeout: timeout, environment: session.environment);
 
 // --- GNOME and COSMIC ---------------------------------------------------------------
 
@@ -119,13 +126,15 @@ final class GnomeBackend implements ShortcutBackend {
 }
 
 /// gsettings on the user's session bus (argv only, bounded).
-KeySettings gsettingsProgram(Session session, {Runner run = boundedRun}) {
+KeySettings gsettingsProgram(Session session, {Runner? run}) {
+  final runner = run ?? sessionRun(session);
   final program = session.which('gsettings');
-  return GSettingsProgram((args) async => program == null ? null : run([program, ...args]));
+  return GSettingsProgram((args) async => program == null ? null : runner([program, ...args]));
 }
 
 /// The Dash's favourites (org.gnome.shell favorite-apps), file names.
-Future<List<String>> gnomeFavorites(Session session, {Runner run = boundedRun}) async {
+Future<List<String>> gnomeFavorites(Session session, {Runner? run}) async {
+  run ??= sessionRun(session);
   final program = session.which('gsettings');
   final out = program == null ? null : await run([program, 'get', 'org.gnome.shell', 'favorite-apps']);
   return out == null ? const [] : parseGVariantStrings(out) ?? const [];
@@ -148,7 +157,7 @@ CosmicSettings cosmicSettings(Session session, ConfigStore store, {String? defau
 // --- Omarchy (Hyprland) ----------------------------------------------------------------
 
 final class HyprBackend implements ShortcutBackend {
-  HyprBackend(this.session, this.store, {this.run = boundedRun});
+  HyprBackend(this.session, this.store, {Runner? run}) : run = run ?? sessionRun(session);
   final Session session;
   final ConfigStore store;
   final Runner run;
@@ -304,7 +313,7 @@ final class HyprBackend implements ShortcutBackend {
     if (!await available()) throw ServiceError('not_available');
     final oldState = File(store.path(stateFile)).existsSync() ? store.readJson(stateFile) : null;
     final oldLua = File(luaFile).existsSync() ? _read(luaFile) ?? '' : null;
-    final before = oldLua != null ? await configErrors() : '';
+    final before = await configErrors();
     writeTextAtomic(luaFile, renderLua(state, desktopArg));
     ensureRequired();
     store.writeJson(stateFile, state);
@@ -334,14 +343,21 @@ ShortcutBackend? backendFor(Desktop desktop, ConfigStore store, {String? cosmicD
     label: 'GNOME',
     favorites: () => gnomeFavorites(desktop.session),
   ),
-  CosmicDesktop() => GnomeBackend(
-    desktop.session,
-    store,
-    cosmicSettings(desktop.session, store, defaultsFile: cosmicDefaults),
-    label: 'COSMIC',
-  ),
+  CosmicDesktop() => _cosmicBackend(desktop.session, store, cosmicDefaults),
   _ => null,
 };
+
+/// COSMIC's shortcut file read at once; one we cannot read or parse means
+/// no shortcuts here (read-only), never a broken core.
+ShortcutBackend? _cosmicBackend(Session session, ConfigStore store, String? defaults) {
+  try {
+    return GnomeBackend(session, store, cosmicSettings(session, store, defaultsFile: defaults), label: 'COSMIC');
+  } on FormatException {
+    return null;
+  } on FileSystemException {
+    return null;
+  }
+}
 
 final class ShortcutService {
   ShortcutService(this.backend, this.store);

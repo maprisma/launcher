@@ -52,7 +52,8 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _setAdmin(bool on) async {
     setState(() => adminPending = true);
     try {
-      final r = await widget.core('admin.enable', {'on': on});
+      // The polkit dialog takes the focus: the popup must not hide meanwhile.
+      final r = await PopupGuard.around(() => widget.core('admin.enable', {'on': on}));
       if (mounted) setState(() => admin = {...admin, 'enabled': r['enabled']});
     } on ServiceError catch (e) {
       if (mounted) {

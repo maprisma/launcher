@@ -11,6 +11,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import 'posix.dart';
 import 'shlex.dart';
 
 typedef Combo = Map<String, dynamic>;
@@ -1005,11 +1006,14 @@ final class CosmicSettings implements KeySettings {
   late Map<String, String> taken, shadowed;
   late Map<String, Map<String, String>> own;
 
+  /// Missing: null. Anything else must be a regular file of at most 1 MiB
+  /// (read non-blocking, so a FIFO cannot hang the core), else it throws:
+  /// a file we cannot read is never overwritten.
   static String? _read(String path) {
-    final file = File(path);
-    if (!file.existsSync()) return null;
-    if (file.lengthSync() > 1024 * 1024) throw const FormatException('too large');
-    return file.readAsStringSync();
+    if (FileSystemEntity.typeSync(path) == FileSystemEntityType.notFound) return null;
+    final bytes = Posix.instance.readRegular(path, 1024 * 1024);
+    if (bytes == null) throw const FormatException('not a regular file of at most 1 MiB');
+    return utf8.decode(bytes, allowMalformed: true);
   }
 
   void _load() {

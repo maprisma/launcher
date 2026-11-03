@@ -78,6 +78,7 @@
  "Could not sort the apps ({0}).": "Nie udało się posortować aplikacji ({0}).",
  "Could not start the update": "Nie udało się uruchomić aktualizacji",
  "Could not uninstall {0}": "Nie udało się odinstalować {0}",
+ "Could not update {0}": "Nie udało się zaktualizować {0}",
  "Current default: {0}. Check to make the selected modifiers the default; uncheck to go back to Super + Shift.": "Obecne domyślne: {0}. Zaznacz, aby wybrane modyfikatory były domyślne; odznacz, aby wrócić do Super + Shift.",
  "Default": "Domyślny",
  "Default app for": "Domyślna aplikacja dla",

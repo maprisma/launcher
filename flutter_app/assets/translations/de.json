@@ -73,6 +73,7 @@
  "Could not sort the apps ({0}).": "Die Apps konnten nicht sortiert werden ({0}).",
  "Could not start the update": "Das Update konnte nicht gestartet werden",
  "Could not uninstall {0}": "{0} konnte nicht deinstalliert werden",
+ "Could not update {0}": "{0} konnte nicht aktualisiert werden",
  "Current default: {0}. Check to make the selected modifiers the default; uncheck to go back to Super + Shift.": "Aktueller Standard: {0}. Anhaken macht die gewählten Modifikatoren zum Standard; abwählen kehrt zu Super + Shift zurück.",
  "Default": "Standard",
  "Default app for": "Standard-App für",

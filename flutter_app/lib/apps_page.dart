@@ -903,6 +903,10 @@ class AppsPageState extends State<AppsPage> {
               : trf('Uninstalled {0}', [app['name']]),
         );
         await _load();
+      } else if (result['started'] == true) {
+        // A terminal asks for the password: it needs the focus.
+        _clearFilter();
+        widget.onHide?.call();
       }
     } on ServiceError catch (e) {
       _tell(

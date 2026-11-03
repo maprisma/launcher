@@ -128,11 +128,12 @@ final class Posix {
     }
   }
 
-  /// The owner's uid of [path] (following links), or null.
-  int? ownerOf(String path) {
+  /// The owner's uid of [path] (following links unless [follow] is false), or null.
+  int? ownerOf(String path, {bool follow = true}) {
     final buffer = calloc<Uint8>(256);
     try {
-      final ok = _withPath(path, (name) => _statx(-100, name, 0, 0x8, buffer) == 0);
+      // AT_SYMLINK_NOFOLLOW = 0x100: a link's own owner.
+      final ok = _withPath(path, (name) => _statx(-100, name, follow ? 0 : 0x100, 0x8, buffer) == 0);
       if (ok != true) return null;
       return ByteData.sublistView(buffer.asTypedList(256)).getUint32(20, Endian.host);
     } finally {

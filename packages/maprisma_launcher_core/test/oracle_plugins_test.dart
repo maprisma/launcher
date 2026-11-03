@@ -28,4 +28,16 @@ void main() {
     expect(got, expected);
     expect(got, isNotEmpty);
   });
+
+  test('a failed plugin update says why: the last line of its output (stderr too)', () async {
+    final dir = Directory.systemTemp.createTempSync('am-plugin-update-');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final fake = File(p.join(dir.path, 'omarchy'))
+      ..writeAsStringSync('#!/bin/sh\n[ "\$3" = good ] && exit 0\necho "Fetching" \necho "omarchy-plugin-update: local changes in the checkout" >&2\nexit 1\n');
+    Process.runSync('chmod', ['755', fake.path]);
+    final plugins = ShellPlugins(Session(environment: {'PATH': dir.path, 'HOME': dir.path}));
+    expect(await plugins.update('good'), (true, ''));
+    expect(await plugins.update('bad'), (false, 'local changes in the checkout'));
+    expect(await plugins.update('../x'), (false, 'invalid plugin id'));
+  });
 }

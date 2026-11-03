@@ -61,7 +61,7 @@ final class Admin {
     if (!RegExp(r'^[A-Za-z0-9]{1,32}$').hasMatch(sid)) return null;
     final record = p.join(sessionsDir, sid);
     if (FileSystemEntity.typeSync(record, followLinks: false) != FileSystemEntityType.file) return null;
-    if (Posix.instance.ownerOf(record) != 0) return null;
+    if (Posix.instance.ownerOf(record, follow: false) != 0) return null;
     final bytes = Posix.instance.readRegular(record, 64 * 1024, follow: false);
     final boot = Posix.instance.readRegular(bootIdFile, 64);
     if (bytes == null || boot == null) return null;
@@ -80,7 +80,7 @@ final class Admin {
     final dir = sessionDir(), token = sessionToken();
     if (dir == null || token == null) return false;
     final flag = p.join(dir, adminFlagName);
-    if (Posix.instance.ownerOf(flag) != Posix.instance.uid) return false;
+    if (Posix.instance.ownerOf(flag, follow: false) != Posix.instance.uid) return false;
     final bytes = Posix.instance.readRegular(flag, 256, follow: false);
     return bytes != null && ascii.decode(bytes, allowInvalid: true).trim() == token;
   }

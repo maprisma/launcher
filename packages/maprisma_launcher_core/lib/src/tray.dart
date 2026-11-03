@@ -19,7 +19,6 @@ import 'bounded.dart';
 import 'desktop_entries.dart';
 import 'posix.dart';
 import 'running.dart';
-import 'shlex.dart';
 
 const _watcher = ('org.kde.StatusNotifierWatcher', '/StatusNotifierWatcher', 'org.kde.StatusNotifierWatcher');
 const _itemInterface = 'org.kde.StatusNotifierItem';
@@ -30,6 +29,7 @@ final _quitRe = RegExp(r'^(quit|exit|close|beenden)\b', caseSensitive: false);
 final _busNameRe = RegExp(r'^(:[0-9]+\.[0-9]+|[A-Za-z_-][A-Za-z0-9_-]*(\.[A-Za-z_-][A-Za-z0-9_-]*)+)$');
 final _objectPathRe = RegExp(r'^/([A-Za-z0-9_]+(/[A-Za-z0-9_]+)*)?$');
 const _maxDepth = 8, _maxNodes = 2000;
+final _electronRe = RegExp(r'^electron[0-9]*$');
 
 /// clean_label: GTK mnemonic underscores out ("_Quit" → "Quit", "a__b" → "a_b").
 String cleanLabel(Object? label) =>
@@ -273,14 +273,17 @@ final class Tray {
     if ('${app['name']}'.toLowerCase() == '${item['name']}'.toLowerCase()) return true;
     final programs = item['tray_programs'] as Set<String>? ?? const {};
     if (programs.isEmpty) return false;
+    // app_process_name refuses shared interpreters (python3, sh, env …).
+    // Shared Electron runtimes too (Exec=electron34 /usr/lib/foo): their tray
+    // icon could be any Electron app's.
     final process = appProcessName(app);
-    if (process != null && programs.contains(process)) return true;
-    try {
-      final args = shlexSplit(app['exec'] as String? ?? '');
-      return args.isNotEmpty && programs.contains(p.basenameWithoutExtension(args.first).toLowerCase());
-    } on FormatException {
-      return false;
-    }
+    if (process != null && !_electronRe.hasMatch(process) && programs.contains(process)) return true;
+    // argv only exists for AppImages and CLI tools (their own program), as
+    // in the reference; a desktop entry's Exec is not used here.
+    final argv = app['argv'];
+    if (argv is! List || argv.isEmpty) return false;
+    final stem = p.basenameWithoutExtension('${argv.first}').toLowerCase();
+    return stem.isNotEmpty && programs.contains(stem);
   }
 
   /// The app's own Quit: (item, node), or null. The first matching icon

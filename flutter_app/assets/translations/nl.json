@@ -73,6 +73,7 @@
  "Could not sort the apps ({0}).": "De apps konden niet worden gesorteerd ({0}).",
  "Could not start the update": "De update kon niet worden gestart",
  "Could not uninstall {0}": "Kon {0} niet verwijderen",
+ "Could not update {0}": "{0} kon niet worden bijgewerkt",
  "Current default: {0}. Check to make the selected modifiers the default; uncheck to go back to Super + Shift.": "Huidige standaard: {0}. Vink aan om de gekozen modifiers standaard te maken; vink uit om terug te gaan naar Super + Shift.",
  "Default": "Standaard",
  "Default app for": "Standaard-app voor",

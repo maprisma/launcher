@@ -73,6 +73,7 @@
  "Could not sort the apps ({0}).": "No se pudieron ordenar las apps ({0}).",
  "Could not start the update": "No se pudo iniciar la actualización",
  "Could not uninstall {0}": "No se pudo desinstalar {0}",
+ "Could not update {0}": "No se pudo actualizar {0}",
  "Current default: {0}. Check to make the selected modifiers the default; uncheck to go back to Super + Shift.": "Predeterminado actual: {0}. Marca para que los modificadores elegidos sean el predeterminado; desmarca para volver a Super + Mayús.",
  "Default": "Predeterminado",
  "Default app for": "App predeterminada para",
