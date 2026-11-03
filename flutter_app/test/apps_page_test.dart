@@ -5,12 +5,12 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:appmanager/apps_page.dart';
-import 'package:appmanager/i18n.dart';
-import 'package:appmanager/install_page.dart';
+import 'package:maprisma_launcher/apps_page.dart';
+import 'package:maprisma_launcher/i18n.dart';
+import 'package:maprisma_launcher/install_page.dart';
 import 'package:flutter/gestures.dart' show kSecondaryButton;
-import 'package:appmanager/main.dart' show AppManager;
-import 'package:appmanager_core/appmanager_core.dart';
+import 'package:maprisma_launcher/main.dart' show MaprismaLauncherApp;
+import 'package:maprisma_launcher_core/maprisma_launcher_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -40,7 +40,7 @@ void main() {
         'XDG_DATA_HOME': p.join(home.path, 'data'),
         'XDG_DATA_DIRS': p.join(home.path, 'none'),
         'XDG_CURRENT_DESKTOP': 'GNOME',
-        'APPMANAGER_DESKTOP': 'generic',
+        'MAPRISMA_LAUNCHER_DESKTOP': 'generic',
       },
     );
   });
@@ -265,7 +265,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     addTearDown(() => I18n.useTable('en', const {}));
-    await tester.pumpWidget(AppManager(core: call, look: const {}));
+    await tester.pumpWidget(MaprismaLauncherApp(core: call, look: const {}));
     await settle(tester);
     // No view buttons by default (Ctrl+G still switches).
     expect(find.byTooltip('Groups (Ctrl+G)'), findsNothing);
@@ -320,7 +320,7 @@ void main() {
     final settings = (await tester.runAsync(
       () => call('settings.set', {'key': 'screenshot_folder', 'value': shots.path}),
     ))!;
-    await tester.pumpWidget(AppManager(core: call, look: const {}, settings: settings));
+    await tester.pumpWidget(MaprismaLauncherApp(core: call, look: const {}, settings: settings));
     await settle(tester);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.f12);
@@ -329,7 +329,7 @@ void main() {
     }
     final pictures = shots.listSync().where((f) => f.path.endsWith('.png')).toList();
     expect(pictures, hasLength(1));
-    expect(p.basename(pictures.single.path), startsWith('appmanager-'));
+    expect(p.basename(pictures.single.path), startsWith('maprisma-launcher-'));
     expect(find.textContaining('Screenshot saved: '), findsOneWidget);
     await tester.enterText(find.byKey(const ValueKey('screenshot-note')), 'Writer is cut off');
     await tester.tap(find.text('Done'));
@@ -341,7 +341,7 @@ void main() {
 
     // Off in Settings: F12 does nothing.
     final off = (await tester.runAsync(() => call('settings.set', {'key': 'screenshot_key', 'value': false})))!;
-    await tester.pumpWidget(AppManager(key: UniqueKey(), core: call, look: const {}, settings: off));
+    await tester.pumpWidget(MaprismaLauncherApp(key: UniqueKey(), core: call, look: const {}, settings: off));
     await settle(tester);
     await tester.sendKeyEvent(LogicalKeyboardKey.f12);
     for (var i = 0; i < 4; i++) {

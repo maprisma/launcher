@@ -4,7 +4,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:appmanager_core/appmanager_core.dart';
+import 'package:maprisma_launcher_core/maprisma_launcher_core.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -81,7 +81,7 @@ fi
           'XDG_DATA_HOME': p.join(home.path, 'data'),
           'XDG_DATA_DIRS': p.join(home.path, 'none'),
           'XDG_STATE_HOME': p.join(home.path, 'state'),
-          'APPMANAGER_DESKTOP': 'generic',
+          'MAPRISMA_LAUNCHER_DESKTOP': 'generic',
         },
       );
     });
@@ -123,8 +123,8 @@ fi
       final log = jsonDecode(File(p.join(home.path, 'state/omarchy-plugin-ai/runs.json')).readAsStringSync()) as Map;
       expect(log['api'], 1);
       expect([for (final run in log['runs'] as List) [run['plugin'], run['task'], run['agent'], run['ok']]], [
-        ['appmanager', 'ask-ai', 'claude', true],
-        ['appmanager', 'ask-ai', 'claude', true],
+        ['maprisma-launcher', 'ask-ai', 'claude', true],
+        ['maprisma-launcher', 'ask-ai', 'claude', true],
       ]);
       expect(File(p.join(home.path, 'state/omarchy-plugin-ai/runs.json')).statSync().modeString(), 'rw-------');
     });

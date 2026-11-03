@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:appmanager_core/appmanager_core.dart';
+import 'package:maprisma_launcher_core/maprisma_launcher_core.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -110,7 +110,7 @@ void main() {
     expect(d({'XDG_CURRENT_DESKTOP': 'ubuntu:GNOME'}).name, 'gnome');
     expect(d({'XDG_CURRENT_DESKTOP': 'COSMIC'}).name, 'cosmic');
     expect(d({'XDG_CURRENT_DESKTOP': 'KDE'}).name, 'generic');
-    expect(d({'XDG_CURRENT_DESKTOP': 'KDE', 'APPMANAGER_DESKTOP': 'gnome'}).name, 'gnome');
+    expect(d({'XDG_CURRENT_DESKTOP': 'KDE', 'MAPRISMA_LAUNCHER_DESKTOP': 'gnome'}).name, 'gnome');
     expect(
       d({'HYPRLAND_INSTANCE_SIGNATURE': 'x', 'OMARCHY_PATH': '/nonexistent'}).name,
       'generic',

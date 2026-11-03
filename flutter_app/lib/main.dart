@@ -19,7 +19,7 @@ import 'theme.dart';
 
 /// The runner's channel: "shown" (the window came back), "titlebar"
 /// (dark or light), "hide".
-const windowChannel = MethodChannel('appmanager/window');
+const windowChannel = MethodChannel('maprisma-launcher/window');
 
 /// Counts the times the window was shown again (--toggle, a second start).
 final shownAgain = ValueNotifier<int>(0);
@@ -33,19 +33,19 @@ Future<void> main() async {
   windowChannel.setMethodCallHandler((call) async {
     if (call.method == 'shown') shownAgain.value++;
   });
-  runApp(AppManager(core: backend.call, look: look, settings: settings));
+  runApp(MaprismaLauncherApp(core: backend.call, look: look, settings: settings));
 }
 
-class AppManager extends StatefulWidget {
-  const AppManager({super.key, required this.core, required this.look, this.settings = const {}});
+class MaprismaLauncherApp extends StatefulWidget {
+  const MaprismaLauncherApp({super.key, required this.core, required this.look, this.settings = const {}});
   final CoreCall core;
   final Map<String, dynamic> look;
   final Map<String, dynamic> settings;
   @override
-  State<AppManager> createState() => _AppManagerState();
+  State<MaprismaLauncherApp> createState() => _MaprismaLauncherState();
 }
 
-class _AppManagerState extends State<AppManager> with WidgetsBindingObserver {
+class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBindingObserver {
   late Map<String, dynamic> look = widget.look;
   late String cornersSetting = widget.settings['corners'] as String? ?? 'windows';
   late Map<String, dynamic> settings = widget.settings;
@@ -144,7 +144,7 @@ class _AppManagerState extends State<AppManager> with WidgetsBindingObserver {
         navigatorKey: _navigator,
         // The picture F12 takes: the whole window, dialogs included.
         builder: (context, child) => RepaintBoundary(key: _shotArea, child: child),
-        title: 'App Manager',
+        title: 'Maprisma Launcher',
         debugShowCheckedModeBanner: false,
         theme: appTheme(MediaQuery.platformBrightnessOf(context), look['colors'] as Map? ?? {}, radius),
         home: AppsPage(

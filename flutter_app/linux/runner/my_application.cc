@@ -10,7 +10,7 @@
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
-  // "appmanager/window": tells the app its window is shown again (popup mode
+  // "maprisma-launcher/window": tells the app its window is shown again (popup mode
   // places it then).
   FlMethodChannel* window_channel;
 };
@@ -109,11 +109,11 @@ static void my_application_activate(GApplication* application) {
   if (use_header_bar) {
     GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
     gtk_widget_show(GTK_WIDGET(header_bar));
-    gtk_header_bar_set_title(header_bar, "App Manager");
+    gtk_header_bar_set_title(header_bar, "Maprisma Launcher");
     gtk_header_bar_set_show_close_button(header_bar, TRUE);
     gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
   } else {
-    gtk_window_set_title(window, "App Manager");
+    gtk_window_set_title(window, "Maprisma Launcher");
   }
 
   gtk_window_set_default_size(window, 920, 640);
@@ -142,7 +142,7 @@ static void my_application_activate(GApplication* application) {
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
   self->window_channel = fl_method_channel_new(
       fl_engine_get_binary_messenger(fl_view_get_engine(view)),
-      "appmanager/window", FL_METHOD_CODEC(codec));
+      "maprisma-launcher/window", FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(self->window_channel,
                                             window_call_cb, self, nullptr);
 

@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:appmanager_core/appmanager_core.dart';
+import 'package:maprisma_launcher_core/maprisma_launcher_core.dart';
 
-/// appmanager-core scan [--as-launcher]: the app list as JSON (for the
+/// maprisma-launcher-core scan [--as-launcher]: the app list as JSON (for the
 /// oracle: --as-launcher uses gnome-launcher's ids and cache folder).
 Future<void> main(List<String> args) async {
   if (args.isEmpty || args.first != 'scan') {
-    stderr.writeln('usage: appmanager-core scan [--as-launcher]');
+    stderr.writeln('usage: maprisma-launcher-core scan [--as-launcher]');
     exitCode = 2;
     return;
   }
@@ -16,8 +16,8 @@ Future<void> main(List<String> args) async {
     Session(environment: Platform.environment),
     appIdPrefix: launcher
         ? 'io.github.ubruckhaus.Launcher'
-        : 'io.github.ubruckhaus.AppManager',
-    cacheName: launcher ? 'gnome-launcher' : 'appmanager',
+        : 'io.github.ubruckhaus.MaprismaLauncher',
+    cacheName: launcher ? 'gnome-launcher' : 'maprisma-launcher',
     localized: !launcher,
   );
   stdout.writeln(jsonEncode(apps));

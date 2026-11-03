@@ -1,4 +1,4 @@
-/// App Manager's own files in ~/.config/appmanager: read bounded, written
+/// App Manager's own files in ~/.config/maprisma-launcher: read bounded, written
 /// atomically and privately (0600, never through a symlink). The first start
 /// copies them from the old apps (never moves them).
 library;
@@ -15,7 +15,7 @@ const maxConfigBytes = 256 * 1024;
 
 final class ConfigStore {
   ConfigStore(this.session, {String? dir})
-    : dir = dir ?? p.join(_configHome(session), 'appmanager');
+    : dir = dir ?? p.join(_configHome(session), 'maprisma-launcher');
   final Session session;
   final String dir;
 
@@ -164,7 +164,7 @@ final class Settings {
     };
   }
 
-  /// An absolute folder path, or null (~/Pictures/AppManager).
+  /// An absolute folder path, or null (~/Pictures/MaprismaLauncher).
   static String? _folder(Object? value) =>
       value is String && value.startsWith('/') && value.length <= 4096 && !value.contains('\x00') ? value : null;
 

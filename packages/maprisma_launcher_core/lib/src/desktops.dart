@@ -1,5 +1,5 @@
 /// One adapter per desktop: what App Manager asks of Omarchy, GNOME, COSMIC
-/// or any other XDG desktop. Picked once at start (APPMANAGER_DESKTOP wins).
+/// or any other XDG desktop. Picked once at start (MAPRISMA_LAUNCHER_DESKTOP wins).
 library;
 
 import 'dart:convert';
@@ -92,7 +92,7 @@ abstract class Desktop {
 
 Desktop detectDesktop(Session session) {
   final env = session.environment;
-  final wanted = env['APPMANAGER_DESKTOP'];
+  final wanted = env['MAPRISMA_LAUNCHER_DESKTOP'];
   final current = (env['XDG_CURRENT_DESKTOP'] ?? '').toLowerCase().split(':');
   if (wanted == 'omarchy' ||
       wanted == null &&

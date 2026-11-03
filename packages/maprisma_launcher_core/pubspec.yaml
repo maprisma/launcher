@@ -1,5 +1,5 @@
-name: appmanager_core
-description: App Manager's core in pure Dart (scan, groups, shortcuts, desktops).
+name: maprisma_launcher_core
+description: Maprisma Launcher's core in pure Dart (scan, groups, shortcuts, desktops).
 publish_to: none
 version: 0.1.0
 environment:

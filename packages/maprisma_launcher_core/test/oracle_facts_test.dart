@@ -4,7 +4,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:appmanager_core/appmanager_core.dart';
+import 'package:maprisma_launcher_core/maprisma_launcher_core.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 

@@ -5,7 +5,7 @@ Keys: every tr('…') / trf('…', …) / trn('one', 'other', …) text in
 flutter_app/lib, plus the texts the core sends in English (DYNAMIC).
 Translations: the Omarchy plugin's built-in tables (reference/omarchy-plugin/
 i18n.py, made with ~/Projects/omarchy-plugin-i18n), Maprisma's tables for
-what is not there, then i18n/extra.json for texts only App Manager has (it
+what is not there, then i18n/extra.json for texts only Maprisma Launcher has (it
 wins). Prints what is still missing; exit 1
 when anything is (or with --check, when the files are not up to date).
 

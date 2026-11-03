@@ -1,4 +1,4 @@
-name: appmanager
+name: maprisma_launcher
 description: "A new Flutter project."
 publish_to: 'none'
 version: 0.1.0+1
@@ -7,8 +7,8 @@ environment:
   sdk: ^3.13.5
 
 dependencies:
-  appmanager_core:
-    path: ../packages/appmanager_core
+  maprisma_launcher_core:
+    path: ../packages/maprisma_launcher_core
   file_selector: ^1.1.0
   flutter:
     sdk: flutter

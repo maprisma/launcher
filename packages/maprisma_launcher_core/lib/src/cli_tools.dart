@@ -111,7 +111,7 @@ String cliIconFor(String command, Session session) {
 List<Map<String, dynamic>> cliEntries(
   Set<String> knownCommands,
   Session session, {
-  String appIdPrefix = 'io.github.ubruckhaus.AppManager',
+  String appIdPrefix = 'io.github.ubruckhaus.MaprismaLauncher',
 }) {
   final binDir = p.join(session.home, '.local/bin');
   final miseDir = p.join(session.home, '.local/share/mise');

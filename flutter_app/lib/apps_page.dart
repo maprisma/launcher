@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:appmanager_core/appmanager_core.dart'
+import 'package:maprisma_launcher_core/maprisma_launcher_core.dart'
     as sizes
     show
         cardPadding,
@@ -1026,7 +1026,7 @@ class AppsPageState extends State<AppsPage> {
             child: Padding(
               padding: const EdgeInsets.only(left: 8),
               child: Text(
-                query.isEmpty ? tr('App Manager') : trf('Filter: {0}', [query]),
+                query.isEmpty ? tr('Maprisma Launcher') : trf('Filter: {0}', [query]),
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ),

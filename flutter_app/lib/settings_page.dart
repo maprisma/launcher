@@ -255,13 +255,13 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   _row(
                     tr('Screenshots go to'),
-                    settings['screenshot_folder'] as String? ?? '~/Pictures/AppManager',
+                    settings['screenshot_folder'] as String? ?? '~/Pictures/MaprismaLauncher',
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         Flexible(
                           child: Text(
-                            settings['screenshot_folder'] as String? ?? '~/Pictures/AppManager',
+                            settings['screenshot_folder'] as String? ?? '~/Pictures/MaprismaLauncher',
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(color: scheme.onSurfaceVariant),
                           ),

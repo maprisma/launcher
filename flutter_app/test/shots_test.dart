@@ -7,9 +7,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:appmanager/i18n.dart';
-import 'package:appmanager/main.dart';
-import 'package:appmanager_core/appmanager_core.dart';
+import 'package:maprisma_launcher/i18n.dart';
+import 'package:maprisma_launcher/main.dart';
+import 'package:maprisma_launcher_core/maprisma_launcher_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -46,7 +46,7 @@ void main() {
     addTearDown(tester.view.reset);
     late Map<String, dynamic> look, list, facts;
     // A throwaway config folder: the first start copies the old apps' files
-    // into it (read only there), never into ~/.config/appmanager.
+    // into it (read only there), never into ~/.config/maprisma-launcher.
     final config = Directory.systemTemp.createTempSync('am-shots-');
     addTearDown(() => config.deleteSync(recursive: true));
     final core = CoreService(environment: Platform.environment, configDir: config.path);
@@ -78,7 +78,7 @@ void main() {
     await tester.pumpWidget(
       RepaintBoundary(
         key: key,
-        child: AppManager(core: fake, look: look),
+        child: MaprismaLauncherApp(core: fake, look: look),
       ),
     );
     await tester.pump();

@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
-import 'package:appmanager_core/appmanager_core.dart';
+import 'package:maprisma_launcher_core/maprisma_launcher_core.dart';
 
-export 'package:appmanager_core/appmanager_core.dart' show ServiceError;
+export 'package:maprisma_launcher_core/maprisma_launcher_core.dart' show ServiceError;
 
 void _serve((SendPort, Map<String, String>) args) {
   final inbox = ReceivePort();

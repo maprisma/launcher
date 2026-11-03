@@ -205,7 +205,7 @@ Future<List<Map<String, dynamic>>> scanStandaloneAppImages(
   Session session,
   Set<String> seenNames, {
   Set<String> started = const {},
-  String cacheName = 'appmanager',
+  String cacheName = 'maprisma-launcher',
 }) async {
   final apps = <Map<String, dynamic>>[];
   final iconCache = p.join(session.home, '.cache/$cacheName/icons');

@@ -6,20 +6,20 @@ import 'package:flutter/material.dart';
 import 'i18n.dart';
 
 /// F12: a picture of App Manager's own window and its note (as Maprisma's
-/// WindowShots), in ~/Pictures/AppManager or the folder chosen in Settings,
+/// WindowShots), in ~/Pictures/MaprismaLauncher or the folder chosen in Settings,
 /// while the setting screenshot_key is on (default).
 final class WindowShots {
   WindowShots(this.folder);
   final String folder;
 
   static WindowShots fromEnvironment(Map<String, String> environment) =>
-      WindowShots('${environment['HOME'] ?? ''}/Pictures/AppManager');
+      WindowShots('${environment['HOME'] ?? ''}/Pictures/MaprismaLauncher');
 
-  /// appmanager-2026-11-03-08-26-31.png, then -2 within the same second.
+  /// maprisma-launcher-2026-11-03-08-26-31.png, then -2 within the same second.
   String pathFor(DateTime time) {
     String two(int n) => '$n'.padLeft(2, '0');
     final stem =
-        'appmanager-${time.year}-${two(time.month)}-${two(time.day)}'
+        'maprisma-launcher-${time.year}-${two(time.month)}-${two(time.day)}'
         '-${two(time.hour)}-${two(time.minute)}-${two(time.second)}';
     var path = '$folder/$stem.png';
     for (var n = 2; File(path).existsSync(); n++) {

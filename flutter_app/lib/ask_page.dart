@@ -382,7 +382,7 @@ class _AskPageState extends State<AskPage> {
       default:
         final hint = '${r['hint'] ?? ''}';
         children.add(
-          Text(hint.isNotEmpty ? hint : tr('App Manager can find, install, update, remove and explain apps.')),
+          Text(hint.isNotEmpty ? hint : tr('Maprisma Launcher can find, install, update, remove and explain apps.')),
         );
     }
     return ListView(
