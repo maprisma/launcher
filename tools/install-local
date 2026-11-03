@@ -1,0 +1,126 @@
+#!/bin/bash
+# Install Maprisma Launcher for this user (no sudo), safely while it may be running:
+#
+#   tools/install-local [--no-build] [--force]
+#
+#   --no-build   use dist/maprisma-launcher-<version>-x86_64.tar.gz as it is
+#   --force      also when the app's own terminal is running a command (it is ended)
+#
+# Never unpack over the installed folder with tar --overwrite or cp: a running Flutter app
+# maps its code (lib/libapp.so) from those files, and changing them under it crashes it
+# (two SIGSEGVs on 2026-11-03). This script stops every running copy first (found by its
+# real program path: the process name is cut to "maprisma-launch", so pkill/killall by
+# name miss it), unpacks into a fresh folder and swaps it in, then restarts the dock if it
+# was running.
+#
+# Installs: ~/.local/lib/maprisma-launcher (the bundle), ~/.local/bin/maprisma-launcher
+# (a link), the desktop entry and the icon under ~/.local/share.
+set -euo pipefail
+
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+lib="$HOME/.local/lib/maprisma-launcher"
+build=1 force=0
+for arg in "$@"; do
+  case "$arg" in
+    --no-build) build=0 ;;
+    --force) force=1 ;;
+    *) echo "usage: tools/install-local [--no-build] [--force]" >&2; exit 2 ;;
+  esac
+done
+
+if (( build )); then
+  python3 -I -B "$root/tools/build-release.py" | tail -2
+fi
+tarball=$(ls -t "$root"/dist/maprisma-launcher-*-x86_64.tar.gz 2>/dev/null | head -1 || true)
+[[ -n $tarball ]] || { echo "no release in dist/ (run without --no-build)" >&2; exit 1; }
+
+# The new bundle first, checked, in a fresh folder next to the old one (swapped in by
+# rename below): nothing running is touched before it is known to be good.
+mkdir -p "$HOME/.local/lib" "$HOME/.local/bin"
+new=$(mktemp -d "$lib.new.XXXXXX")
+trap 'rm -rf -- "$new"' EXIT
+stage=$(mktemp -d)
+trap 'rm -rf -- "$new" "$stage"' EXIT
+tar -xzf "$tarball" -C "$stage"
+src=$(ls -d "$stage"/maprisma-launcher-*/)
+cp -a "$src/app/." "$new/"
+[[ -x $new/maprisma-launcher ]] || { echo "the release has no maprisma-launcher binary" >&2; exit 1; }
+# The program (its RUNPATH finds lib/); the plugin libraries resolve inside it.
+if missing=$(ldd "$new/maprisma-launcher" 2>/dev/null | grep 'not found'); then
+  echo "missing libraries:" >&2; echo "$missing" >&2; exit 1
+fi
+chmod 755 "$new"
+
+# Every running copy: its executable is (or was, "(deleted)") inside the install folder.
+running() {
+  local p exe
+  for p in /proc/[0-9]*; do
+    exe=$(readlink "$p/exe" 2>/dev/null) || continue
+    exe=${exe% (deleted)}
+    [[ $exe == "$lib/maprisma-launcher" || $exe == "$lib".*"/maprisma-launcher" ]] && echo "${p#/proc/}"
+  done
+  return 0
+}
+
+# The app's terminal runs commands as descendants (setsid -w … pacman/sudo/omarchy-update).
+busy=()
+for pid in $(running); do
+  # The terminal's command leads its own session on a pseudo terminal (setsid -w -c);
+  # hyprctl, busctl & co. come and go without one.
+  while read -r child sid tty; do
+    [[ $child == "$sid" && $tty == pts/* ]] || continue
+    busy+=("$pid: $(tr '\0' ' ' < "/proc/$child/cmdline" 2>/dev/null | cut -c1-80)")
+  done < <(ps -o pid=,sid=,tty= --ppid "$pid" 2>/dev/null || true)
+done
+if (( ${#busy[@]} )) && (( ! force )); then
+  echo "Maprisma Launcher is running a command in its terminal:" >&2
+  printf '  %s\n' "${busy[@]}" >&2
+  echo "Let it finish (or close it), then run this again; --force ends it." >&2
+  exit 1
+fi
+
+dock=0
+pids=$(running)
+if [[ -n $pids ]]; then
+  for pid in $pids; do
+    tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -q -- '--dock' && dock=1
+  done
+  echo "Stopping the running copies: $(echo $pids)"
+  kill -TERM $pids 2>/dev/null || true
+  for _ in $(seq 1 50); do
+    [[ -z $(running) ]] && break
+    sleep 0.1
+  done
+  left=$(running)
+  if [[ -n $left ]]; then
+    kill -KILL $left 2>/dev/null || true
+    sleep 0.3
+  fi
+  [[ -z $(running) ]] || { echo "could not stop: $(running)" >&2; exit 1; }
+fi
+
+old=""
+if [[ -e $lib ]]; then
+  old=$(mktemp -d "$lib.old.XXXXXX")
+  rmdir "$old"
+  mv "$lib" "$old"
+fi
+mv "$new" "$lib"
+trap 'rm -rf -- "$stage"' EXIT
+[[ -n $old ]] && rm -rf -- "$old"
+
+ln -sfn "$lib/maprisma-launcher" "$HOME/.local/bin/maprisma-launcher"
+install -Dm644 "$src"/share/applications/*.desktop -t "$HOME/.local/share/applications"
+install -Dm644 "$src"/share/icons/hicolor/scalable/apps/*.svg -t "$HOME/.local/share/icons/hicolor/scalable/apps"
+update-desktop-database "$HOME/.local/share/applications" >/dev/null 2>&1 || true
+
+echo "Installed $(basename "$tarball") into $lib"
+if (( dock )); then
+  # The dock was on: bring it back (it ends at once if it was switched off meanwhile).
+  if command -v uwsm-app >/dev/null; then
+    setsid -f uwsm-app -- "$lib/maprisma-launcher" --dock >/dev/null 2>&1 || true
+  else
+    setsid -f "$lib/maprisma-launcher" --dock >/dev/null 2>&1 || true
+  fi
+  echo "Dock restarted."
+fi
