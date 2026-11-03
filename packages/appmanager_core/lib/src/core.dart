@@ -9,6 +9,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import 'apps.dart';
+import 'ask_ai.dart';
 import 'bounded.dart';
 import 'config.dart';
 import 'desktop_entries.dart';
@@ -59,6 +60,7 @@ final class CoreService {
 
   /// The last search's results: only these can be installed.
   List<Found> _found = [];
+  late final _ask = AskRunner(session);
   Map<String, dynamic> _updates = {'apps': {}, 'flatpaks': {}};
   DateTime? _updatesAt;
   Future<Map<String, dynamic>>? _checking;
@@ -155,6 +157,20 @@ final class CoreService {
       if (!foldable.contains(gid)) throw ServiceError('bad_params');
       groups.toggleCollapsed(data, gid);
     }),
+    'ask.helpers': (_) async => {'helpers': helperStates(session), 'chosen': settings.raw()['ask_helper']},
+    'ask.run': _askRun,
+    'ask.cancel': (_) async {
+      _ask.cancel();
+      return {'cancelled': true};
+    },
+    'ask.signin': (params) async {
+      final helper = helpers.where((h) => h.command == params['command']).firstOrNull;
+      final terminal = desktop.terminal();
+      if (helper == null || terminal == null) throw ServiceError('bad_params');
+      // The helper's own sign-in, from the table: no text of the user in it.
+      if (!await startDetached([...terminal, 'sh', '-c', helper.login], session)) throw ServiceError('no_terminal');
+      return {'started': true};
+    },
     'packages.managers': (_) async => _managersView(),
     'packages.search': (params) async {
       final query = _string(params, 'query').trim();
@@ -330,6 +346,108 @@ final class CoreService {
       ],
       ..._groupsView(data),
     };
+  }
+
+  /// Ask AI: one click, at most two answers, never a retry. The helper only
+  /// sees facts; every name it returns is checked here.
+  Future<Map<String, dynamic>> _askRun(Map<String, dynamic> params) async {
+    final request = _string(params, 'request').trim();
+    if (request.length > 2000) throw ServiceError('bad_params');
+    final command = _string(params, 'helper');
+    final state = helperStates(session).where((h) => h['command'] == command).firstOrNull;
+    if (state == null || state['installed'] != true) throw ServiceError('no_helper');
+    final answer = params['answer'] is String ? (params['answer'] as String) : null;
+    final language = params['language'] is String ? params['language'] as String : null;
+    settings.store.writeJson('settings.json', {...settings.raw(), 'ask_helper': command});
+    if (_apps.isEmpty) await _listApps();
+    // Short ids keep the prompt small; they map back to the keys here.
+    final keys = _apps.keys.toList();
+    final ids = {for (var i = 0; i < keys.length; i++) 'a$i': keys[i]};
+    final hidden = loadHidden(store);
+    final defaults = desktop.defaultDesktops();
+    List<Map> facts(Iterable<String> only) => [
+      for (final e in ids.entries)
+        if (only.isEmpty || only.contains(e.key))
+          if (_apps[e.value] case final app? when !hidden.contains(app['desktop_id']))
+            {
+              'id': e.key,
+              'name': app['name'],
+              'description': '${app['description'] ?? ''}'.length > 80
+                  ? '${app['description']}'.substring(0, 80)
+                  : app['description'],
+              'origin': desktop.origin(app, defaults),
+              if ((_updates['apps'] as Map).containsKey(app['desktop_path'])) 'update': true,
+              if (uninstallPlan(app, session) case (final kind, _) when kind != 'webapp') 'removable': true,
+            },
+    ];
+    final managers = _enabledManagers();
+    String text;
+    try {
+      text = await _ask.run(
+        command,
+        askPrompt(request: request, answer: answer, installed: facts(const []), managers: managers, language: language),
+      );
+    } on Object catch (e) {
+      throw ServiceError('helper_failed', '$e');
+    }
+    final first = checkAsk(firstJson(text), ids.keys.toSet());
+    List<String> toKeys(Object? list) => [for (final id in (list as List? ?? const [])) ?ids[id]];
+    switch (first['action']) {
+      case 'search':
+        final merged = <Found>[];
+        for (final q in first['queries'] as List) {
+          for (final f in await _managers.search(q as String, managers)) {
+            if (!merged.any((m) => m['manager'] == f['manager'] && m['package'] == f['package'])) merged.add(f);
+          }
+        }
+        // Official repositories first, the AUR last (Antigravity's review, 6b).
+        merged.sort((a, b) => (a['aur'] == true ? 1 : 0).compareTo(b['aur'] == true ? 1 : 0));
+        final found = merged.take(maxSearchResults).toList();
+        _found = found;
+        final already = first['installed'] as List;
+        if (found.isEmpty) {
+          return {'action': 'install', 'summary': '', 'picks': [], 'installed': toKeys(already), 'queries': first['queries']};
+        }
+        String second;
+        try {
+          second = await _ask.run(
+            command,
+            picksPrompt(
+              request: request,
+              answer: answer,
+              found: [
+                for (final f in found)
+                  {
+                    'manager': f['manager'],
+                    'package': f['package'],
+                    'version': f['version'],
+                    'description': '${f['description'] ?? ''}'.length > 120
+                        ? '${f['description']}'.substring(0, 120)
+                        : f['description'],
+                    if (f['aur'] == true) 'aur': true,
+                    if (f['installed'] == true) 'installed': true,
+                  },
+              ],
+              installed: facts(already.cast<String>()),
+              language: language,
+            ),
+          );
+        } on Object catch (e) {
+          throw ServiceError('helper_failed', '$e');
+        }
+        final picks = checkPicks(firstJson(second), found, ids.keys.toSet());
+        return {
+          'action': 'install',
+          'summary': picks['summary'],
+          'picks': picks['picks'],
+          'installed': toKeys({...already, ...picks['installed'] as List}.toList()),
+          'queries': first['queries'],
+        };
+      case 'remove' || 'update' || 'explain':
+        return {...first, 'apps': toKeys(first['apps'])};
+      default:
+        return first;
+    }
   }
 
   List<String> _enabledManagers() =>

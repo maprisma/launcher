@@ -24,6 +24,7 @@ import 'backend.dart';
 import 'core_call.dart';
 import 'drag_drop.dart';
 import 'i18n.dart';
+import 'ask_page.dart';
 import 'install_page.dart';
 import 'settings_page.dart';
 import 'theme.dart';
@@ -132,6 +133,10 @@ class AppsPageState extends State<AppsPage> {
 
   /// apps.facts: {key: {kind, manager, package: {name, version, size, …}, file_size}}.
   Map<String, dynamic> facts = const {};
+
+  /// Ask AI's helpers (ask.helpers): the header button shows whether one is ready.
+  List<Map<String, dynamic>> askHelpers = const [];
+  bool get askReady => askHelpers.any((h) => h['installed'] == true && h['signed_in'] == true);
   Timer? _poll;
   int _columns = 1;
   int _asked = 0;
@@ -210,6 +215,7 @@ class AppsPageState extends State<AppsPage> {
       await _refreshRunning(always: true);
       unawaited(_checkUpdates());
       unawaited(_loadFacts());
+      unawaited(_loadHelpers());
     } on Object catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
@@ -241,6 +247,35 @@ class AppsPageState extends State<AppsPage> {
       // No marks then.
     }
   }
+
+  Future<void> _loadHelpers() async {
+    try {
+      final r = await widget.core('ask.helpers');
+      if (mounted) setState(() => askHelpers = [for (final h in r['helpers'] as List) Map<String, dynamic>.from(h)]);
+    } on ServiceError {
+      // The button stays, without the state.
+    }
+  }
+
+  Future<void> openAsk() => Navigator.of(context)
+      .push(
+        MaterialPageRoute<void>(
+          builder: (_) => AskPage(
+            core: widget.core,
+            apps: byKey,
+            onOpenInstall: openInstall,
+            actions: (
+              open: (app) => _launch(app),
+              uninstall: _uninstall,
+              update: _updateFlatpak,
+              updateSystem: _updateSystem,
+              details: _details,
+              hasUpdate: (app) => updateNote(app) != null,
+            ),
+          ),
+        ),
+      )
+      .then((_) => _loadHelpers());
 
   Future<void> _loadFacts() async {
     try {
@@ -1038,6 +1073,21 @@ class AppsPageState extends State<AppsPage> {
           tooltip: tr('Reload'),
           onPressed: _load,
           icon: const Icon(Icons.refresh),
+        ),
+        // Always there (Antigravity's review, point 1): a dot while no helper is ready.
+        IconButton(
+          visualDensity: wide ? null : VisualDensity.compact,
+          tooltip: askReady ? tr('Ask AI') : tr('Ask AI (set up a helper first)'),
+          onPressed: openAsk,
+          icon: Badge(
+            isLabelVisible: !askReady,
+            smallSize: 7,
+            backgroundColor: markColors(context).update,
+            child: Icon(
+              askReady ? Icons.auto_awesome : Icons.auto_awesome_outlined,
+              color: askReady ? Theme.of(context).colorScheme.primary : null,
+            ),
+          ),
         ),
         IconButton(
           visualDensity: wide ? null : VisualDensity.compact,

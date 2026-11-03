@@ -144,5 +144,14 @@ No add-on runs code.
   entries to the freedesktop trash. Live: `gimp` found, plan `sudo pacman -S -- gimp`. Not run for real
   (would install/remove); apt/dnf/zypper/snap parsers only on sample output.
   Step 1 left: Details page (now a dialog), the AUR PKGBUILD view (the helper shows it in the terminal).
+- **2026-11-03 — Ask AI step 2 built:** ask_ai.dart: helpers Claude Code (no tools, Maprisma's rewrite argv),
+  Codex (read-only sandbox), Antigravity (plan mode + sandbox: read-only, can read files); detection without
+  tokens (program + credential file/env, never read); prompts with Maprisma's isolation; call 1 → one action
+  (search, remove, update, update_system, explain, clarify, redirect), checked against installed ids; search →
+  real results from the enabled managers (official first) → call 2 picks ≤3, every pick must be a found
+  package; the picks go through the same install review. Runs logged in the plugins' runs.json under flock.
+  Ask page: helper picker with cost note, starter chips, onboarding (sign in in terminal, Install apps without
+  AI); header ✦ always visible, dot while no helper. Tested with a fake helper (no tokens). **Not run with a
+  real helper yet: needs Uwe's click.** Not yet: action rules (Maprisma 019), online API keys, local helper.
 - **Next (parity with gnome-launcher, in this order):** marks (new ★, updates), running state, shortcuts + key map per desktop (shortcuts.py),
   Change icon (icons.py), updates (updates.py), admin launch.

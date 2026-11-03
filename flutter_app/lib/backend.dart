@@ -69,8 +69,9 @@ final class Backend {
     final pending = Completer<Map<String, dynamic>>();
     _pending[id] = pending;
     _send!.send(jsonEncode({'protocol': protocolVersion, 'id': id, 'method': method, 'params': params}));
+    // Ask AI waits for a helper (the core stops it after 4 minutes).
     return pending.future.timeout(
-      const Duration(seconds: 60),
+      method == 'ask.run' ? const Duration(minutes: 5) : const Duration(seconds: 60),
       onTimeout: () {
         _pending.remove(id);
         throw ServiceError('timeout');

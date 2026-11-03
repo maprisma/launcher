@@ -21,3 +21,4 @@ export 'src/running.dart';
 export 'src/updates.dart';
 export 'src/facts.dart';
 export 'src/packages.dart';
+export 'src/ask_ai.dart';

@@ -62,66 +62,8 @@ class _InstallPageState extends State<InstallPage> {
   String _managerLabel(String id) =>
       managers.where((m) => m['id'] == id).firstOrNull?['label'] as String? ?? id;
 
-  Future<void> _review(Map found) async {
-    Map<String, dynamic> plan;
-    try {
-      plan = await widget.core('packages.install_plan', {'manager': found['manager'], 'package': found['package']});
-    } on ServiceError catch (e) {
-      _tell(trf('That did not work ({0}).', [e.code]));
-      return;
-    }
-    if (!mounted) return;
-    final scheme = Theme.of(context).colorScheme;
-    final go = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(trf('Install {0}?', [found['name'] ?? found['package']])),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if ((found['description'] as String? ?? '').isNotEmpty) Text('${found['description']}'),
-            const SizedBox(height: 12),
-            Text(trf('From: {0}', [_managerLabel('${found['manager']}')])),
-            const SizedBox(height: 8),
-            Text(tr('A terminal runs this and asks for your password:')),
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: scheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(6)),
-              child: SelectableText('${plan['command']}', style: const TextStyle(fontFamily: 'monospace')),
-            ),
-            if (plan['aur'] == true) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: markColors(context).update.withValues(alpha: .15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  tr(
-                    'Community package from the Arch User Repository (AUR). Anyone can upload AUR build scripts: read the PKGBUILD the helper shows before you build.',
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Cancel'))),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(tr('Install in terminal'))),
-        ],
-      ),
-    );
-    if (go != true) return;
-    try {
-      await widget.core('packages.install', {'manager': found['manager'], 'package': found['package']});
-      widget.onInstalled?.call();
-    } on ServiceError {
-      _tell(tr('No terminal found.'));
-    }
-  }
+  Future<void> _review(Map found) =>
+      reviewInstall(context, widget.core, found, _managerLabel('${found['manager']}'), onInstalled: widget.onInstalled);
 
   @override
   Widget build(BuildContext context) {
@@ -222,5 +164,77 @@ class _InstallPageState extends State<InstallPage> {
         ),
       ),
     );
+  }
+}
+
+/// The review before an install (Install apps and Ask AI): what, from where,
+/// the exact command the terminal runs, the AUR warning; then the terminal.
+Future<void> reviewInstall(
+BuildContext context,
+CoreCall core,
+Map found,
+String managerLabel, {
+VoidCallback? onInstalled,
+}) async {
+void tell(String text) => ScaffoldMessenger.of(context)
+  ..hideCurrentSnackBar()
+  ..showSnackBar(SnackBar(content: Text(text)));
+  Map<String, dynamic> plan;
+  try {
+    plan = await core('packages.install_plan', {'manager': found['manager'], 'package': found['package']});
+  } on ServiceError catch (e) {
+    tell(trf('That did not work ({0}).', [e.code]));
+    return;
+  }
+  if (!context.mounted) return;
+  final scheme = Theme.of(context).colorScheme;
+  final go = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(trf('Install {0}?', [found['name'] ?? found['package']])),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if ((found['description'] as String? ?? '').isNotEmpty) Text('${found['description']}'),
+          const SizedBox(height: 12),
+          Text(trf('From: {0}', [managerLabel])),
+          const SizedBox(height: 8),
+          Text(tr('A terminal runs this and asks for your password:')),
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: scheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(6)),
+            child: SelectableText('${plan['command']}', style: const TextStyle(fontFamily: 'monospace')),
+          ),
+          if (plan['aur'] == true) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: markColors(context).update.withValues(alpha: .15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                tr(
+                  'Community package from the Arch User Repository (AUR). Anyone can upload AUR build scripts: read the PKGBUILD the helper shows before you build.',
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Cancel'))),
+        FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(tr('Install in terminal'))),
+      ],
+    ),
+  );
+  if (go != true) return;
+  try {
+    await core('packages.install', {'manager': found['manager'], 'package': found['package']});
+    onInstalled?.call();
+  } on ServiceError {
+    tell(tr('No terminal found.'));
   }
 }

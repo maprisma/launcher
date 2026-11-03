@@ -41,6 +41,7 @@ final class Posix {
         Int Function(Int, Pointer<Utf8>, Int, Uint32, Pointer<Uint8>),
         int Function(int, Pointer<Utf8>, int, int, Pointer<Uint8>)
       >('statx');
+  static final _flock = _lib.lookupFunction<Int Function(Int, Int), int Function(int, int)>('flock');
   static final _uid = _lib.lookupFunction<Uint32 Function(), int Function()>(
     'getuid',
   );
@@ -111,6 +112,19 @@ final class Posix {
       return data.getInt64(96, Endian.host);
     } finally {
       calloc.free(buffer);
+    }
+  }
+
+  /// Run [body] holding flock(LOCK_EX) on [lockPath] (created 0600, never
+  /// through a symlink): the same lock the plugins' Python plugin_ai takes.
+  T withFlock<T>(String lockPath, T Function() body) {
+    final fd = _withPath(lockPath, (name) => _open(name, 0x1 | 0x40 | _noFollow | _cloexec, 0x180)) ?? -1;
+    if (fd < 0) throw FileSystemException('Could not open the lock', lockPath);
+    try {
+      if (_flock(fd, 2) != 0) throw FileSystemException('Could not lock', lockPath);
+      return body();
+    } finally {
+      _close(fd);
     }
   }
 
