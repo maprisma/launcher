@@ -1,21 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <defs>
-    <linearGradient id="base" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#f6f5f4"/>
-      <stop offset="1" stop-color="#deddda"/>
-    </linearGradient>
-  </defs>
-  <rect x="12" y="16" width="104" height="100" rx="20" fill="#9a9996"/>
-  <rect x="12" y="12" width="104" height="100" rx="20" fill="url(#base)"/>
-  <g>
-    <rect x="26" y="26" width="22" height="22" rx="7" fill="#3584e4"/>
-    <rect x="53" y="26" width="22" height="22" rx="7" fill="#2ec27e"/>
-    <rect x="80" y="26" width="22" height="22" rx="7" fill="#f6d32d"/>
-    <rect x="26" y="53" width="22" height="22" rx="7" fill="#e66100"/>
-    <rect x="53" y="53" width="22" height="22" rx="7" fill="#9141ac"/>
-    <rect x="80" y="53" width="22" height="22" rx="7" fill="#e01b24"/>
-    <rect x="26" y="80" width="22" height="22" rx="7" fill="#26a269"/>
-    <rect x="53" y="80" width="22" height="22" rx="7" fill="#1c71d8"/>
-    <rect x="80" y="80" width="22" height="22" rx="7" fill="#c64600"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Maprisma Launcher: Maprisma's frame and colours; a grid of apps, one being started. -->
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="#1a2234"/>
+  <g fill="none" stroke="#4dd6c8" stroke-width="3">
+    <rect x="13" y="13" width="10" height="10" rx="3"/>
+    <rect x="27" y="13" width="10" height="10" rx="3"/>
+    <rect x="41" y="13" width="10" height="10" rx="3"/>
+    <rect x="13" y="27" width="10" height="10" rx="3"/>
+    <rect x="27" y="27" width="10" height="10" rx="3"/>
+    <rect x="41" y="27" width="10" height="10" rx="3"/>
+    <rect x="13" y="41" width="10" height="10" rx="3"/>
+    <rect x="27" y="41" width="10" height="10" rx="3"/>
   </g>
+  <rect x="39.5" y="39.5" width="13" height="13" rx="3.5" fill="#86c79c"/>
+  <path d="M44 42.5 L50 46 L44 49.5 Z" fill="#1a2234"/>
 </svg>
