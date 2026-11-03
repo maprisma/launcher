@@ -394,9 +394,17 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ),
                     const Spacer(),
-                    Text(
-                      tr('SETTINGS'),
-                      style: TextStyle(letterSpacing: 1.2, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant),
+                    Flexible(
+                      child: Text(
+                        tr('SETTINGS'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          letterSpacing: 1.2,
+                          fontWeight: FontWeight.w700,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
                     ),
                   ],
                 ),
