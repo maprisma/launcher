@@ -545,9 +545,13 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final asked = <String>[];
+    Map<String, dynamic>? terminal;
     Future<Map<String, dynamic>> fake(String method, [Map<String, dynamic> params = const {}]) async {
       asked.add(method);
+      if (method == 'term.start') terminal = params;
       return switch (method) {
+        'term.start' => {'id': 't1', 'command': 'yay -S -- gimp-git'},
+        'term.read' => {'data': '', 'ended': true, 'code': 0},
         'packages.managers' => {
           'managers': [
             {'id': 'pacman', 'label': 'pacman', 'program': 'pacman', 'enabled': true},
@@ -582,7 +586,15 @@ void main() {
     expect(find.textContaining('Arch User Repository'), findsOneWidget);
     await tester.tap(find.text('Install in terminal'));
     await settle(tester);
-    expect(asked, contains('packages.install'));
+    // In the app's own terminal now: the package the search found.
+    expect(asked, isNot(contains('packages.install')));
+    expect(terminal, containsPair('action', 'install'));
+    expect(terminal, containsPair('package', 'gimp-git'));
+    expect(terminal, containsPair('manager', 'aur'));
+    expect(find.text('Installing gimp-git…'), findsOneWidget);
+    expect(find.text('Done.'), findsOneWidget);
+    await tester.tap(find.text('Close'));
+    await settle(tester);
   });
 
   testWidgets('legend: only the hidden ones, Esc back; Details as a page', (tester) async {

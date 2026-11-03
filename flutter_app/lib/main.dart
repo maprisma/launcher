@@ -33,6 +33,10 @@ final windowFocused = ValueNotifier<bool>(true);
 abstract final class PopupGuard {
   static int _depth = 0;
   static bool get busy => _depth > 0;
+
+  /// For as long as a page needs it (the app's terminal while it runs).
+  static void hold() => _depth++;
+  static void release() => _depth = _depth > 0 ? _depth - 1 : 0;
   static Future<T> around<T>(Future<T> Function() open) async {
     _depth++;
     try {

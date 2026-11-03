@@ -21,6 +21,9 @@ A request is `{"id", "protocol": 1, "method", "params"}`, the answer `{"id", "re
 | `apps.open_on_workspace` | `key`, `workspace` (int) | `started`; `bad_params`, `launch_failed` |
 | `workspaces.list` | — | `workspaces` (in use, with their apps), `free` (the next empty one) |
 | `window.popup` | `width`, `height` | Omarchy: the popup floated and centred (`placed`); elsewhere `placed` false |
+| `term.start` | `action` (`install` + `manager`, `package` from the last search; `uninstall` + `key`; `system`), `cols`?, `rows`? | `id`, `command` (shown); the program runs in a pseudo terminal (setsid -w -c, sudo asks there); `not_found`, `not_terminal` (nothing needs a terminal / the desktop's own updater), `no_pty`, `busy` (4 at once) |
+| `term.read` | `id` | `data` (base64, the output since the last read, at most 1 MiB kept), `ended`, `code` |
+| `term.write` / `term.resize` / `term.close` | `id` + `data` (base64, ≤ 64 KiB) / `cols`, `rows` / — | `accepted`, `ended` / `resized` / `closed` (a running program gets a hangup) |
 | `apps.quit_check` | `key` | `label`: the app's own tray Quit entry (StatusNotifierItem menu), or null |
 | `apps.quit` | `key` | `clicked` (that entry, looked up again; we never end processes); `no_quit`, `quit_failed` |
 | `admin.state` | — | `enabled` (this login session), `available` (pkexec and a session to tie it to) |

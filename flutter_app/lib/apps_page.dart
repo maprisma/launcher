@@ -31,6 +31,7 @@ import 'ask_page.dart';
 import 'details_page.dart';
 import 'icon_page.dart';
 import 'plugins_page.dart';
+import 'terminal_page.dart';
 import 'install_page.dart';
 import 'shortcut_page.dart';
 import 'settings_page.dart';
@@ -194,7 +195,8 @@ class AppsPageState extends State<AppsPage> {
   void _onShown() {
     // Shown again (bar icon, toggle): always the app list, not the page
     // that was open when it was hidden (Settings, Ask AI, …).
-    if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+    // Not while the app's terminal runs a command: that page stays.
+    if (mounted && TerminalPage.running.value == 0) Navigator.of(context).popUntil((route) => route.isFirst);
     _clearFilter();
     unawaited(_load());
     filterFocus.requestFocus();
@@ -945,6 +947,26 @@ class AppsPageState extends State<AppsPage> {
       ),
     );
     if (go != true) return;
+    // A package (or Omarchy's package/Flatpak removal): in the app's own
+    // terminal, which asks for the password; the old way if it cannot.
+    final needsTerminal = kind == 'package' || (kind == 'omarchy' && (plan['how'] == 'package' || plan['how'] == 'flatpak'));
+    if (needsTerminal && mounted) {
+      final code = await runInTerminal(
+        context,
+        widget.core,
+        {'action': 'uninstall', 'key': app['key']},
+        trf('Uninstalling {0}…', [app['name']]),
+        outside: () => _uninstallOutside(app),
+      );
+      if (code != null) await _load();
+      return;
+    }
+    await _uninstallOutside(app, kind: kind, what: what);
+  }
+
+  /// apps.uninstall: done at once (trash, Flatpak, Omarchy's own entries), or
+  /// started in an outside terminal.
+  Future<void> _uninstallOutside(Map app, {String? kind, String? what}) async {
     if (kind == 'flatpak') _tell(trf('Uninstalling {0}…', [app['name']]));
     try {
       final result = await widget.core('apps.uninstall', {'key': app['key']});
@@ -1082,22 +1104,38 @@ class AppsPageState extends State<AppsPage> {
   /// update_system: the desktop's updater, or the package manager's full
   /// update in a terminal (never one package alone on Arch).
   Future<void> _updateSystem() async {
-    // What happens, before a terminal appears: it asks for the password.
-    final go = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(tr('Update the system?')),
-        content: Text(
-          '${tr('Updates the whole system in a terminal (on Arch never one package alone).')}\n\n'
-          '${tr('The terminal asks for your password and shows the progress.')}',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Cancel'))),
-          FilledButton(autofocus: true, onPressed: () => Navigator.pop(context, true), child: Text(tr('Update'))),
-        ],
-      ),
-    );
+    final go = await _askUpdateSystem();
     if (go != true || !mounted) return;
+    final code = await runInTerminal(
+      context,
+      widget.core,
+      const {'action': 'system'},
+      tr('System update'),
+      outside: _updateSystemOutside,
+    );
+    if (code != null) {
+      await _load();
+      unawaited(_checkUpdates(force: true));
+    }
+  }
+
+  Future<bool?> _askUpdateSystem() => showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(tr('Update the system?')),
+      content: Text(
+        '${tr('Updates the whole system in a terminal (on Arch never one package alone).')}\n\n'
+        '${tr('The terminal asks for your password and shows the progress.')}',
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Cancel'))),
+        FilledButton(autofocus: true, onPressed: () => Navigator.pop(context, true), child: Text(tr('Update'))),
+      ],
+    ),
+  );
+
+  /// The desktop's own updater (GNOME Software) or an outside terminal.
+  Future<void> _updateSystemOutside() async {
     try {
       await widget.core('updates.system');
       widget.onHide?.call();

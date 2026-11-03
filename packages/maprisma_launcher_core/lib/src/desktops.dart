@@ -63,9 +63,21 @@ abstract class Desktop {
   /// The command that updates the whole system in a window, or null:
   /// the desktop's own updater, else a terminal running the package
   /// manager's full update (an AUR helper's when there is one).
+  /// The system update as it runs inside a terminal (the app's own one),
+  /// or null when the desktop updates in a program of its own.
+  List<String>? systemUpdateInner() {
+    final line = _updateLine();
+    return line == null ? null : ['sh', '-c', line];
+  }
+
   List<String>? systemUpdate() {
     final term = terminal();
-    if (term == null) return null;
+    final line = _updateLine();
+    if (term == null || line == null) return null;
+    return [...term, 'sh', '-c', "$line; echo; read -r -p 'Press Enter to close. ' _"];
+  }
+
+  String? _updateLine() {
     String? line;
     final helper = ['paru', 'yay'].where((h) => session.which(h) != null).firstOrNull;
     if (session.which('pacman') != null) {
@@ -77,8 +89,7 @@ abstract class Desktop {
     } else if (session.which('zypper') != null) {
       line = 'sudo zypper update';
     }
-    if (line == null) return null;
-    return [...term, 'sh', '-c', "$line; echo; read -r -p 'Press Enter to close. ' _"];
+    return line;
   }
   List<String>? terminal() => defaultTerminal(session);
 
@@ -254,6 +265,12 @@ final class OmarchyDesktop extends Desktop {
   }
 
   @override
+  List<String>? systemUpdateInner() {
+    final update = session.which('omarchy-update');
+    return update == null ? super.systemUpdateInner() : [update];
+  }
+
+  @override
   List<String>? terminal() {
     final xte = session.which('xdg-terminal-exec');
     return xte == null ? defaultTerminal(session) : [xte];
@@ -302,6 +319,10 @@ final class GnomeDesktop extends Desktop {
     final software = session.which('gnome-software');
     return software != null ? [software, '--mode=updates'] : super.systemUpdate();
   }
+
+  // GNOME Software updates in its own window when it is there.
+  @override
+  List<String>? systemUpdateInner() => session.which('gnome-software') != null ? null : super.systemUpdateInner();
 
   @override
   Future<String?> iconTheme() async {

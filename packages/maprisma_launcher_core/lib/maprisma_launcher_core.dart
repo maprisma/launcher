@@ -27,6 +27,7 @@ export 'src/hyprland.dart';
 export 'src/plugins.dart';
 export 'src/admin.dart';
 export 'src/tray.dart';
+export 'src/pty.dart';
 export 'src/dock.dart';
 export 'src/shortcuts.dart';
 export 'src/shortcuts_hypr.dart';

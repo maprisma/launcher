@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'backend.dart';
 import 'core_call.dart';
 import 'i18n.dart';
+import 'terminal_page.dart';
 import 'theme.dart';
 
 /// Install apps (Ask AI step 1, no AI): search the package managers the user
@@ -230,11 +231,20 @@ void tell(String text) => ScaffoldMessenger.of(context)
       ],
     ),
   );
-  if (go != true) return;
-  try {
-    await core('packages.install', {'manager': found['manager'], 'package': found['package']});
-    onInstalled?.call();
-  } on ServiceError {
-    tell(tr('No terminal found.'));
-  }
+  if (go != true || !context.mounted) return;
+  // In the app's own terminal; an outside one only when that cannot run here.
+  final code = await runInTerminal(
+    context,
+    core,
+    {'action': 'install', 'manager': found['manager'], 'package': found['package']},
+    trf('Installing {0}…', [found['name'] ?? found['package']]),
+    outside: () async {
+      try {
+        await core('packages.install', {'manager': found['manager'], 'package': found['package']});
+      } on ServiceError {
+        tell(tr('No terminal found.'));
+      }
+    },
+  );
+  if (code == 0) onInstalled?.call();
 }

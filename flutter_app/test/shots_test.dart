@@ -8,6 +8,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:maprisma_launcher/i18n.dart';
+import 'package:maprisma_launcher/terminal_page.dart';
 import 'package:maprisma_launcher/main.dart';
 import 'package:maprisma_launcher_core/maprisma_launcher_core.dart';
 import 'package:flutter/material.dart';
@@ -40,6 +41,7 @@ void main() {
     bool settingsPage = false,
     String query = '',
     Size size = const Size(920, 640),
+    bool terminalPage = false,
   }) async {
     tester.view.physicalSize = size * 2;
     tester.view.devicePixelRatio = 2;
@@ -52,6 +54,7 @@ void main() {
     final core = CoreService(environment: Platform.environment, configDir: config.path);
     await tester.runAsync(() async {
       await loadFont('Roboto', [fcMatch('sans-serif'), fcMatch('sans-serif:bold')]);
+      await loadFont('monospace', [fcMatch('monospace'), fcMatch('monospace:bold')]);
       await loadFont('MaterialIcons', [
         '${Platform.environment['FLUTTER_ROOT'] ?? '/opt/flutter'}/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf',
       ]);
@@ -90,6 +93,29 @@ void main() {
     }
     if (query.isNotEmpty) {
       await tester.enterText(find.byType(TextField), query);
+    }
+    if (terminalPage) {
+      // The app's terminal with typical pacman output (a fake core: nothing runs).
+      const out =
+          '[sudo] password for uwe: \r\nresolving dependencies...\r\nlooking for conflicting packages...\r\n\r\n'
+          'Packages (2) babl-0.1.112-1  gimp-3.0.4-1\r\n\r\nTotal Download Size:   24.31 MiB\r\n'
+          'Total Installed Size:  118.02 MiB\r\n\r\n\x1b[1m:: Proceed with installation? [Y/n]\x1b[0m y\r\n'
+          '\x1b[1;34m::\x1b[0;1m Retrieving packages...\x1b[0m\r\n gimp-3.0.4-1-x86_64   23.9 MiB  41.2 MiB/s 00:01 [####################] 100%\r\n'
+          '\x1b[1;34m::\x1b[0;1m Processing package changes...\x1b[0m\r\n(2/2) installing gimp                 [####################] 100%\r\n';
+      var reads = 0;
+      Future<Map<String, dynamic>> term(String method, [Map<String, dynamic> params = const {}]) async => switch (method) {
+        'term.start' => {'id': 't1', 'command': 'sudo pacman -S -- gimp'},
+        'term.read' => {'data': base64Encode(utf8.encode(reads++ == 0 ? out : '')), 'ended': reads > 3, 'code': 0},
+        _ => <String, dynamic>{},
+      };
+      tester.state<NavigatorState>(find.byType(Navigator).first).push(
+        MaterialPageRoute<void>(
+          builder: (_) => TerminalPage(core: term, start: const {'action': 'install'}, title: 'Installing GIMP…'),
+        ),
+      );
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
     }
     // Images and SVGs decode for real: let them arrive.
     for (var i = 0; i < 12; i++) {
@@ -130,6 +156,7 @@ void main() {
     (t) => shoot(t, 'settings-de', language: 'de', settingsPage: true, size: narrow),
     skip: shots == null,
   );
+  testWidgets('terminal', (t) => shoot(t, 'terminal', terminalPage: true), skip: shots == null);
   testWidgets('folders de', (t) => shoot(t, 'folders-de', language: 'de'), skip: shots == null);
   testWidgets('settings wide', (t) => shoot(t, 'settings-wide', settingsPage: true, size: const Size(1500, 860)), skip: shots == null);
   testWidgets('big folders', (t) => shoot(t, 'folders-big', size: const Size(1524, 860)), skip: shots == null);

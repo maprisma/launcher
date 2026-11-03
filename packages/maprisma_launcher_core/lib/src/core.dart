@@ -28,6 +28,7 @@ import 'origins.dart' show defaultRoles;
 import 'packages.dart';
 import 'running.dart';
 import 'shortcut_service.dart';
+import 'pty.dart';
 import 'tray.dart';
 import 'updates.dart';
 import 'protocol.dart';
@@ -82,6 +83,10 @@ final class CoreService {
   late final _plugins = ShellPlugins(session);
   late final _admin = Admin(session);
   late final _tray = Tray(session);
+
+  /// The app's terminals (install, uninstall, system update), by id.
+  final _terms = <String, PtySession>{};
+  int _termCount = 0;
 
   /// The dock's settings and pinned apps (settings.json, keys dock_*).
   late final dock = DockStore(store);
@@ -177,6 +182,49 @@ final class CoreService {
     },
     'apps.admin_check': (params) async => {'can': _admin.enabled() && await _admin.command(_app(params)) != null},
     // The app's own tray Quit (never a signal from us): its label, or null.
+    // The app's own terminal: only commands the core builds itself (a
+    // package the last search found, an app's uninstall plan, the system
+    // update); the page shows the output and passes the keys on.
+    'term.start': (params) async {
+      final (argv, command) = await _termCommand(params);
+      _terms.removeWhere((_, t) => t.ended && _terms.length >= 4);
+      if (_terms.values.where((t) => !t.ended).length >= 4) throw ServiceError('busy');
+      final cols = params['cols'], rows = params['rows'];
+      final id = 't${++_termCount}';
+      final pty = await PtySession.start(id, argv, session,
+          title: '${params['action']}', command: command,
+          cols: cols is int ? cols : 100, rows: rows is int ? rows : 30);
+      if (pty == null) throw ServiceError('no_pty');
+      _terms[id] = pty;
+      return {'id': id, 'command': command};
+    },
+    'term.read': (params) async {
+      final pty = _term(params);
+      return {'data': base64Encode(pty.take()), 'ended': pty.ended, 'code': pty.exitCode};
+    },
+    'term.write': (params) async {
+      final pty = _term(params);
+      final data = params['data'];
+      if (data is! String || data.length > 64 * 1024) throw ServiceError('bad_params');
+      List<int> bytes;
+      try {
+        bytes = base64Decode(data);
+      } on FormatException {
+        throw ServiceError('bad_params');
+      }
+      return {'accepted': pty.write(bytes), 'ended': pty.ended};
+    },
+    'term.resize': (params) async {
+      final cols = params['cols'], rows = params['rows'];
+      if (cols is! int || rows is! int) throw ServiceError('bad_params');
+      _term(params).resize(cols, rows);
+      return {'resized': true};
+    },
+    'term.close': (params) async {
+      final pty = _terms.remove('${params['id']}');
+      pty?.close();
+      return {'closed': pty != null};
+    },
     'apps.quit_check': (params) async {
       final found = await _tray.quitFor(_app(params));
       return {'label': found?.$2['label']};
@@ -874,6 +922,50 @@ final class CoreService {
       line = line.replaceAll('"\$${n + 1}"', args[n]);
     }
     return line;
+  }
+
+  PtySession _term(Map<String, dynamic> params) =>
+      _terms['${params['id']}'] ?? (throw ServiceError('not_found'));
+
+  /// A terminal line without the outside terminal's "Press Enter" at the end.
+  static List<String> _bare(List<String> argv) => [
+    for (final a in argv) a.replaceAll("; echo; read -r -p 'Press Enter to close. ' _", ''),
+  ];
+
+  /// What the app's terminal runs for an action, and the line it shows.
+  Future<(List<String>, String)> _termCommand(Map<String, dynamic> params) async {
+    switch (params['action']) {
+      case 'install':
+        final manager = _string(params, 'manager'), package = _string(params, 'package');
+        final found = _found.where((f) => f['manager'] == manager && f['package'] == package).firstOrNull;
+        if (found == null || !_enabledManagers().contains(manager)) throw ServiceError('not_found');
+        final argv = _managers.installCommand(manager, found, const []);
+        if (argv == null) throw ServiceError('not_found');
+        return (_bare(argv), _shownCommand(argv));
+      case 'uninstall':
+        final app = _app(params);
+        final plan = await _uninstallPlan(app);
+        final what = plan['what'] as String?;
+        if (what == null) throw ServiceError('cannot_uninstall');
+        List<String>? argv;
+        if (plan['kind'] == 'package') {
+          argv = _managers.removeCommand(plan['manager'] as String, what, const []);
+        } else if (plan['kind'] == 'omarchy' && plan['how'] == 'package' && validPackage(what)) {
+          // omarchy-remove-launcher-entry runs this in its own terminal.
+          argv = ['sh', '-c', 'sudo pacman -Rns -- "\$1"', 'uninstall', what];
+        } else if (plan['kind'] == 'omarchy' && plan['how'] == 'flatpak' && validPackage(what)) {
+          argv = ['sh', '-c', 'flatpak uninstall -- "\$1"', 'uninstall', what];
+        }
+        // Other kinds (trash, web apps, a Flatpak alone) need no terminal.
+        if (argv == null) throw ServiceError('not_terminal');
+        return (_bare(argv), _shownCommand(argv));
+      case 'system':
+        final argv = desktop.systemUpdateInner();
+        if (argv == null) throw ServiceError('not_terminal');
+        return (argv, argv.length == 3 && argv[1] == '-c' ? argv[2] : argv.map(p.basename).join(' '));
+      default:
+        throw ServiceError('bad_params');
+    }
   }
 
   /// details.uninstall_plan, extended: the owning package of any system

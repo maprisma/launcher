@@ -152,7 +152,16 @@
   "Drag apps here": "Apps hierher ziehen",
   "Update the system?": "System aktualisieren?",
   "The terminal asks for your password and shows the progress.": "Das Terminal fragt nach deinem Passwort und zeigt den Fortschritt.",
-  "Drag a button to move it": "Einen Knopf ziehen, um ihn zu verschieben"
+  "Drag a button to move it": "Einen Knopf ziehen, um ihn zu verschieben",
+  "Done.": "Fertig.",
+  "Failed (exit code {0}).": "Fehlgeschlagen (Exit-Code {0}).",
+  "Installing {0}…": "{0} wird installiert…",
+  "Running… type here when it asks (e.g. your password).": "Läuft… tippe hier, wenn gefragt wird (z. B. dein Passwort).",
+  "Starting…": "Startet…",
+  "Stop (Ctrl+C)": "Abbrechen (Strg+C)",
+  "Stopped.": "Abgebrochen.",
+  "System update": "Systemaktualisierung",
+  "Close": "Schließen"
  },
  "es": {
   "\u0004{0} app": [
@@ -307,7 +316,16 @@
   "Drag apps here": "Arrastra aplicaciones aquí",
   "Update the system?": "¿Actualizar el sistema?",
   "The terminal asks for your password and shows the progress.": "El terminal pide tu contraseña y muestra el progreso.",
-  "Drag a button to move it": "Arrastra un botón para moverlo"
+  "Drag a button to move it": "Arrastra un botón para moverlo",
+  "Done.": "Hecho.",
+  "Failed (exit code {0}).": "Falló (código de salida {0}).",
+  "Installing {0}…": "Instalando {0}…",
+  "Running… type here when it asks (e.g. your password).": "En curso… escribe aquí cuando te lo pida (p. ej. tu contraseña).",
+  "Starting…": "Iniciando…",
+  "Stop (Ctrl+C)": "Detener (Ctrl+C)",
+  "Stopped.": "Detenido.",
+  "System update": "Actualización del sistema",
+  "Close": "Cerrar"
  },
  "fr": {
   "\u0004{0} app": [
@@ -462,7 +480,16 @@
   "Drag apps here": "Glissez des applications ici",
   "Update the system?": "Mettre à jour le système ?",
   "The terminal asks for your password and shows the progress.": "Le terminal demande votre mot de passe et affiche la progression.",
-  "Drag a button to move it": "Faites glisser un bouton pour le déplacer"
+  "Drag a button to move it": "Faites glisser un bouton pour le déplacer",
+  "Done.": "Terminé.",
+  "Failed (exit code {0}).": "Échec (code de sortie {0}).",
+  "Installing {0}…": "Installation de {0}…",
+  "Running… type here when it asks (e.g. your password).": "En cours… tapez ici quand il le demande (p. ex. votre mot de passe).",
+  "Starting…": "Démarrage…",
+  "Stop (Ctrl+C)": "Arrêter (Ctrl+C)",
+  "Stopped.": "Arrêté.",
+  "System update": "Mise à jour du système",
+  "Close": "Fermer"
  },
  "it": {
   "\u0004{0} app": [
@@ -617,7 +644,16 @@
   "Drag apps here": "Trascina qui le app",
   "Update the system?": "Aggiornare il sistema?",
   "The terminal asks for your password and shows the progress.": "Il terminale chiede la password e mostra l’avanzamento.",
-  "Drag a button to move it": "Trascina un pulsante per spostarlo"
+  "Drag a button to move it": "Trascina un pulsante per spostarlo",
+  "Done.": "Fatto.",
+  "Failed (exit code {0}).": "Non riuscito (codice di uscita {0}).",
+  "Installing {0}…": "Installazione di {0}…",
+  "Running… type here when it asks (e.g. your password).": "In corso… scrivi qui quando lo chiede (es. la password).",
+  "Starting…": "Avvio…",
+  "Stop (Ctrl+C)": "Ferma (Ctrl+C)",
+  "Stopped.": "Fermato.",
+  "System update": "Aggiornamento di sistema",
+  "Close": "Chiudi"
  },
  "nl": {
   "\u0004{0} app": [
@@ -772,7 +808,16 @@
   "Drag apps here": "Sleep apps hierheen",
   "Update the system?": "Systeem bijwerken?",
   "The terminal asks for your password and shows the progress.": "De terminal vraagt om je wachtwoord en toont de voortgang.",
-  "Drag a button to move it": "Sleep een knop om hem te verplaatsen"
+  "Drag a button to move it": "Sleep een knop om hem te verplaatsen",
+  "Done.": "Klaar.",
+  "Failed (exit code {0}).": "Mislukt (afsluitcode {0}).",
+  "Installing {0}…": "{0} wordt geïnstalleerd…",
+  "Running… type here when it asks (e.g. your password).": "Bezig… typ hier als erom gevraagd wordt (bijv. je wachtwoord).",
+  "Starting…": "Starten…",
+  "Stop (Ctrl+C)": "Stoppen (Ctrl+C)",
+  "Stopped.": "Gestopt.",
+  "System update": "Systeemupdate",
+  "Close": "Sluiten"
  },
  "pl": {
   "\u0004{0} app": [
@@ -929,7 +974,16 @@
   "Drag apps here": "Przeciągnij tutaj aplikacje",
   "Update the system?": "Zaktualizować system?",
   "The terminal asks for your password and shows the progress.": "Terminal poprosi o hasło i pokaże postęp.",
-  "Drag a button to move it": "Przeciągnij przycisk, aby go przenieść"
+  "Drag a button to move it": "Przeciągnij przycisk, aby go przenieść",
+  "Done.": "Gotowe.",
+  "Failed (exit code {0}).": "Niepowodzenie (kod wyjścia {0}).",
+  "Installing {0}…": "Instalowanie {0}…",
+  "Running… type here when it asks (e.g. your password).": "Trwa… wpisz tutaj, gdy zostaniesz poproszony (np. hasło).",
+  "Starting…": "Uruchamianie…",
+  "Stop (Ctrl+C)": "Zatrzymaj (Ctrl+C)",
+  "Stopped.": "Zatrzymano.",
+  "System update": "Aktualizacja systemu",
+  "Close": "Zamknij"
  },
  "pt": {
   "\u0004{0} app": [
@@ -1084,6 +1138,15 @@
   "Drag apps here": "Arraste aplicações para aqui",
   "Update the system?": "Atualizar o sistema?",
   "The terminal asks for your password and shows the progress.": "O terminal pede a sua palavra-passe e mostra o progresso.",
-  "Drag a button to move it": "Arraste um botão para o mover"
+  "Drag a button to move it": "Arraste um botão para o mover",
+  "Done.": "Concluído.",
+  "Failed (exit code {0}).": "Falhou (código de saída {0}).",
+  "Installing {0}…": "A instalar {0}…",
+  "Running… type here when it asks (e.g. your password).": "A decorrer… escreva aqui quando pedir (p. ex. a sua palavra-passe).",
+  "Starting…": "A iniciar…",
+  "Stop (Ctrl+C)": "Parar (Ctrl+C)",
+  "Stopped.": "Parado.",
+  "System update": "Atualização do sistema",
+  "Close": "Fechar"
  }
 }
