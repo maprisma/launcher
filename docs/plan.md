@@ -85,3 +85,21 @@ No add-on runs code.
   keep a separate small dock, use a layer-shell embedder, or drop it. Decide before milestone 4.
 - Omarchy popup feel: a floating window via window rules instead of a layer-shell popup; check focus/Esc.
 - Which GNOME/COSMIC VMs exist; create if missing.
+
+## Progress
+
+- **2026-11-03 — milestone 0 done:** gnome-launcher e311759 frozen; `reference/` holds it and the Omarchy
+  plugin 2.4.1 6389778; `tools/oracle.py` runs the reference for tests.
+- **2026-11-03 — milestone 1 done, milestone 2 started:**
+  - Core: scan (desktop entries, AppImages, CLI tools) equal to Python on this machine (111 apps, C/de/fr)
+    and on fixture homes; desktop adapters (Omarchy, GNOME, COSMIC, generic) for colours, corners, icon
+    theme; icon lookup; launching without Gio or a shell (Omarchy via uwsm-app); routes in
+    `docs/protocol.md`.
+  - App: Maprisma's runner (single instance, `--toggle`, `hide`), theme from the desktop's palette, list
+    and icon views, type-to-filter, Enter/arrows/Esc, right-click menu with the entry's actions, details.
+  - Screenshots offscreen: `SHOTS=<dir> flutter test test/shots_test.dart` (no Xvfb here; Broadway has no
+    GL for Flutter). Caught a tile overflow already.
+- **Next (parity with gnome-launcher, in this order):** groups + by-origin views (groups.py, details.py),
+  folders/cards/footer layouts, settings page (sizes, corners, layouts, language) + 8 languages, hidden
+  entries and marks (new ★, updates), running state, shortcuts + key map per desktop (shortcuts.py),
+  Change icon (icons.py), updates (updates.py), admin launch.
