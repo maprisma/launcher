@@ -28,6 +28,7 @@ import 'ask_page.dart';
 import 'details_page.dart';
 import 'icon_page.dart';
 import 'install_page.dart';
+import 'shortcut_page.dart';
 import 'settings_page.dart';
 import 'theme.dart';
 
@@ -704,6 +705,7 @@ class AppsPageState extends State<AppsPage> {
         PopupMenuItem(value: '\x00group', child: MenuLine(Icons.folder_outlined, tr('Move to group…'))),
         PopupMenuItem(value: '\x00details', child: MenuLine(Icons.info_outline, tr('Details…'))),
         PopupMenuItem(value: '\x00icon', child: MenuLine(Icons.image_outlined, tr('Change icon…'))),
+        PopupMenuItem(value: '\x00shortcut', child: MenuLine(Icons.keyboard_outlined, tr('Shortcut…'))),
         const PopupMenuDivider(),
         if (app['uninstall'] != null && app['cli_command'] == null)
           PopupMenuItem(value: '\x00uninstall', child: MenuLine(Icons.delete_outline, tr('Uninstall…'))),
@@ -725,6 +727,8 @@ class AppsPageState extends State<AppsPage> {
         return _details(app);
       case '\x00icon':
         return _changeIcon(app);
+      case '\x00shortcut':
+        return _shortcut(app);
       case '\x00hide':
         return _setHidden(app, !hidden);
       case '\x00group':
@@ -900,6 +904,11 @@ class AppsPageState extends State<AppsPage> {
         originName: originNames['o-${app['origin']}'] == null ? null : tr(originNames['o-${app['origin']}']!),
       ),
     ),
+  );
+
+  /// Shortcut…: global keys that open the app (shortcut_page.dart).
+  Future<void> _shortcut(Map app) => Navigator.of(context).push(
+    MaterialPageRoute(builder: (_) => ShortcutPage(core: widget.core, app: app)),
   );
 
   /// Change icon: the theme's text colour tints one-colour icons.
