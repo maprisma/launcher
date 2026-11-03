@@ -87,7 +87,11 @@ class _SettingsPageState extends State<SettingsPage> {
       padding: const EdgeInsets.only(top: 18, bottom: 4),
       child: Text(
         tr('Dock').toUpperCase(),
-        style: TextStyle(letterSpacing: 1.2, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurfaceVariant),
+        style: TextStyle(
+          letterSpacing: 1.2,
+          fontWeight: FontWeight.w700,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ),
     );
     if (state['available'] != true) {
@@ -107,11 +111,8 @@ class _SettingsPageState extends State<SettingsPage> {
     final bar = state['bar'], edge = '${state['edge']}';
     final names = {'bottom': tr('Bottom'), 'top': tr('Top'), 'left': tr('Left'), 'right': tr('Right')};
     final ends = edge == 'left' || edge == 'right' ? (tr('Top'), tr('Bottom')) : (tr('Left'), tr('Right'));
-    Widget toggle(String key, String label, String tip) => _row(
-      label,
-      tip,
-      Switch(key: ValueKey(key), value: d[key] == true, onChanged: (v) => _setDock(key, v)),
-    );
+    Widget toggle(String key, String label, String tip) =>
+        _row(label, tip, Switch(key: ValueKey(key), value: d[key] == true, onChanged: (v) => _setDock(key, v)));
     Widget choice(String key, String label, String tip, List<(Object, String)> values) => _row(
       label,
       tip,
@@ -127,16 +128,25 @@ class _SettingsPageState extends State<SettingsPage> {
       toggle(
         'dock_enabled',
         tr('Show dock'),
-        tr('A dock with your pinned apps and the running ones along a screen edge. Pin apps with “Pin to dock” in their menu.'),
+        tr(
+          'A dock with your pinned apps and the running ones along a screen edge. Pin apps with “Pin to dock” in their menu.',
+        ),
       ),
-      choice('dock_position', tr('Position'), tr("The screen edge the dock sits on. The bar's edge is left out: the dock never covers the bar."), [
-        for (final p in const ['bottom', 'top', 'left', 'right'])
-          if (p != bar) (p, names[p]!),
-      ]),
+      choice(
+        'dock_position',
+        tr('Position'),
+        tr("The screen edge the dock sits on. The bar's edge is left out: the dock never covers the bar."),
+        [
+          for (final p in const ['bottom', 'top', 'left', 'right'])
+            if (p != bar) (p, names[p]!),
+        ],
+      ),
       toggle(
         'dock_autohide',
         tr('Auto-hide'),
-        tr('Hidden until the pointer touches the screen edge. Off: the dock keeps its space and windows stay clear of it.'),
+        tr(
+          'Hidden until the pointer touches the screen edge. Off: the dock keeps its space and windows stay clear of it.',
+        ),
       ),
       toggle('dock_full_width', tr('Full length'), tr('Along the whole screen edge; off: only as long as its icons.')),
       toggle('dock_rounded', tr('Rounded corners'), tr('Round corners, like the windows.')),
@@ -145,35 +155,68 @@ class _SettingsPageState extends State<SettingsPage> {
         tr('Transparent'),
         tr("No background, only the icons. Double-click the dock's background to switch, as on the bar."),
       ),
-      choice('dock_align', tr('Icons'), tr('Where the icons sit in a full-length dock. A compact dock is always centred.'), [
-        ('start', ends.$1),
-        ('center', tr('Center')),
-        ('end', ends.$2),
-      ]),
-      choice('dock_height', tr('Dock height'), tr("How high the dock's background is."), px(const [32, 40, 48, 56, 64, 72, 80, 96])),
-      choice('dock_icon_size', tr('Icon size'), tr('Icons larger than the dock stick out of it, as on macOS.'),
-          px(const [24, 32, 40, 48, 56, 64, 72, 80, 96])),
-      choice('dock_spacing', tr('Icon spacing'), tr('The gap between two icons in the dock.'), px(const [0, 2, 4, 6, 8, 12, 16])),
-      choice('dock_magnify', tr('Grow on hover'), tr('The icon under the pointer grows, its neighbours halfway, as on macOS.'), [
-        (100, tr('Off')),
-        for (final v in const [125, 150, 175, 200]) (v, '$v %'),
-      ]),
-      toggle('dock_bounce', tr('Bounce on alerts'), tr('An app that wants attention bounces in the dock until you switch to it.')),
-      toggle('dock_indicator_shown', tr('Show indicator'), tr('Mark running apps in the dock (style and colour below).')),
+      choice(
+        'dock_align',
+        tr('Icons'),
+        tr('Where the icons sit in a full-length dock. A compact dock is always centred.'),
+        [('start', ends.$1), ('center', tr('Center')), ('end', ends.$2)],
+      ),
+      choice(
+        'dock_height',
+        tr('Dock height'),
+        tr("How high the dock's background is."),
+        px(const [32, 40, 48, 56, 64, 72, 80, 96]),
+      ),
+      choice(
+        'dock_icon_size',
+        tr('Icon size'),
+        tr('Icons larger than the dock stick out of it, as on macOS.'),
+        px(const [24, 32, 40, 48, 56, 64, 72, 80, 96]),
+      ),
+      choice(
+        'dock_spacing',
+        tr('Icon spacing'),
+        tr('The gap between two icons in the dock.'),
+        px(const [0, 2, 4, 6, 8, 12, 16]),
+      ),
+      choice(
+        'dock_magnify',
+        tr('Grow on hover'),
+        tr('The icon under the pointer grows, its neighbours halfway, as on macOS.'),
+        [
+          (100, tr('Off')),
+          for (final v in const [125, 150, 175, 200]) (v, '$v %'),
+        ],
+      ),
+      toggle(
+        'dock_bounce',
+        tr('Bounce on alerts'),
+        tr('An app that wants attention bounces in the dock until you switch to it.'),
+      ),
+      toggle(
+        'dock_indicator_shown',
+        tr('Show indicator'),
+        tr('Mark running apps in the dock (style and colour below).'),
+      ),
       choice(
         'dock_indicator',
         tr('Indicator'),
         tr("How running apps are marked: a dot or a line next to the icon. The focused app's mark is larger."),
         [('dot', tr('Dot')), ('line', tr('Line'))],
       ),
-      choice('dock_indicator_color', tr('Indicator colour'), tr("The colour of the running marks; Theme uses the theme's accent colour."), [
-        ('theme', tr('Theme')),
-        ('foreground', tr('Light')),
-        ('red', tr('Red')),
-        ('yellow', tr('Yellow')),
-        ('green', tr('Green')),
-        ('orange', tr('Orange')),
-      ]),
+      choice(
+        'dock_indicator_color',
+        tr('Indicator colour'),
+        tr("The colour of the running marks; Theme uses the theme's accent colour."),
+        [
+          ('theme', tr('Theme')),
+          ('foreground', tr('Light')),
+          ('red', tr('Red')),
+          ('yellow', tr('Yellow')),
+          ('green', tr('Green')),
+          ('orange', tr('Orange')),
+        ],
+      ),
       Align(
         alignment: Alignment.centerRight,
         child: TextButton(
@@ -248,7 +291,7 @@ class _SettingsPageState extends State<SettingsPage> {
   /// Label left, control right: the control column grows with the room,
   /// 260 px in a small window up to 440 px in a wide one.
   Widget _row(String label, String tip, Widget control) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 6),
+    padding: const EdgeInsets.symmetric(vertical: 4),
     child: LayoutBuilder(
       builder: (context, box) => Row(
         children: [
@@ -268,11 +311,53 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _dropdown<T>(T value, List<(T, String)> choices, ValueChanged<T> onChanged) => DropdownButton<T>(
     value: value,
     isExpanded: true,
+    isDense: true,
     underline: const SizedBox.shrink(),
     borderRadius: BorderRadius.circular(8),
     items: [for (final (v, label) in choices) DropdownMenuItem(value: v, child: Text(label))],
     onChanged: (v) => v == null ? null : onChanged(v),
   );
+
+  /// One column in a small window; from 1100 px two (look and layout
+  /// left; apps, screenshots and the dock right), each at most 620 px.
+  Widget _columns(List<Widget> rows) => LayoutBuilder(
+    builder: (context, box) {
+      final at = rows.indexWhere((w) => w is _ColumnBreak);
+      final left = at < 0 ? rows : rows.sublist(0, at);
+      final right = at < 0 ? const <Widget>[] : rows.sublist(at + 1);
+      if (box.maxWidth < 1100 || right.isEmpty) {
+        return ListView(
+          padding: EdgeInsets.symmetric(horizontal: math.max(20, (box.maxWidth - 720) / 2), vertical: 8),
+          children: [...left, ...right],
+        );
+      }
+      final column = math.min(620.0, (box.maxWidth - 40 - 48) / 2);
+      return SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Center(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: column,
+                child: Column(children: left),
+              ),
+              const SizedBox(width: 48),
+              SizedBox(
+                width: column,
+                child: Column(children: right),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+
+  /// Back · SETTINGS and Reset in line with the rows.
+  double _edge(double width) =>
+      width >= 1100 ? (width - 2 * math.min(620.0, (width - 88) / 2) - 48) / 2 : math.max(20, (width - 720) / 2);
 
   @override
   Widget build(BuildContext context) {
@@ -281,46 +366,43 @@ class _SettingsPageState extends State<SettingsPage> {
     final shown = List<String>.from(settings['shown_layouts'] as List? ?? const ['folders', 'cards', 'icons']);
     final layouts = [('folders', tr('Folders')), ('cards', tr('Cards')), ('icons', tr('Icons')), ('cube', tr('Cube'))];
     final rounding = widget.windowRounding;
-    return Scaffold(
-      body: Focus(
-        autofocus: true,
-        onKeyEvent: _onKey,
-        child: Column(
-          children: [
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                math.max(8, (MediaQuery.sizeOf(context).width - 980) / 2 + 8),
-                10,
-                math.max(16, (MediaQuery.sizeOf(context).width - 980) / 2 + 20),
-                4,
-              ),
-              child: Row(
-                children: [
-                  TextButton.icon(
-                    onPressed: () => Navigator.maybePop(context),
-                    icon: const Icon(Icons.arrow_back, size: 18),
-                    label: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [Text('${tr('Back')} · '), const Icon(Icons.backspace_outlined, size: 15)],
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    tr('SETTINGS'),
-                    style: TextStyle(letterSpacing: 1.2, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                // A wide window: the rows stay readable in the middle
-                // (label and control close together), not stretched apart.
-                padding: EdgeInsets.symmetric(
-                  horizontal: math.max(20, (MediaQuery.sizeOf(context).width - 980) / 2),
-                  vertical: 8,
+    // Compact: no 48 px tap targets around switches, chips and dropdowns.
+    return Theme(
+      data: Theme.of(context)
+          .copyWith(visualDensity: VisualDensity.compact, materialTapTargetSize: MaterialTapTargetSize.shrinkWrap),
+      child: Scaffold(
+        body: Focus(
+          autofocus: true,
+          onKeyEvent: _onKey,
+          child: Column(
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  _edge(MediaQuery.sizeOf(context).width) - 12,
+                  10,
+                  _edge(MediaQuery.sizeOf(context).width),
+                  4,
                 ),
-                children: [
+                child: Row(
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => Navigator.maybePop(context),
+                      icon: const Icon(Icons.arrow_back, size: 18),
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [Text('${tr('Back')} · '), const Icon(Icons.backspace_outlined, size: 15)],
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      tr('SETTINGS'),
+                      style: TextStyle(letterSpacing: 1.2, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: _columns([
                   _row(
                     tr('Language'),
                     tr('The interface language. “System” follows the language of your desktop.'),
@@ -331,7 +413,9 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   _row(
                     tr('Window'),
-                    tr('A popup floats in the middle of the screen and closes with Esc or a click elsewhere, like the old App Manager; a normal window stays and is placed by the desktop. Auto: a popup on Omarchy, a window elsewhere.'),
+                    tr(
+                      'A popup floats in the middle of the screen and closes with Esc or a click elsewhere, like the old App Manager; a normal window stays and is placed by the desktop. Auto: a popup on Omarchy, a window elsewhere.',
+                    ),
                     _dropdown<String>(settings['window_mode'] as String? ?? 'auto', [
                       ('auto', tr('Auto')),
                       ('popup', tr('Popup')),
@@ -407,10 +491,41 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                     Switch(value: settings['filter_field'] != false, onChanged: (v) => _set('filter_field', v)),
                   ),
+                  for (final (view, label, tip) in [
+                    ('list', tr('Icon size: List'), tr("How large the app icons are in the narrow window's list.")),
+                    (
+                      'cards',
+                      tr('Icon size: Cards'),
+                      tr('How large the app icons are on the cards; the cards grow with them.'),
+                    ),
+                    (
+                      'folders',
+                      tr('Icon size: Folders'),
+                      tr(
+                        'How much of its room in a folder each icon fills. 100 % fills the page; smaller shrinks the icons.',
+                      ),
+                    ),
+                    (
+                      'icons',
+                      tr('Icon size: Icons'),
+                      tr('How large the icons are in the Icons layout; the tiles grow with them.'),
+                    ),
+                  ])
+                    _row(
+                      label,
+                      tip,
+                      _dropdown<int>(sizes[view] as int? ?? iconSizeChoices[view]!.first, [
+                        for (final size in iconSizeChoices[view]!) (size, view == 'folders' ? '$size %' : '$size px'),
+                      ], (v) => _set('icon_size', {'view': view, 'size': v})),
+                    ),
+                  // The second column (wide window) starts here.
+                  const _ColumnBreak(),
                   if (managers.isNotEmpty)
                     _row(
                       tr('Package managers'),
-                      tr('Which package managers Install apps (and later Ask AI) may use. The AUR is off until you choose it: community build scripts, not checked by the distribution.'),
+                      tr(
+                        'Which package managers Install apps (and later Ask AI) may use. The AUR is off until you choose it: community build scripts, not checked by the distribution.',
+                      ),
                       Wrap(
                         spacing: 6,
                         runSpacing: 4,
@@ -435,11 +550,10 @@ class _SettingsPageState extends State<SettingsPage> {
                   if (admin['available'] == true)
                     _row(
                       tr('Open as administrator'),
-                      tr("Adds “Open as administrator” to an app's menu. Switching it on asks for your password; it is off again after you log in next time."),
-                      Switch(
-                        value: admin['enabled'] == true,
-                        onChanged: adminPending ? null : _setAdmin,
+                      tr(
+                        "Adds “Open as administrator” to an app's menu. Switching it on asks for your password; it is off again after you log in next time.",
                       ),
+                      Switch(value: admin['enabled'] == true, onChanged: adminPending ? null : _setAdmin),
                     ),
                   _row(
                     tr('F12 saves a screenshot'),
@@ -477,59 +591,34 @@ class _SettingsPageState extends State<SettingsPage> {
                       ],
                     ),
                   ),
-                  for (final (view, label, tip) in [
-                    ('list', tr('Icon size: List'), tr("How large the app icons are in the narrow window's list.")),
-                    (
-                      'cards',
-                      tr('Icon size: Cards'),
-                      tr('How large the app icons are on the cards; the cards grow with them.'),
-                    ),
-                    (
-                      'folders',
-                      tr('Icon size: Folders'),
-                      tr(
-                        'How much of its room in a folder each icon fills. 100 % fills the page; smaller shrinks the icons.',
+                  ..._dockRows(),
+                ]),
+              ),
+              Padding(
+                // In line with the rows in a wide window.
+                padding: EdgeInsets.fromLTRB(_edge(MediaQuery.sizeOf(context).width), 4, 16, 12),
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: OutlinedButton(
+                        onPressed: _reset,
+                        child: Text(tr('Reset to defaults'), overflow: TextOverflow.ellipsis),
                       ),
                     ),
-                    (
-                      'icons',
-                      tr('Icon size: Icons'),
-                      tr('How large the icons are in the Icons layout; the tiles grow with them.'),
-                    ),
-                  ])
-                    _row(
-                      label,
-                      tip,
-                      _dropdown<int>(sizes[view] as int? ?? iconSizeChoices[view]!.first, [
-                        for (final size in iconSizeChoices[view]!) (size, view == 'folders' ? '$size %' : '$size px'),
-                      ], (v) => _set('icon_size', {'view': view, 'size': v})),
-                    ),
-                  ..._dockRows(),
-                ],
+                  ],
+                ),
               ),
-            ),
-            Padding(
-              // In line with the rows in a wide window.
-              padding: EdgeInsets.fromLTRB(
-                math.max(16, (MediaQuery.sizeOf(context).width - 980) / 2 + 20),
-                4,
-                16,
-                12,
-              ),
-              child: Row(
-                children: [
-                  Flexible(
-                    child: OutlinedButton(
-                      onPressed: _reset,
-                      child: Text(tr('Reset to defaults'), overflow: TextOverflow.ellipsis),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+/// Where the settings' second column begins (only a marker, never drawn).
+class _ColumnBreak extends StatelessWidget {
+  const _ColumnBreak();
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }
