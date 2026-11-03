@@ -131,6 +131,7 @@ void main() {
     skip: shots == null,
   );
   testWidgets('folders de', (t) => shoot(t, 'folders-de', language: 'de'), skip: shots == null);
+  testWidgets('settings wide', (t) => shoot(t, 'settings-wide', settingsPage: true, size: const Size(1500, 860)), skip: shots == null);
   testWidgets('big folders', (t) => shoot(t, 'folders-big', size: const Size(1524, 860)), skip: shots == null);
 }
 

@@ -192,6 +192,9 @@ class AppsPageState extends State<AppsPage> {
   }
 
   void _onShown() {
+    // Shown again (bar icon, toggle): always the app list, not the page
+    // that was open when it was hidden (Settings, Ask AI, …).
+    if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     _clearFilter();
     unawaited(_load());
     filterFocus.requestFocus();

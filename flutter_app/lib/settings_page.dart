@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -243,19 +245,23 @@ class _SettingsPageState extends State<SettingsPage> {
     return KeyEventResult.ignored;
   }
 
+  /// Label left, control right: the control column grows with the room,
+  /// 260 px in a small window up to 440 px in a wide one.
   Widget _row(String label, String tip, Widget control) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 6),
-    child: Row(
-      children: [
-        Expanded(
-          child: Tooltip(message: tip, waitDuration: const Duration(milliseconds: 400), child: Text(label)),
-        ),
-        const SizedBox(width: 16),
-        SizedBox(
-          width: 260,
-          child: Align(alignment: Alignment.centerRight, child: control),
-        ),
-      ],
+    child: LayoutBuilder(
+      builder: (context, box) => Row(
+        children: [
+          Expanded(
+            child: Tooltip(message: tip, waitDuration: const Duration(milliseconds: 400), child: Text(label)),
+          ),
+          const SizedBox(width: 16),
+          SizedBox(
+            width: math.min(440.0, math.max(260.0, box.maxWidth - 360)),
+            child: Align(alignment: Alignment.centerRight, child: control),
+          ),
+        ],
+      ),
     ),
   );
 
@@ -282,7 +288,12 @@ class _SettingsPageState extends State<SettingsPage> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 10, 16, 4),
+              padding: EdgeInsets.fromLTRB(
+                math.max(8, (MediaQuery.sizeOf(context).width - 980) / 2 + 8),
+                10,
+                math.max(16, (MediaQuery.sizeOf(context).width - 980) / 2 + 20),
+                4,
+              ),
               child: Row(
                 children: [
                   TextButton.icon(
@@ -303,7 +314,12 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                // A wide window: the rows stay readable in the middle
+                // (label and control close together), not stretched apart.
+                padding: EdgeInsets.symmetric(
+                  horizontal: math.max(20, (MediaQuery.sizeOf(context).width - 980) / 2),
+                  vertical: 8,
+                ),
                 children: [
                   _row(
                     tr('Language'),
@@ -493,7 +509,13 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+              // In line with the rows in a wide window.
+              padding: EdgeInsets.fromLTRB(
+                math.max(16, (MediaQuery.sizeOf(context).width - 980) / 2 + 20),
+                4,
+                16,
+                12,
+              ),
               child: Row(
                 children: [
                   Flexible(

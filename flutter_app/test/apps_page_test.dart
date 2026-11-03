@@ -373,6 +373,22 @@ void main() {
     expect(find.text('SETTINGS'), findsOneWidget);
   });
 
+  testWidgets('shown again: back on the app list, whatever page was open', (tester) async {
+    tester.view.physicalSize = const Size(420, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final shown = ValueNotifier<int>(0);
+    await tester.pumpWidget(MaterialApp(home: AppsPage(core: call, desktop: 'generic', shownAgain: shown)));
+    await settle(tester);
+    await tester.tap(find.byTooltip('Settings'));
+    await settle(tester);
+    expect(find.text('SETTINGS'), findsOneWidget);
+    shown.value++;
+    await settle(tester);
+    expect(find.text('SETTINGS'), findsNothing);
+    expect(find.text('Writer'), findsOneWidget);
+  });
+
   testWidgets('settings: language at once, view buttons, filter field off', (tester) async {
     tester.view.physicalSize = const Size(420, 900);
     tester.view.devicePixelRatio = 1;
