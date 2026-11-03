@@ -165,7 +165,13 @@
   "The terminal stopped.": "Das Terminal wurde beendet.",
   "Close window": "Fenster schließen",
   "Close all windows ({0})": "Alle Fenster schließen ({0})",
-  "{0} could not be closed.": "{0} konnte nicht geschlossen werden."
+  "{0} could not be closed.": "{0} konnte nicht geschlossen werden.",
+  "General": "Allgemein",
+  "Layout": "Ansicht",
+  "Icon sizes": "Symbolgrößen",
+  "Apps & AI": "Apps & KI",
+  "Screenshots": "Bildschirmfotos",
+  "Dock": "Dock"
  },
  "es": {
   "\u0004{0} app": [
@@ -333,7 +339,13 @@
   "The terminal stopped.": "El terminal se detuvo.",
   "Close window": "Cerrar ventana",
   "Close all windows ({0})": "Cerrar todas las ventanas ({0})",
-  "{0} could not be closed.": "No se pudo cerrar {0}."
+  "{0} could not be closed.": "No se pudo cerrar {0}.",
+  "General": "General",
+  "Layout": "Diseño",
+  "Icon sizes": "Tamaños de iconos",
+  "Apps & AI": "Apps e IA",
+  "Screenshots": "Capturas de pantalla",
+  "Dock": "Dock"
  },
  "fr": {
   "\u0004{0} app": [
@@ -501,7 +513,13 @@
   "The terminal stopped.": "Le terminal s’est arrêté.",
   "Close window": "Fermer la fenêtre",
   "Close all windows ({0})": "Fermer toutes les fenêtres ({0})",
-  "{0} could not be closed.": "Impossible de fermer {0}."
+  "{0} could not be closed.": "Impossible de fermer {0}.",
+  "General": "Général",
+  "Layout": "Disposition",
+  "Icon sizes": "Tailles des icônes",
+  "Apps & AI": "Applications et IA",
+  "Screenshots": "Captures d’écran",
+  "Dock": "Dock"
  },
  "it": {
   "\u0004{0} app": [
@@ -669,7 +687,13 @@
   "The terminal stopped.": "Il terminale si è fermato.",
   "Close window": "Chiudi finestra",
   "Close all windows ({0})": "Chiudi tutte le finestre ({0})",
-  "{0} could not be closed.": "Impossibile chiudere {0}."
+  "{0} could not be closed.": "Impossibile chiudere {0}.",
+  "General": "Generale",
+  "Layout": "Layout",
+  "Icon sizes": "Dimensioni icone",
+  "Apps & AI": "App e IA",
+  "Screenshots": "Screenshot",
+  "Dock": "Dock"
  },
  "nl": {
   "\u0004{0} app": [
@@ -837,7 +861,13 @@
   "The terminal stopped.": "De terminal is gestopt.",
   "Close window": "Venster sluiten",
   "Close all windows ({0})": "Alle vensters sluiten ({0})",
-  "{0} could not be closed.": "{0} kon niet worden gesloten."
+  "{0} could not be closed.": "{0} kon niet worden gesloten.",
+  "General": "Algemeen",
+  "Layout": "Indeling",
+  "Icon sizes": "Pictogramgroottes",
+  "Apps & AI": "Apps & AI",
+  "Screenshots": "Schermafbeeldingen",
+  "Dock": "Dock"
  },
  "pl": {
   "\u0004{0} app": [
@@ -1007,7 +1037,13 @@
   "The terminal stopped.": "Terminal został zatrzymany.",
   "Close window": "Zamknij okno",
   "Close all windows ({0})": "Zamknij wszystkie okna ({0})",
-  "{0} could not be closed.": "Nie udało się zamknąć {0}."
+  "{0} could not be closed.": "Nie udało się zamknąć {0}.",
+  "General": "Ogólne",
+  "Layout": "Układ",
+  "Icon sizes": "Rozmiary ikon",
+  "Apps & AI": "Aplikacje i AI",
+  "Screenshots": "Zrzuty ekranu",
+  "Dock": "Dok"
  },
  "pt": {
   "\u0004{0} app": [
@@ -1175,6 +1211,12 @@
   "The terminal stopped.": "O terminal parou.",
   "Close window": "Fechar janela",
   "Close all windows ({0})": "Fechar todas as janelas ({0})",
-  "{0} could not be closed.": "Não foi possível fechar {0}."
+  "{0} could not be closed.": "Não foi possível fechar {0}.",
+  "General": "Geral",
+  "Layout": "Disposição",
+  "Icon sizes": "Tamanhos dos ícones",
+  "Apps & AI": "Apps e IA",
+  "Screenshots": "Capturas de ecrã",
+  "Dock": "Dock"
  }
 }

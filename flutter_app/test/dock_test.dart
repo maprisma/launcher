@@ -270,7 +270,7 @@ void main() {
     final core = FakeCore(dockState(settings: {'dock_enabled': false}));
     await tester.pumpWidget(MaterialApp(home: SettingsPage(core: core.call, settings: const {}, onChanged: (_) {})));
     await tester.pumpAndSettle();
-    expect(find.text('DOCK'), findsOneWidget);
+    expect(find.text('Dock'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('dock_enabled')));
     await tester.pumpAndSettle();
     expect(core.calls.where((c) => c.$1 == 'dock.set').single.$2, {'key': 'dock_enabled', 'value': true});

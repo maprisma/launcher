@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'backend.dart';
 import 'core_call.dart';
 import 'i18n.dart';
+import 'theme.dart' show corners;
 import 'main.dart' show PopupGuard;
 
 /// launcher_core's choices per setting.
@@ -83,23 +84,11 @@ class _SettingsPageState extends State<SettingsPage> {
   List<Widget> _dockRows() {
     final state = dock;
     if (state == null) return const [];
-    final heading = Padding(
-      padding: const EdgeInsets.only(top: 18, bottom: 4),
-      child: Text(
-        tr('Dock').toUpperCase(),
-        style: TextStyle(
-          letterSpacing: 1.2,
-          fontWeight: FontWeight.w700,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-      ),
-    );
     if (state['available'] != true) {
       final why = state['reason'] == 'no_layer_shell'
           ? tr('The dock needs the gtk-layer-shell package (sudo pacman -S gtk-layer-shell).')
           : tr('The dock is only for Omarchy (Hyprland). GNOME and COSMIC have docks of their own.');
       return [
-        heading,
         _row(tr('Show dock'), why, Text(tr('Not available'), key: const ValueKey('dock-unavailable'))),
         Padding(
           padding: const EdgeInsets.only(bottom: 6),
@@ -124,7 +113,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
     List<(Object, String)> px(List<int> values) => [for (final v in values) (v, '$v px')];
     return [
-      heading,
       toggle(
         'dock_enabled',
         tr('Show dock'),
@@ -300,7 +288,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(width: 16),
           SizedBox(
-            width: math.min(440.0, math.max(260.0, box.maxWidth - 360)),
+            width: math.min(440.0, math.max(math.min(260.0, box.maxWidth * .55), box.maxWidth - 360)),
             child: Align(alignment: Alignment.centerRight, child: control),
           ),
         ],
@@ -318,20 +306,43 @@ class _SettingsPageState extends State<SettingsPage> {
     onChanged: (v) => v == null ? null : onChanged(v),
   );
 
-  /// One column in a small window; from 1100 px two (look and layout
-  /// left; apps, screenshots and the dock right), each at most 620 px.
+  /// The rows as group cards (a _Section starts one): one column in a
+  /// small window; from 1100 px two (General, Layout and Icon sizes left;
+  /// Apps & AI, Screenshots and the Dock right), each at most 620 px.
   Widget _columns(List<Widget> rows) => LayoutBuilder(
     builder: (context, box) {
+      List<Widget> cards(List<Widget> part) {
+        final out = <Widget>[];
+        _Section? section;
+        var members = <Widget>[];
+        void flush() {
+          if (section != null && members.isNotEmpty) out.add(_card(section, members));
+          if (section == null) out.addAll(members);
+          members = [];
+        }
+
+        for (final w in part) {
+          if (w is _Section) {
+            flush();
+            section = w;
+          } else {
+            members.add(w);
+          }
+        }
+        flush();
+        return out;
+      }
+
       final at = rows.indexWhere((w) => w is _ColumnBreak);
-      final left = at < 0 ? rows : rows.sublist(0, at);
-      final right = at < 0 ? const <Widget>[] : rows.sublist(at + 1);
+      final left = cards(at < 0 ? rows : rows.sublist(0, at));
+      final right = cards(at < 0 ? const <Widget>[] : rows.sublist(at + 1));
       if (box.maxWidth < 1100 || right.isEmpty) {
         return ListView(
-          padding: EdgeInsets.symmetric(horizontal: math.max(20, (box.maxWidth - 720) / 2), vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: math.max(16, (box.maxWidth - 720) / 2), vertical: 8),
           children: [...left, ...right],
         );
       }
-      final column = math.min(620.0, (box.maxWidth - 40 - 48) / 2);
+      final column = math.min(620.0, (box.maxWidth - 40 - 32) / 2);
       return SingleChildScrollView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Center(
@@ -343,7 +354,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 width: column,
                 child: Column(children: left),
               ),
-              const SizedBox(width: 48),
+              const SizedBox(width: 32),
               SizedBox(
                 width: column,
                 child: Column(children: right),
@@ -355,9 +366,46 @@ class _SettingsPageState extends State<SettingsPage> {
     },
   );
 
+  /// A group card: an icon and the title, then its rows.
+  Widget _card(_Section section, List<Widget> rows) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(corners(context).clamp(6, 16)),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(section.icon, size: 18, color: scheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  section.title,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 4),
+            child: Divider(height: 1, color: scheme.outlineVariant),
+          ),
+          ...rows,
+        ],
+      ),
+    );
+  }
+
   /// Back · SETTINGS and Reset in line with the rows.
   double _edge(double width) =>
-      width >= 1100 ? (width - 2 * math.min(620.0, (width - 88) / 2) - 48) / 2 : math.max(20, (width - 720) / 2);
+      width >= 1100 ? (width - 2 * math.min(620.0, (width - 72) / 2) - 32) / 2 : math.max(16, (width - 720) / 2);
 
   @override
   Widget build(BuildContext context) {
@@ -411,6 +459,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               Expanded(
                 child: _columns([
+                  _Section(tr('General'), Icons.tune),
                   _row(
                     tr('Language'),
                     tr('The interface language. “System” follows the language of your desktop.'),
@@ -430,6 +479,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ('window', tr('Normal window')),
                     ], (v) => _set('window_mode', v)),
                   ),
+                  _Section(tr('Layout'), Icons.dashboard_outlined),
                   _row(
                     tr('Layout when small'),
                     tr('How the narrow window shows the entries: as one list (the default), in groups, or by origin.'),
@@ -499,23 +549,24 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                     Switch(value: settings['filter_field'] != false, onChanged: (v) => _set('filter_field', v)),
                   ),
+                  _Section(tr('Icon sizes'), Icons.photo_size_select_large_outlined),
                   for (final (view, label, tip) in [
-                    ('list', tr('Icon size: List'), tr("How large the app icons are in the narrow window's list.")),
+                    ('list', tr('List'), tr("How large the app icons are in the narrow window's list.")),
                     (
                       'cards',
-                      tr('Icon size: Cards'),
+                      tr('Cards'),
                       tr('How large the app icons are on the cards; the cards grow with them.'),
                     ),
                     (
                       'folders',
-                      tr('Icon size: Folders'),
+                      tr('Folders'),
                       tr(
                         'How much of its room in a folder each icon fills. 100 % fills the page; smaller shrinks the icons.',
                       ),
                     ),
                     (
                       'icons',
-                      tr('Icon size: Icons'),
+                      tr('Icons'),
                       tr('How large the icons are in the Icons layout; the tiles grow with them.'),
                     ),
                   ])
@@ -528,6 +579,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   // The second column (wide window) starts here.
                   const _ColumnBreak(),
+                  _Section(tr('Apps & AI'), Icons.auto_awesome_outlined),
                   if (managers.isNotEmpty)
                     _row(
                       tr('Package managers'),
@@ -563,6 +615,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                       Switch(value: admin['enabled'] == true, onChanged: adminPending ? null : _setAdmin),
                     ),
+                  _Section(tr('Screenshots'), Icons.photo_camera_outlined),
                   _row(
                     tr('F12 saves a screenshot'),
                     tr('A picture of this window is saved, with a note if you like.'),
@@ -599,6 +652,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ],
                     ),
                   ),
+                  _Section(tr('Dock'), Icons.dock_outlined),
                   ..._dockRows(),
                 ]),
               ),
@@ -627,6 +681,15 @@ class _SettingsPageState extends State<SettingsPage> {
 /// Where the settings' second column begins (only a marker, never drawn).
 class _ColumnBreak extends StatelessWidget {
   const _ColumnBreak();
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}
+
+/// Where a settings group card begins (only a marker, never drawn).
+class _Section extends StatelessWidget {
+  const _Section(this.title, this.icon);
+  final String title;
+  final IconData icon;
   @override
   Widget build(BuildContext context) => const SizedBox.shrink();
 }
