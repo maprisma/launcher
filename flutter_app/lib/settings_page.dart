@@ -1,3 +1,4 @@
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -34,7 +35,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   late Map<String, dynamic> settings = widget.settings;
 
-  Future<void> _set(String key, Object value) async {
+  Future<void> _set(String key, Object? value) async {
     try {
       final fresh = await widget.core('settings.set', {'key': key, 'value': value});
       setState(() => settings = fresh);
@@ -201,6 +202,42 @@ class _SettingsPageState extends State<SettingsPage> {
                       'The field above the folders when wide. Without it, typing still filters and the title shows what you typed.',
                     ),
                     Switch(value: settings['filter_field'] != false, onChanged: (v) => _set('filter_field', v)),
+                  ),
+                  _row(
+                    tr('F12 saves a screenshot'),
+                    tr('A picture of this window is saved, with a note if you like.'),
+                    Switch(
+                      key: const ValueKey('screenshot-key'),
+                      value: settings['screenshot_key'] != false,
+                      onChanged: (v) => _set('screenshot_key', v),
+                    ),
+                  ),
+                  _row(
+                    tr('Screenshots go to'),
+                    settings['screenshot_folder'] as String? ?? '~/Pictures/AppManager',
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            settings['screenshot_folder'] as String? ?? '~/Pictures/AppManager',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: scheme.onSurfaceVariant),
+                          ),
+                        ),
+                        if (settings['screenshot_folder'] != null)
+                          TextButton(onPressed: () => _set('screenshot_folder', null), child: Text(tr('Default'))),
+                        IconButton(
+                          key: const ValueKey('screenshot-folder'),
+                          tooltip: tr('Choose folder…'),
+                          icon: const Icon(Icons.folder_open),
+                          onPressed: () async {
+                            final chosen = await getDirectoryPath();
+                            if (chosen != null) await _set('screenshot_folder', chosen);
+                          },
+                        ),
+                      ],
+                    ),
                   ),
                   for (final (view, label, tip) in [
                     ('list', tr('Icon size: List'), tr("How large the app icons are in the narrow window's list.")),

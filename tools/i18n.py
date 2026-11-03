@@ -4,8 +4,9 @@
 Keys: every tr('…') / trf('…', …) / trn('one', 'other', …) text in
 flutter_app/lib, plus the texts the core sends in English (DYNAMIC).
 Translations: the Omarchy plugin's built-in tables (reference/omarchy-plugin/
-i18n.py, made with ~/Projects/omarchy-plugin-i18n), then i18n/extra.json for
-texts only App Manager has (it wins). Prints what is still missing; exit 1
+i18n.py, made with ~/Projects/omarchy-plugin-i18n), Maprisma's tables for
+what is not there, then i18n/extra.json for texts only App Manager has (it
+wins). Prints what is still missing; exit 1
 when anything is (or with --check, when the files are not up to date).
 
   tools/i18n.py           write the files
@@ -20,6 +21,8 @@ ROOT = Path(__file__).resolve().parent.parent
 LIB = ROOT / "flutter_app" / "lib"
 OUT = ROOT / "flutter_app" / "assets" / "translations"
 EXTRA = ROOT / "i18n" / "extra.json"
+# Maprisma's tables (the same author's app): texts both apps share, like F12's.
+MAPRISMA = Path("/mnt/Data/Projects/maprisma/flutter_app/assets/translations")
 LANGS = ("de", "fr", "es", "it", "pt", "nl", "pl")
 PLURAL = "\x04"
 
@@ -56,6 +59,11 @@ def tables():
     sys.path.insert(0, str(ROOT / "reference" / "omarchy-plugin"))
     import i18n  # the plugin's tables; plain data, no side effects
     base = {lang: dict(i18n.STRINGS.get(lang, {})) for lang in LANGS}
+    for lang in LANGS:
+        path = MAPRISMA / f"{lang}.json"
+        if path.exists():
+            for key, value in json.loads(path.read_text(encoding="utf-8")).items():
+                base[lang].setdefault(key, value)
     extra = json.loads(EXTRA.read_text(encoding="utf-8")) if EXTRA.exists() else {}
     for lang in LANGS:
         base[lang].update(extra.get(lang, {}))

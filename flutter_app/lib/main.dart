@@ -1,11 +1,16 @@
 import 'dart:async';
 
+import 'dart:io';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import 'apps_page.dart';
 import 'backend.dart';
 import 'core_call.dart';
+import 'window_shots.dart';
 import 'i18n.dart';
 
 export 'apps_page.dart' show AppView, WideLayout;
@@ -43,10 +48,53 @@ class AppManager extends StatefulWidget {
 class _AppManagerState extends State<AppManager> with WidgetsBindingObserver {
   late Map<String, dynamic> look = widget.look;
   late String cornersSetting = widget.settings['corners'] as String? ?? 'windows';
+  late Map<String, dynamic> settings = widget.settings;
+
+  /// F12: a picture of this window and a note (window_shots.dart).
+  final _windowShots = WindowShots.fromEnvironment(Platform.environment);
+  final _shotArea = GlobalKey();
+  final _navigator = GlobalKey<NavigatorState>();
+  bool _shooting = false;
+
+  bool _shotKey(KeyEvent event) {
+    if (event is! KeyDownEvent || event.logicalKey != LogicalKeyboardKey.f12) return false;
+    if (settings['screenshot_key'] == false) return false;
+    unawaited(_takeShot());
+    return true;
+  }
+
+  Future<void> _takeShot() async {
+    final context = _navigator.currentContext;
+    final area = _shotArea.currentContext?.findRenderObject();
+    if (context == null || _shooting || area is! RenderRepaintBoundary) return;
+    _shooting = true;
+    try {
+      final time = DateTime.now();
+      final image = await area.toImage(pixelRatio: MediaQuery.devicePixelRatioOf(context));
+      final data = await image.toByteData(format: ui.ImageByteFormat.png);
+      image.dispose();
+      if (data == null) return;
+      final path = await _windowShots.saveTo(
+        settings['screenshot_folder'] as String?,
+        data.buffer.asUint8List(),
+        time,
+      );
+      if (!context.mounted) return;
+      final note = await showDialog<String>(context: context, builder: (_) => ShotNote(path));
+      await _windowShots.note(path, note ?? '');
+    } catch (_) {
+      // A picture must never disturb the app.
+    } finally {
+      _shooting = false;
+    }
+  }
 
   /// Settings › Corners and Language take effect at once.
   void _onSettings(Map<String, dynamic> settings) {
-    setState(() => cornersSetting = settings['corners'] as String? ?? 'windows');
+    setState(() {
+      this.settings = settings;
+      cornersSetting = settings['corners'] as String? ?? 'windows';
+    });
     I18n.use(settings['language'] as String? ?? 'auto');
   }
 
@@ -55,12 +103,14 @@ class _AppManagerState extends State<AppManager> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     shownAgain.addListener(_reloadLook);
+    HardwareKeyboard.instance.addHandler(_shotKey);
     _syncTitlebar();
   }
 
   @override
   void dispose() {
     shownAgain.removeListener(_reloadLook);
+    HardwareKeyboard.instance.removeHandler(_shotKey);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -91,6 +141,9 @@ class _AppManagerState extends State<AppManager> with WidgetsBindingObserver {
     return ValueListenableBuilder(
       valueListenable: I18n.changed,
       builder: (context, _, _) => MaterialApp(
+        navigatorKey: _navigator,
+        // The picture F12 takes: the whole window, dialogs included.
+        builder: (context, child) => RepaintBoundary(key: _shotArea, child: child),
         title: 'App Manager',
         debugShowCheckedModeBanner: false,
         theme: appTheme(MediaQuery.platformBrightnessOf(context), look['colors'] as Map? ?? {}, radius),

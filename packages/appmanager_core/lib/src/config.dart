@@ -153,8 +153,15 @@ final class Settings {
       'filter_field': data['filter_field'] != false,
       'language': languageCodes.contains(data['language']) ? data['language'] : 'auto',
       'size': _size(data['size']),
+      // F12 saves a picture of the window (as in Maprisma); on by default.
+      'screenshot_key': data['screenshot_key'] != false,
+      'screenshot_folder': _folder(data['screenshot_folder']),
     };
   }
+
+  /// An absolute folder path, or null (~/Pictures/AppManager).
+  static String? _folder(Object? value) =>
+      value is String && value.startsWith('/') && value.length <= 4096 && !value.contains('\x00') ? value : null;
 
   static List<int>? _size(Object? value) => value is List &&
           value.length == 2 &&
@@ -188,7 +195,7 @@ final class Settings {
     final data = raw();
     for (final key in const [
       'view', 'wide_layout', 'shown_layouts', 'corners', 'icon_sizes', 'app_icon_size',
-      'view_buttons', 'filter_field', 'running_first', 'language',
+      'view_buttons', 'filter_field', 'running_first', 'language', 'screenshot_key', 'screenshot_folder',
     ]) {
       data.remove(key);
     }
@@ -213,7 +220,15 @@ final class Settings {
       case 'corners':
         if (!const ['windows', 'rounded', 'square'].contains(value)) throw ArgumentError(key);
         stored = value;
-      case 'running_first' || 'view_buttons' || 'filter_field':
+      case 'screenshot_folder':
+        // null: back to the default folder.
+        if (value == null) {
+          store.writeJson('settings.json', {...raw()}..remove(key));
+          return;
+        }
+        stored = _folder(value);
+        if (stored == null) throw ArgumentError(key);
+      case 'running_first' || 'view_buttons' || 'filter_field' || 'screenshot_key':
         if (value is! bool) throw ArgumentError(key);
         stored = value;
       case 'language':

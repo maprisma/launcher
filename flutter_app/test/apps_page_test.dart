@@ -308,4 +308,44 @@ void main() {
     await settle(tester);
     expect(find.text('Filter: w'), findsOneWidget);
   });
+
+  testWidgets('F12: a picture of the window and its note; off in Settings', (tester) async {
+    tester.view.physicalSize = const Size(420, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    // A throwaway folder: no test picture in ~/Pictures.
+    final shots = Directory(p.join(home.path, 'shots'));
+    final settings = (await tester.runAsync(
+      () => call('settings.set', {'key': 'screenshot_folder', 'value': shots.path}),
+    ))!;
+    await tester.pumpWidget(AppManager(core: call, look: const {}, settings: settings));
+    await settle(tester);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.f12);
+    for (var i = 0; i < 6; i++) {
+      await settle(tester);
+    }
+    final pictures = shots.listSync().where((f) => f.path.endsWith('.png')).toList();
+    expect(pictures, hasLength(1));
+    expect(p.basename(pictures.single.path), startsWith('appmanager-'));
+    expect(find.textContaining('Screenshot saved: '), findsOneWidget);
+    await tester.enterText(find.byKey(const ValueKey('screenshot-note')), 'Writer is cut off');
+    await tester.tap(find.text('Done'));
+    for (var i = 0; i < 4; i++) {
+      await settle(tester);
+    }
+    final note = File(pictures.single.path.replaceFirst(RegExp(r'\.png$'), '.txt'));
+    expect(note.readAsStringSync(), 'Writer is cut off\n');
+
+    // Off in Settings: F12 does nothing.
+    final off = (await tester.runAsync(() => call('settings.set', {'key': 'screenshot_key', 'value': false})))!;
+    await tester.pumpWidget(AppManager(key: UniqueKey(), core: call, look: const {}, settings: off));
+    await settle(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f12);
+    for (var i = 0; i < 4; i++) {
+      await settle(tester);
+    }
+    expect(shots.listSync().where((f) => f.path.endsWith('.png')), hasLength(1));
+    expect(find.textContaining('Screenshot saved: '), findsNothing);
+  });
 }

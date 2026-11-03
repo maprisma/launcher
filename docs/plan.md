@@ -125,5 +125,9 @@ No add-on runs code.
   (pacman -Qo, checkupdates, yay/paru -Qua, flatpak) at most every 30 minutes; uninstall_plan ported (the
   Flatpak id). Equal to the references (marks oracle incl. all 111 real apps' process names and plans). Live: VS Code
   update found on this machine. Not yet: the legend of the marks, Open windows vs background (Hyprland clients).
+- **2026-11-03 — F12 screenshots (as Maprisma):** F12 saves a picture of the window (dialogs included) to
+  ~/Pictures/AppManager or the folder from Settings, then asks for an optional note (.txt next to it).
+  Settings: "F12 saves a screenshot" (on by default), "Screenshots go to" (folder chooser, Default).
+  Translations also come from Maprisma's tables now.
 - **Next (parity with gnome-launcher, in this order):** marks (new ★, updates), running state, shortcuts + key map per desktop (shortcuts.py),
   Change icon (icons.py), updates (updates.py), admin launch.

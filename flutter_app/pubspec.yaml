@@ -9,6 +9,7 @@ environment:
 dependencies:
   appmanager_core:
     path: ../packages/appmanager_core
+  file_selector: ^1.1.0
   flutter:
     sdk: flutter
   flutter_svg: ^2.3.2
