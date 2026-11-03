@@ -10,7 +10,7 @@ import 'shlex.dart';
 
 Future<List<Map<String, dynamic>>> scanApps(
   Session session, {
-  String appIdPrefix = 'io.github.ubruckhaus.MaprismaLauncher',
+  String appIdPrefix = 'com.maprisma.Launcher',
   String cacheName = 'maprisma-launcher',
   bool localized = true,
 }) async {

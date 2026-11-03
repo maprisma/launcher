@@ -16,7 +16,7 @@ Future<void> main(List<String> args) async {
     Session(environment: Platform.environment),
     appIdPrefix: launcher
         ? 'io.github.ubruckhaus.Launcher'
-        : 'io.github.ubruckhaus.MaprismaLauncher',
+        : 'com.maprisma.Launcher',
     cacheName: launcher ? 'gnome-launcher' : 'maprisma-launcher',
     localized: !launcher,
   );

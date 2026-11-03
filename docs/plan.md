@@ -156,7 +156,7 @@ No add-on runs code.
 - **Next (parity with gnome-launcher, in this order):** marks (new ★, updates), running state, shortcuts + key map per desktop (shortcuts.py),
   Change icon (icons.py), updates (updates.py), admin launch.
 
-- **2026-11-03 — renamed to Maprisma Launcher (Uwe):** app ID `io.github.ubruckhaus.MaprismaLauncher`,
+- **2026-11-03 — renamed to Maprisma Launcher (Uwe):** app ID `com.maprisma.Launcher`,
   binary `maprisma-launcher`, Dart packages `maprisma_launcher` / `maprisma_launcher_core`, folders
   `~/.config/maprisma-launcher`, `~/.cache/maprisma-launcher`, `~/Pictures/MaprismaLauncher`, run log plugin
   `maprisma-launcher`, env `MAPRISMA_LAUNCHER_DESKTOP`, repo folder `/mnt/Data/Projects/maprisma-launcher`.

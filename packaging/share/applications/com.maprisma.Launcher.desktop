@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Maprisma Launcher
+GenericName=App launcher
+Comment=Launch, group, install and remove your apps, with an optional AI helper
+Comment[de]=Apps starten, gruppieren, installieren und entfernen, auf Wunsch mit KI-Helfer
+Exec=maprisma-launcher
+Icon=com.maprisma.Launcher
+Categories=Utility;
+Keywords=apps;launcher;install;uninstall;groups;
+StartupWMClass=com.maprisma.Launcher
+StartupNotify=true

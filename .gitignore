@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 .flutter-plugins
 .flutter-plugins-dependencies
+dist/

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.maprisma.Launcher</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Maprisma Launcher</name>
+  <summary>Launch, group, install and remove your apps</summary>
+  <description>
+    <p>All your apps in one window: type to filter, sort them into your own groups or by origin, see sizes,
+    updates and what is running, and install or remove apps through the package managers you allow.
+    An optional AI helper (Claude Code, Codex or Antigravity) suggests real packages for what you need;
+    every install goes through a review that shows the exact command.</p>
+    <p>Runs on Omarchy, GNOME and COSMIC and follows the desktop's colours and language.</p>
+  </description>
+  <launchable type="desktop-id">com.maprisma.Launcher.desktop</launchable>
+  <url type="homepage">https://github.com/maprisma/launcher</url>
+  <developer id="com.maprisma"><name>Uwe Bruckhaus</name></developer>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-11-03"/>
+  </releases>
+</component>
