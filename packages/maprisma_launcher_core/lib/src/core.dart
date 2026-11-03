@@ -84,6 +84,18 @@ final class CoreService {
   late final _admin = Admin(session);
   late final _tray = Tray(session);
 
+  /// pi's usable models (`pi --list-models`), read again at most once a minute.
+  List<({String provider, String model})> _piOnline = const [];
+  DateTime? _piOnlineAt;
+  Future<List<({String provider, String model})>> _piOnlineNow() async {
+    final at = _piOnlineAt;
+    if (at == null || DateTime.now().difference(at) > const Duration(minutes: 1)) {
+      _piOnline = await piListedModels(session);
+      _piOnlineAt = DateTime.now();
+    }
+    return _piOnline;
+  }
+
   /// The app's terminals (install, uninstall, system update), by id.
   final _terms = <String, PtySession>{};
   int _termCount = 0;
@@ -385,7 +397,10 @@ final class CoreService {
       if (!foldable.contains(gid)) throw ServiceError('bad_params');
       groups.toggleCollapsed(data, gid);
     }),
-    'ask.helpers': (_) async => {'helpers': helperStates(session), 'chosen': settings.raw()['ask_helper']},
+    'ask.helpers': (_) async => {
+      'helpers': helperStates(session, piOnline: await _piOnlineNow()),
+      'chosen': settings.raw()['ask_helper'],
+    },
     'ask.run': _askRun,
     'ask.cancel': (_) async {
       _ask.cancel();
@@ -773,7 +788,8 @@ final class CoreService {
     final request = _string(params, 'request').trim();
     if (request.length > 2000) throw ServiceError('bad_params');
     final command = _string(params, 'helper');
-    final state = helperStates(session).where((h) => h['command'] == command).firstOrNull;
+    final piOnline = await _piOnlineNow();
+    final state = helperStates(session, piOnline: piOnline).where((h) => h['command'] == command).firstOrNull;
     if (state == null || state['installed'] != true) throw ServiceError('no_helper');
     final answer = params['answer'] is String ? (params['answer'] as String) : null;
     final language = params['language'] is String ? params['language'] as String : null;
@@ -805,6 +821,7 @@ final class CoreService {
     String text;
     try {
       text = await _ask.run(
+        piOnline: piOnline,
         command,
         askPrompt(request: request, answer: answer, installed: facts(const []), managers: managers, language: language),
       );
@@ -832,6 +849,7 @@ final class CoreService {
         String second;
         try {
           second = await _ask.run(
+            piOnline: piOnline,
             command,
             picksPrompt(
               request: request,

@@ -211,6 +211,54 @@ fi
       expect((await call('ask.run', {'request': 'x', 'helper': 'pi:llama-local/--evil'}))['error']['code'], 'no_helper');
     });
 
+    test('pi online models (e.g. DeepSeek) and Hermes, each locked down', () async {
+      final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(server.close);
+      server.listen((c) => c.destroy());
+      // pi: one signed-in online provider in its model list.
+      File(p.join(bin, 'pi')).writeAsStringSync(r'''#!/bin/sh
+if [ "$1" = "--list-models" ]; then
+  echo "provider  model  context"
+  echo "deepseek  deepseek-chat  128K"
+  echo "deepseek  --evil  1K"
+  exit 0
+fi
+printf '%s\n' "$@" > "$HOME/pi-argv.txt"; cat > /dev/null; echo '{"action": "list_hidden"}'
+''');
+      // Hermes: its default model on a local Ollama (the test's socket).
+      Directory(p.join(home.path, '.hermes')).createSync();
+      File(p.join(home.path, '.hermes/config.yaml')).writeAsStringSync(
+        "model:\n  default: qwen3.8-27b-q4_k_m:latest\n  provider: ollama-local\n  base_url: ''\n"
+        'providers:\n  ollama-local:\n    name: Ollama (local)\n    api: http://127.0.0.1:${server.port}/v1\n',
+      );
+      File(p.join(bin, 'hermes')).writeAsStringSync(r'''#!/bin/sh
+printf '%s\n' "$@" > "$HOME/hermes-argv.txt"; echo '{"action": "list_hidden"}'
+''');
+      for (final f in ['pi', 'hermes']) {
+        Process.runSync('chmod', ['+x', p.join(bin, f)]);
+      }
+
+      final helpers = (await call('ask.helpers'))['result']['helpers'] as List;
+      final byCommand = {for (final h in helpers) h['command']: h};
+      expect(byCommand['pi:deepseek/deepseek-chat'], containsPair('name', 'pi · deepseek/deepseek-chat'));
+      expect(byCommand.keys.where((k) => '$k'.contains('evil')), isEmpty);
+      expect(byCommand['hermes'], containsPair('name', 'Hermes · qwen3.8-27b-q4_k_m:latest'));
+      expect(byCommand['hermes'], containsPair('local', true));
+
+      final r1 = await call('ask.run', {'request': 'which apps are hidden?', 'helper': 'pi:deepseek/deepseek-chat'});
+      expect(r1['error'], isNull, reason: '$r1');
+      final argv = File(p.join(home.path, 'pi-argv.txt')).readAsLinesSync();
+      expect(argv, contains('--no-tools'));
+      expect(argv, isNot(contains('--offline'))); // online
+      expect(argv.sublist(argv.length - 4), ['--provider', 'deepseek', '--model', 'deepseek-chat']);
+
+      final r2 = await call('ask.run', {'request': 'which apps are hidden?', 'helper': 'hermes'});
+      expect(r2['error'], isNull, reason: '$r2');
+      final h = File(p.join(home.path, 'hermes-argv.txt')).readAsStringSync().split('\n');
+      expect(h.sublist(0, 4), ['-t', 'todo', '--ignore-rules', '-z']);
+      expect(h[4], startsWith('You help inside Maprisma Launcher')); // the prompt, as -z's argument
+    });
+
     test('a helper that is not installed is refused', () async {
       final r = await call('ask.run', {'request': 'x', 'helper': 'codex'});
       expect(r['error']['code'], 'no_helper');

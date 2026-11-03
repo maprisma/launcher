@@ -103,10 +103,26 @@ static void ensure_grab_manager(MyApplication* self) {
   if (gdk_display == nullptr || !GDK_IS_WAYLAND_DISPLAY(gdk_display)) return;
   struct wl_display* display = gdk_wayland_display_get_wl_display(gdk_display);
   if (display == nullptr) return;
-  struct wl_registry* registry = wl_display_get_registry(display);
+  // A private queue: the round trip then dispatches only the registry's
+  // events, never GDK's own (which must not run inside a GTK handler).
+  struct wl_event_queue* queue = wl_display_create_queue(display);
+  if (queue == nullptr) return;
+  struct wl_display* wrapped =
+      static_cast<struct wl_display*>(wl_proxy_create_wrapper(display));
+  if (wrapped == nullptr) {
+    wl_event_queue_destroy(queue);
+    return;
+  }
+  wl_proxy_set_queue(reinterpret_cast<struct wl_proxy*>(wrapped), queue);
+  struct wl_registry* registry = wl_display_get_registry(wrapped);
+  wl_proxy_wrapper_destroy(wrapped);
   wl_registry_add_listener(registry, &registry_listener, self);
-  wl_display_roundtrip(display);
+  wl_display_roundtrip_queue(display, queue);
   wl_registry_destroy(registry);
+  // The manager (and the grabs made from it) back on the default queue, so
+  // "cleared" arrives through GTK's own loop.
+  if (self->grab_manager != nullptr) wl_proxy_set_queue(self->grab_manager, nullptr);
+  wl_event_queue_destroy(queue);
 }
 
 static void release_focus_grab(MyApplication* self) {

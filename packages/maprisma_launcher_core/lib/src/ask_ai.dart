@@ -15,6 +15,7 @@ import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 
+import 'bounded.dart';
 import 'desktop_entries.dart';
 import 'posix.dart';
 
@@ -109,7 +110,72 @@ const helpers = <Helper>[
     login: 'pi',
     note: 'No tools, MCP servers, extensions or project files.',
   ),
+  (
+    command: 'hermes',
+    name: 'Hermes',
+    // Maprisma's adapters/hermes.toml [ask]: only its in-memory task list
+    // (no files, terminal, web or MCP), no project rules or memory; the
+    // prompt as -z's argument.
+    argv: ['hermes', '-t', 'todo', '--ignore-rules', '-z', '{prompt}'],
+    files: ['.hermes/auth.json'],
+    env: ['OPENROUTER_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY'],
+    login: 'hermes',
+    note: 'Only its in-memory task list: no files, terminal, web or MCP.',
+  ),
 ];
+
+/// Hermes's default model (~/.hermes/config.yaml, read bounded, a few lines
+/// of YAML by indentation): its name and, when it runs on this PC, where.
+({String? model, LocalModel? local}) hermesModel(Session session) {
+  final bytes = Posix.instance.readRegular(p.join(session.home, '.hermes/config.yaml'), 1024 * 1024);
+  if (bytes == null) return (model: null, local: null);
+  final lines = utf8.decode(bytes, allowMalformed: true).split('\n');
+  String? model, provider;
+  final apis = <String, String>{};
+  String? section, current;
+  for (final line in lines) {
+    if (line.trim().isEmpty || line.trimLeft().startsWith('#')) continue;
+    final indent = line.length - line.trimLeft().length;
+    final m = RegExp(r'^\s*([A-Za-z0-9_.-]+):\s*(.*?)\s*$').firstMatch(line);
+    if (m == null) continue;
+    final key = m[1]!, value = m[2]!.replaceAll(RegExp(r'''^['"]|['"]$'''), '');
+    if (indent == 0) {
+      section = key;
+      current = null;
+    } else if (section == 'model' && indent == 2) {
+      if (key == 'default') model = value;
+      if (key == 'provider') provider = value;
+    } else if (section == 'providers' && indent == 2) {
+      current = key;
+    } else if (section == 'providers' && indent == 4 && current != null && key == 'api') {
+      apis[current] = value;
+    }
+  }
+  if (model == null || !_piName.hasMatch(model)) return (model: null, local: null);
+  final url = Uri.tryParse(apis[provider] ?? '');
+  final local = url != null && provider != null && const {'127.0.0.1', 'localhost', '::1'}.contains(url.host)
+      ? (provider: provider, model: model, host: url.host, port: url.hasPort ? url.port : 80)
+      : null;
+  return (model: model, local: local);
+}
+
+/// pi's usable models right now (`pi --list-models`: signed-in providers and
+/// local ones), bounded; speech and the like left out.
+Future<List<({String provider, String model})>> piListedModels(Session session) async {
+  final pi = session.which('pi');
+  if (pi == null) return const [];
+  final out = await readBoundedText([pi, '--list-models'], maxBytes: 256 * 1024, timeout: const Duration(seconds: 5),
+      environment: session.environment);
+  final found = <({String provider, String model})>[];
+  for (final line in (out ?? '').split('\n').skip(1)) {
+    final cols = line.trim().split(RegExp(r'\s+'));
+    if (cols.length < 2 || !_piName.hasMatch(cols[0]) || !_piName.hasMatch(cols[1]) || _notChat.hasMatch(cols[1])) {
+      continue;
+    }
+    found.add((provider: cols[0], model: cols[1]));
+  }
+  return found;
+}
 
 /// Local LLMs pi is connected to (~/.pi/agent/models.json): providers on this
 /// PC and their chat models; each can answer Ask AI without the web.
@@ -171,22 +237,31 @@ const askTimeout = Duration(minutes: 4);
 const maxAnswerBytes = 256 * 1024;
 
 /// Which helpers are there, and whether one seems signed in (0 tokens).
-List<Map<String, dynamic>> helperStates(Session session) {
+List<Map<String, dynamic>> helperStates(
+  Session session, {
+  List<({String provider, String model})> piOnline = const [],
+}) {
   final pi = session.which('pi') != null ? piModels(session) : null;
+  final hermes = session.which('hermes') != null ? hermesModel(session) : null;
   final piLocalDefault = pi != null && pi.local.any((m) => m.provider == pi.provider && m.model == pi.model);
   return [
     for (final h in helpers)
       if (h.command != 'pi' || pi != null)
         {
           'command': h.command,
-          // pi with its default model; a local default needs no sign-in.
-          'name': h.command == 'pi' && pi?.model != null ? 'pi · ${pi!.model}' : h.name,
+          // pi and Hermes with their default model; a local default needs no sign-in.
+          'name': h.command == 'pi' && pi?.model != null
+              ? 'pi · ${pi!.model}'
+              : h.command == 'hermes' && hermes?.model != null
+              ? 'Hermes · ${hermes!.model}'
+              : h.name,
           'installed': session.which(h.command) != null,
           'signed_in':
               (h.command == 'pi' && piLocalDefault) ||
+              (h.command == 'hermes' && hermes?.local != null) ||
               h.env.any((e) => (session.environment[e] ?? '').isNotEmpty) ||
               h.files.any((f) => FileSystemEntity.typeSync(p.join(session.home, f)) != FileSystemEntityType.notFound),
-          if (h.command == 'pi' && piLocalDefault) 'local': true,
+          if ((h.command == 'pi' && piLocalDefault) || (h.command == 'hermes' && hermes?.local != null)) 'local': true,
           'login': h.login,
           'note': h.note,
         },
@@ -202,6 +277,18 @@ List<Map<String, dynamic>> helperStates(Session session) {
           'local': true,
           'login': '',
           'note': 'On this PC (${m.provider}): no tokens, nothing leaves the computer.',
+        },
+    // pi's online models it can use now (a provider signed in, e.g. DeepSeek).
+    for (final m in piOnline)
+      if (!(pi?.local.any((l) => l.provider == m.provider) ?? false) &&
+          !(m.provider == pi?.provider && m.model == pi?.model))
+        {
+          'command': 'pi:${m.provider}/${m.model}',
+          'name': 'pi · ${m.provider}/${m.model}',
+          'installed': true,
+          'signed_in': true,
+          'login': '',
+          'note': 'Through pi (${m.provider}): uses that provider\'s plan or tokens.',
         },
   ];
 }
@@ -394,7 +481,11 @@ final class AskRunner {
 
   void cancel() => _running?.kill(ProcessSignal.sigterm);
 
-  Future<String> run(String command, String prompt) async {
+  Future<String> run(
+    String command,
+    String prompt, {
+    List<({String provider, String model})> piOnline = const [],
+  }) async {
     // `pi:<provider>/<model>`: one of pi's local models (only one it lists now).
     final base = command.startsWith('pi:') ? 'pi' : command;
     final helper = helpers.firstWhere((h) => h.command == base, orElse: () => throw StateError('unknown helper'));
@@ -406,11 +497,24 @@ final class AskRunner {
       final LocalModel? local = command == 'pi'
           ? pi.local.where((m) => m.provider == pi.provider && m.model == pi.model).firstOrNull
           : pi.local.where((m) => localHelperId(m) == command).firstOrNull;
-      if (command != 'pi' && local == null) throw StateError('unknown helper');
+      final online = command == 'pi' || local != null
+          ? null
+          : piOnline.where((m) => 'pi:${m.provider}/${m.model}' == command).firstOrNull;
+      if (command != 'pi' && local == null && online == null) throw StateError('unknown helper');
       if (local != null) {
         await ensureLocalServer(local);
         extra.addAll(['--offline', '--provider', local.provider, '--model', local.model]);
+      } else if (online != null) {
+        extra.addAll(['--provider', online.provider, '--model', online.model]);
       }
+    }
+    if (base == 'hermes') {
+      final local = hermesModel(session).local;
+      if (local != null) await ensureLocalServer(local);
+    }
+    // A prompt as an argument (Hermes's -z) must fit one argv string.
+    if (helper.argv.contains('{prompt}') && utf8.encode(prompt).length > 120 * 1024) {
+      throw StateError('The question with the app list is too long for ${helper.name}.');
     }
     final work = p.join(session.home, '.cache/maprisma-launcher/ask');
     Directory(work).createSync(recursive: true);
@@ -425,7 +529,16 @@ final class AskRunner {
     }
 
     removeAnswer();
-    final argv = [binary, for (final a in helper.argv.skip(1)) a == '{answer}' ? answerFile : a, ...extra];
+    final argv = [
+      binary,
+      for (final a in helper.argv.skip(1))
+        a == '{answer}'
+            ? answerFile
+            : a == '{prompt}'
+            ? prompt
+            : a,
+      ...extra,
+    ];
     var ok = false;
     var result = '';
     try {
