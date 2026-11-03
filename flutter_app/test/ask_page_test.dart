@@ -53,15 +53,26 @@ void main() {
     updateKind: (app) => null,
   );
 
-  testWidgets('no helper: how to get one, and Install apps without AI', (tester) async {
+  testWidgets('no helper or AI disabled: shows Install apps with a hint why Ask AI is not available', (tester) async {
     helpersReady = false;
     await tester.pumpWidget(MaterialApp(home: AskPage(core: fake, apps: apps, actions: actions())));
     await tester.pumpAndSettle();
     expect(find.text('To get app suggestions from an AI, connect an AI helper:'), findsOneWidget);
     expect(find.text('Not installed'), findsNWidgets(2));
-    expect(find.text('Install apps'), findsOneWidget);
-    expect(find.byType(TextField), findsNothing);
+    expect(find.text('Without AI, Install apps searches the packages by name.'), findsOneWidget);
+    expect(find.text('INSTALL APPS'), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
     helpersReady = true;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AskPage(key: UniqueKey(), core: fake, apps: apps, actions: actions(), aiEnabled: false),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Without AI, Install apps searches the packages by name.'), findsOneWidget);
+    expect(find.text('INSTALL APPS'), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
   });
 
   testWidgets('ask: clarify with choices, then suggestions with the review', (tester) async {

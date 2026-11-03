@@ -577,11 +577,11 @@ void main() {
     expect(asked, ['check $misc', 'quit $misc']);
   });
 
-  testWidgets('Close: for an app with windows, "Close all windows (n)" asks the core to close them', (tester) async {
+  testWidgets('Close: for an app with multiple windows, a submenu closes all or one chosen window', (tester) async {
     tester.view.physicalSize = const Size(420, 700);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final closed = <String>[];
+    final closed = <Map<String, dynamic>>[];
     String? misc;
     Future<Map<String, dynamic>> fake(String method, [Map<String, dynamic> params = const {}]) async {
       switch (method) {
@@ -590,10 +590,15 @@ void main() {
           misc = apps.firstWhere((a) => a['name'] == 'Misc')['key'] as String;
           return {'running': [misc], 'states': {misc: 'active'}};
         case 'apps.windows':
-          return {'windows': [{'address': '0x1'}, {'address': '0x2'}]};
+          return {
+            'windows': [
+              {'address': '0x1', 'title': 'First Misc', 'workspace': 1},
+              {'address': '0x2', 'title': 'Second Misc', 'workspace': 2},
+            ],
+          };
         case 'apps.close':
-          closed.add('${params['key']}');
-          return {'closed': 2};
+          closed.add(params);
+          return {'closed': params['address'] == null ? 2 : 1};
         case 'apps.quit_check':
           return {'label': null};
       }
@@ -607,9 +612,26 @@ void main() {
     expect(find.text('Switch to window'), findsOneWidget);
     await tester.tap(find.text('Close all windows (2)'));
     await settle(tester);
+    // Submenu: Close all windows (2), or pick an individual window.
+    expect(find.text('First Misc'), findsOneWidget);
+    expect(find.text('Second Misc'), findsOneWidget);
+    await tester.tap(find.text('First Misc'));
+    await settle(tester);
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 600)));
     await settle(tester);
-    expect(closed, [misc]);
+    expect(closed, [
+      {'key': misc, 'address': '0x1'},
+    ]);
+
+    await tester.tapAt(tester.getCenter(find.text('Misc')), buttons: kSecondaryButton);
+    await settle(tester);
+    await tester.tap(find.text('Close all windows (2)'));
+    await settle(tester);
+    await tester.tap(find.text('Close all windows (2)').last);
+    await settle(tester);
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 600)));
+    await settle(tester);
+    expect(closed.last, {'key': misc});
   });
 
   testWidgets('a click that moves a pixel on a folder icon does not move the app to the end of its group', (tester) async {

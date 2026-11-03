@@ -95,13 +95,13 @@ void main() {
   test('header order: known buttons once, the missing ones appended; bad values refused', () {
     expect(headerOrder(null), headerButtons);
     expect(headerOrder(['settings', 'ask', 'settings', 'nope', 3]),
-        ['settings', 'ask', 'running', 'marks', 'hidden', 'reload', 'plugins', 'install']);
+        ['settings', 'ask', 'running', 'marks', 'hidden', 'reload', 'plugins']);
     final dir = Directory.systemTemp.createTempSync('am-header-');
     addTearDown(() => dir.deleteSync(recursive: true));
     final settings = Settings(ConfigStore(Session(environment: {'HOME': dir.path, 'XDG_CONFIG_HOME': dir.path})));
     expect(settings.read()['header_order'], headerButtons);
-    settings.set('header_order', ['install', 'settings']);
-    expect((settings.read()['header_order'] as List).take(3), ['install', 'settings', 'running']);
+    settings.set('header_order', ['ask', 'settings']);
+    expect((settings.read()['header_order'] as List).take(3), ['ask', 'settings', 'running']);
     expect(() => settings.set('header_order', ['rm -rf']), throwsArgumentError);
     settings.reset();
     expect(settings.read()['header_order'], headerButtons);

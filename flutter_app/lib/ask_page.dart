@@ -25,13 +25,13 @@ typedef AppActions = ({
 /// proposal; every action goes through the normal reviews. Tokens are spent
 /// only when the user clicks Ask (at most two answers per click).
 class AskPage extends StatefulWidget {
-  const AskPage({super.key, required this.core, required this.apps, required this.actions, this.onOpenInstall});
+  const AskPage({super.key, required this.core, required this.apps, required this.actions, this.aiEnabled = true});
   final CoreCall core;
 
   /// The installed apps by key (from apps.list).
   final Map<String, Map<String, dynamic>> apps;
   final AppActions actions;
-  final VoidCallback? onOpenInstall;
+  final bool aiEnabled;
   @override
   State<AskPage> createState() => _AskPageState();
 }
@@ -103,7 +103,7 @@ class _AskPageState extends State<AskPage> {
 
   Future<void> _stop() => widget.core('ask.cancel');
 
-  Widget _header(ColorScheme scheme) => Padding(
+  Widget _header(ColorScheme scheme, {required bool ready}) => Padding(
     padding: const EdgeInsets.fromLTRB(8, 10, 16, 4),
     child: Row(
       children: [
@@ -114,52 +114,98 @@ class _AskPageState extends State<AskPage> {
         ),
         const Spacer(),
         Text(
-          tr('ASK AI'),
+          !widget.aiEnabled || (helpers.isNotEmpty && !ready) ? tr('INSTALL APPS') : tr('ASK AI'),
           style: TextStyle(letterSpacing: 1.2, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant),
         ),
       ],
     ),
   );
 
-  /// No helper yet: how to get one, in plain words; searching works without.
-  Widget _onboarding(ColorScheme scheme) => ListView(
-    padding: const EdgeInsets.all(16),
+  /// No helper yet (or AI disabled in Settings): show the Install apps package
+  /// search directly, with a compact hint explaining why Ask AI is not
+  /// available and which helpers can be connected.
+  Widget _onboarding(ColorScheme scheme) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Text(
-        tr('To get app suggestions from an AI, connect an AI helper:'),
-        style: const TextStyle(fontWeight: FontWeight.w600),
-      ),
-      const SizedBox(height: 12),
-      for (final h in helpers)
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.smart_toy_outlined),
-            title: Text('${h['name']}'),
-            subtitle: Text(
-              h['installed'] != true
-                  ? tr('Not installed')
-                  : h['signed_in'] == true
-                  ? tr('Ready')
-                  : tr('Installed — needs sign-in'),
-            ),
-            trailing: h['installed'] == true && h['signed_in'] != true
-                ? TextButton(
-                    onPressed: () => widget.core('ask.signin', {'command': h['command']}),
-                    child: Text(tr('Sign in in terminal')),
-                  )
-                : null,
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(corners(context)),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (widget.aiEnabled) ...[
+                Row(
+                  children: [
+                    Icon(Icons.auto_awesome_outlined, size: 16, color: markColors(context).update),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        tr('To get app suggestions from an AI, connect an AI helper:'),
+                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    for (final h in helpers)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: scheme.surfaceContainerHigh,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.smart_toy_outlined, size: 14),
+                            const SizedBox(width: 5),
+                            Text('${h['name']}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                            const SizedBox(width: 6),
+                            Text(
+                              h['installed'] != true
+                                  ? tr('Not installed')
+                                  : h['signed_in'] == true
+                                  ? tr('Ready')
+                                  : tr('Installed — needs sign-in'),
+                              style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+              ],
+              Row(
+                children: [
+                  if (!widget.aiEnabled) ...[
+                    Icon(Icons.auto_awesome_outlined, size: 16, color: scheme.onSurfaceVariant),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    child: Text(
+                      tr('Without AI, Install apps searches the packages by name.'),
+                      style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
-      const SizedBox(height: 16),
-      Text(tr('Without AI, Install apps searches the packages by name.')),
-      const SizedBox(height: 8),
-      Align(
-        alignment: Alignment.centerLeft,
-        child: OutlinedButton.icon(
-          onPressed: widget.onOpenInstall,
-          icon: const Icon(Icons.add_box_outlined),
-          label: Text(tr('Install apps')),
-        ),
+      ),
+      Expanded(
+        child: InstallPage(core: widget.core, embedded: true),
       ),
     ],
   );
@@ -167,7 +213,7 @@ class _AskPageState extends State<AskPage> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final ready = helpers.any((h) => h['installed'] == true);
+    final ready = widget.aiEnabled && helpers.any((h) => h['installed'] == true);
     return Scaffold(
       body: Focus(
         autofocus: true,
@@ -180,8 +226,8 @@ class _AskPageState extends State<AskPage> {
         },
         child: Column(
           children: [
-            _header(scheme),
-            if (helpers.isNotEmpty && !ready) Expanded(child: _onboarding(scheme)),
+            _header(scheme, ready: ready),
+            if (!widget.aiEnabled || (helpers.isNotEmpty && !ready)) Expanded(child: _onboarding(scheme)),
             if (ready) ...[
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),

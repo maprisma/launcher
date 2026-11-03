@@ -580,6 +580,15 @@ class _SettingsPageState extends State<SettingsPage> {
                   // The second column (wide window) starts here.
                   const _ColumnBreak(),
                   _Section(tr('Apps & AI'), Icons.auto_awesome_outlined),
+                  _row(
+                    tr('Ask AI'),
+                    tr('Without AI, Install apps searches the packages by name.'),
+                    Switch(
+                      key: const ValueKey('ai-enabled'),
+                      value: settings['ai_enabled'] != false,
+                      onChanged: (v) => _set('ai_enabled', v),
+                    ),
+                  ),
                   if (managers.isNotEmpty)
                     _row(
                       tr('Package managers'),

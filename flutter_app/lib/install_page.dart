@@ -10,9 +10,10 @@ import 'theme.dart';
 /// Install apps (Ask AI step 1, no AI): search the package managers the user
 /// allows, then a review with the exact command before a terminal runs it.
 class InstallPage extends StatefulWidget {
-  const InstallPage({super.key, required this.core, this.onInstalled});
+  const InstallPage({super.key, required this.core, this.onInstalled, this.embedded = false});
   final CoreCall core;
   final VoidCallback? onInstalled;
+  final bool embedded;
   @override
   State<InstallPage> createState() => _InstallPageState();
 }
@@ -28,7 +29,9 @@ class _InstallPageState extends State<InstallPage> {
   void initState() {
     super.initState();
     widget.core('packages.managers').then((r) {
-      if (mounted) setState(() => managers = [for (final m in r['managers'] as List) Map<String, dynamic>.from(m)]);
+      if (mounted) {
+        setState(() => managers = [for (final m in r['managers'] as List? ?? const []) Map<String, dynamic>.from(m)]);
+      }
     });
   }
 
@@ -70,6 +73,91 @@ class _InstallPageState extends State<InstallPage> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final enabled = managers.where((m) => m['enabled'] == true).map((m) => m['label']).join(', ');
+    final content = Column(
+      children: [
+        if (!widget.embedded)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 10, 16, 4),
+            child: Row(
+              children: [
+                TextButton.icon(
+                  onPressed: () => Navigator.maybePop(context),
+                  icon: const Icon(Icons.arrow_back, size: 18),
+                  label: Text(tr('Back')),
+                ),
+                const Spacer(),
+                Text(
+                  tr('INSTALL APPS'),
+                  style: TextStyle(letterSpacing: 1.2, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+          child: TextField(
+            controller: query,
+            autofocus: true,
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              hintText: tr('Package name or word, e.g. gimp'),
+              prefixIcon: const Icon(Icons.search, size: 20),
+              suffixIcon: searching
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                    )
+                  : null,
+            ),
+            onSubmitted: (_) => _search(),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 2, 20, 6),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              enabled.isEmpty
+                  ? tr('No package manager is enabled (Settings › Package managers).')
+                  : trf('Searches: {0}', [enabled]),
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            ),
+          ),
+        ),
+        Expanded(
+          child: searched != null && results.isEmpty && !searching
+              ? Center(child: Text(trf('Nothing found for “{0}”.', [searched])))
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  itemCount: results.length,
+                  itemBuilder: (context, i) {
+                    final f = results[i];
+                    final aur = f['aur'] == true;
+                    return ListTile(
+                      title: Text(
+                        '${f['name'] ?? f['package']}  ${f['version'] ?? ''}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text('${f['description'] ?? ''}', maxLines: 2, overflow: TextOverflow.ellipsis),
+                      leading: Chip(
+                        visualDensity: VisualDensity.compact,
+                        label: Text(_managerLabel('${f['manager']}'), style: const TextStyle(fontSize: 11)),
+                        backgroundColor: aur ? markColors(context).update.withValues(alpha: .2) : null,
+                      ),
+                      trailing: f['installed'] == true
+                          ? Tooltip(
+                              message: tr('Installed'),
+                              child: Icon(Icons.check_circle, color: markColors(context).running),
+                            )
+                          : TextButton(onPressed: () => _review(f), child: Text(tr('Install…'))),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+    if (widget.embedded) return content;
     return Scaffold(
       body: Focus(
         autofocus: true,
@@ -80,89 +168,7 @@ class _InstallPageState extends State<InstallPage> {
           }
           return KeyEventResult.ignored;
         },
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 10, 16, 4),
-              child: Row(
-                children: [
-                  TextButton.icon(
-                    onPressed: () => Navigator.maybePop(context),
-                    icon: const Icon(Icons.arrow_back, size: 18),
-                    label: Text(tr('Back')),
-                  ),
-                  const Spacer(),
-                  Text(
-                    tr('INSTALL APPS'),
-                    style: TextStyle(letterSpacing: 1.2, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-              child: TextField(
-                controller: query,
-                autofocus: true,
-                textInputAction: TextInputAction.search,
-                decoration: InputDecoration(
-                  hintText: tr('Package name or word, e.g. gimp'),
-                  prefixIcon: const Icon(Icons.search, size: 20),
-                  suffixIcon: searching
-                      ? const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-                        )
-                      : null,
-                ),
-                onSubmitted: (_) => _search(),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 2, 20, 6),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  enabled.isEmpty
-                      ? tr('No package manager is enabled (Settings › Package managers).')
-                      : trf('Searches: {0}', [enabled]),
-                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-                ),
-              ),
-            ),
-            Expanded(
-              child: searched != null && results.isEmpty && !searching
-                  ? Center(child: Text(trf('Nothing found for “{0}”.', [searched])))
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      itemCount: results.length,
-                      itemBuilder: (context, i) {
-                        final f = results[i];
-                        final aur = f['aur'] == true;
-                        return ListTile(
-                          title: Text(
-                            '${f['name'] ?? f['package']}  ${f['version'] ?? ''}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          subtitle: Text('${f['description'] ?? ''}', maxLines: 2, overflow: TextOverflow.ellipsis),
-                          leading: Chip(
-                            visualDensity: VisualDensity.compact,
-                            label: Text(_managerLabel('${f['manager']}'), style: const TextStyle(fontSize: 11)),
-                            backgroundColor: aur ? markColors(context).update.withValues(alpha: .2) : null,
-                          ),
-                          trailing: f['installed'] == true
-                              ? Tooltip(
-                                  message: tr('Installed'),
-                                  child: Icon(Icons.check_circle, color: markColors(context).running),
-                                )
-                              : TextButton(onPressed: () => _review(f), child: Text(tr('Install…'))),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
+        child: content,
       ),
     );
   }

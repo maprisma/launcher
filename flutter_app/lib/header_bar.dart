@@ -45,10 +45,14 @@ extension HeaderBar on AppsPageState {
     // Always there (Antigravity's review, point 1): a dot while no helper is ready.
     'ask' => IconButton(
       visualDensity: _density,
-      tooltip: askReady ? tr('Ask AI') : tr('Ask AI (set up a helper first)'),
+      tooltip: !aiEnabled
+          ? tr('Install apps')
+          : askReady
+          ? tr('Ask AI')
+          : tr('Ask AI (set up a helper first)'),
       onPressed: openAsk,
       icon: Badge(
-        isLabelVisible: !askReady,
+        isLabelVisible: aiEnabled && !askReady,
         smallSize: 7,
         backgroundColor: markColors(context).update,
         child: Icon(
@@ -67,12 +71,6 @@ extension HeaderBar on AppsPageState {
             ),
             icon: const Icon(Icons.extension_outlined),
           ),
-    'install' => IconButton(
-      visualDensity: _density,
-      tooltip: tr('Install apps'),
-      onPressed: openInstall,
-      icon: const Icon(Icons.add_box_outlined),
-    ),
     'settings' => IconButton(
       visualDensity: _density,
       tooltip: tr('Settings'),
@@ -89,7 +87,6 @@ extension HeaderBar on AppsPageState {
     'reload' => Icons.refresh,
     'ask' => Icons.auto_awesome,
     'plugins' => Icons.extension_outlined,
-    'install' => Icons.add_box_outlined,
     _ => Icons.settings_outlined,
   };
 

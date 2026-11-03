@@ -32,7 +32,6 @@ import 'details_page.dart';
 import 'icon_page.dart';
 import 'plugins_page.dart';
 import 'terminal_page.dart';
-import 'install_page.dart';
 import 'shortcut_page.dart';
 import 'settings_page.dart';
 import 'theme.dart';
@@ -161,7 +160,8 @@ class AppsPageState extends State<AppsPage> {
 
   /// Ask AI's helpers (ask.helpers): the header button shows whether one is ready.
   List<Map<String, dynamic>> askHelpers = const [];
-  bool get askReady => askHelpers.any((h) => h['installed'] == true && h['signed_in'] == true);
+  bool get aiEnabled => settings['ai_enabled'] != false;
+  bool get askReady => aiEnabled && askHelpers.any((h) => h['installed'] == true && h['signed_in'] == true);
   Timer? _poll;
   int _columns = 1;
   int _asked = 0;
@@ -299,7 +299,7 @@ class AppsPageState extends State<AppsPage> {
           builder: (_) => AskPage(
             core: widget.core,
             apps: byKey,
-            onOpenInstall: openInstall,
+            aiEnabled: aiEnabled,
             actions: (
               open: (app) => _launch(app),
               uninstall: _uninstall,
@@ -743,15 +743,19 @@ class AppsPageState extends State<AppsPage> {
     final flatpakUpdate = (updates['flatpaks'] as Map?)?.containsKey(app['key']) == true;
     final omarchy = widget.desktop == 'omarchy';
     final hasWindows = runStates[app['key']] == 'active';
-    // How many: "Close window" or "Close all windows (n)".
-    var windowCount = 0;
+    // The open windows: 1 closes straight away, more than 1 opens a submenu.
+    var windows = const <Map<String, dynamic>>[];
     if (hasWindows) {
       try {
-        windowCount = ((await widget.core('apps.windows', {'key': app['key']}))['windows'] as List).length;
+        windows = [
+          for (final w in (await widget.core('apps.windows', {'key': app['key']}))['windows'] as List)
+            Map<String, dynamic>.from(w as Map),
+        ];
       } on ServiceError {
-        windowCount = 0;
+        windows = const [];
       }
     }
+    final windowCount = windows.length;
     // Both looked up at once; the app's own tray Quit only while it runs.
     Future<Object?> ask(String route, String field) async {
       try {
@@ -796,39 +800,59 @@ class AppsPageState extends State<AppsPage> {
             value: '\x00float',
             child: MenuLine(Icons.picture_in_picture_alt, tr('Open in floating window')),
           ),
-          PopupMenuItem(value: '\x00workspace', child: MenuLine(Icons.view_carousel_outlined, tr('Open on workspace'))),
+          PopupMenuItem(
+            value: '\x00workspace',
+            child: MenuLine(Icons.view_carousel_outlined, tr('Open on workspace'), trailing: Icons.chevron_right),
+          ),
         ],
-        for (final a in actions) PopupMenuItem(value: a['id'] as String, child: MenuLine(Icons.launch, '${a['name']}')),
-        if (hasWindows) ...[
+        if (actions.isNotEmpty) ...[
           const PopupMenuDivider(),
-          PopupMenuItem(value: '\x00switch', child: MenuLine(Icons.open_in_new, tr('Switch to window'))),
-          if (windowCount > 0)
+          for (final a in actions) PopupMenuItem(value: a['id'] as String, child: MenuLine(Icons.launch, '${a['name']}')),
+        ],
+        if (hasWindows || canQuit) ...[
+          const PopupMenuDivider(),
+          if (hasWindows) ...[
             PopupMenuItem(
-              value: '\x00close',
+              value: '\x00switch',
               child: MenuLine(
-                Icons.close,
-                windowCount == 1 ? tr('Close window') : trf('Close all windows ({0})', [windowCount]),
+                Icons.open_in_new,
+                tr('Switch to window'),
+                trailing: windowCount > 1 ? Icons.chevron_right : null,
               ),
             ),
+            if (windowCount > 0)
+              PopupMenuItem(
+                value: '\x00close',
+                child: MenuLine(
+                  Icons.close,
+                  windowCount == 1 ? tr('Close window') : trf('Close all windows ({0})', [windowCount]),
+                  trailing: windowCount > 1 ? Icons.chevron_right : null,
+                ),
+              ),
+          ],
+          if (canQuit) PopupMenuItem(value: '\x00quit', child: MenuLine(Icons.power_settings_new, tr('Quit'))),
         ],
-        if (canQuit) ...[
-          if (!hasWindows) const PopupMenuDivider(),
-          PopupMenuItem(value: '\x00quit', child: MenuLine(Icons.power_settings_new, tr('Quit'))),
+        if (flatpakUpdate || packageUpdate) ...[
+          const PopupMenuDivider(),
+          if (flatpakUpdate)
+            PopupMenuItem(value: '\x00update', child: MenuLine(Icons.system_update_alt, tr('Update')))
+          else
+            PopupMenuItem(value: '\x00system', child: MenuLine(Icons.system_update_alt, tr('Update system…'))),
         ],
-        if (flatpakUpdate)
-          PopupMenuItem(value: '\x00update', child: MenuLine(Icons.system_update_alt, tr('Update')))
-        else if (packageUpdate)
-          PopupMenuItem(value: '\x00system', child: MenuLine(Icons.system_update_alt, tr('Update system…'))),
         const PopupMenuDivider(),
-        PopupMenuItem(value: '\x00group', child: MenuLine(Icons.folder_outlined, tr('Move to group…'))),
-        PopupMenuItem(value: '\x00details', child: MenuLine(Icons.info_outline, tr('Details…'))),
-        PopupMenuItem(value: '\x00icon', child: MenuLine(Icons.image_outlined, tr('Change icon…'))),
-        PopupMenuItem(value: '\x00shortcut', child: MenuLine(Icons.keyboard_outlined, tr('Shortcut…'))),
+        PopupMenuItem(
+          value: '\x00group',
+          child: MenuLine(Icons.folder_outlined, tr('Move to group…'), trailing: Icons.chevron_right),
+        ),
         if (canPin)
           PopupMenuItem(
             value: '\x00dock',
             child: MenuLine(Icons.push_pin_outlined, pinned ? tr('Unpin from dock') : tr('Pin to dock')),
           ),
+        const PopupMenuDivider(),
+        PopupMenuItem(value: '\x00details', child: MenuLine(Icons.info_outline, tr('Details…'))),
+        PopupMenuItem(value: '\x00icon', child: MenuLine(Icons.image_outlined, tr('Change icon…'))),
+        PopupMenuItem(value: '\x00shortcut', child: MenuLine(Icons.keyboard_outlined, tr('Shortcut…'))),
         const PopupMenuDivider(),
         if ((app['uninstall'] != null || widget.desktop == 'omarchy') && app['cli_command'] == null)
           PopupMenuItem(value: '\x00uninstall', child: MenuLine(Icons.delete_outline, tr('Uninstall…'))),
@@ -863,7 +887,7 @@ class AppsPageState extends State<AppsPage> {
       case '\x00switch':
         return _switchToWindow(app, position);
       case '\x00close':
-        return _closeWindows(app);
+        return _closeWindowChoice(app, windows, position);
       case '\x00quit':
         return _quit(app);
       case '\x00admin':
@@ -1021,11 +1045,6 @@ class AppsPageState extends State<AppsPage> {
     }
   }
 
-  Future<void> openInstall() =>
-      Navigator.of(context)
-          .push(MaterialPageRoute<void>(builder: (_) => InstallPage(core: widget.core)))
-          .then((_) => _load());
-
   /// switch_to_window: one window straight away; several: a list by title
   /// with its workspace.
   Future<void> _switchToWindow(Map app, Offset at) async {
@@ -1067,10 +1086,49 @@ class AppsPageState extends State<AppsPage> {
     }
   }
 
-  /// Close: the app's windows are asked to close (as with their ✕).
-  Future<void> _closeWindows(Map app) async {
+  /// Close: 1 window closes straight away; more than 1 opens a submenu to
+  /// close all windows or one chosen window.
+  Future<void> _closeWindowChoice(Map app, List<Map<String, dynamic>> windows, Offset at) async {
+    if (windows.length <= 1) return _closeWindows(app);
+    final chosen = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(at.dx, at.dy, at.dx, at.dy),
+      items: [
+        PopupMenuItem(
+          value: '\x00all',
+          child: MenuLine(Icons.close, trf('Close all windows ({0})', [windows.length])),
+        ),
+        const PopupMenuDivider(),
+        for (final w in windows)
+          PopupMenuItem(
+            value: '${w['address']}',
+            child: Row(
+              children: [
+                const SizedBox(width: 22, child: Icon(Icons.close, size: 16)),
+                const SizedBox(width: 8),
+                if (w['workspace'] is int) ...[
+                  CountChip(w['workspace'] as int),
+                  const SizedBox(width: 8),
+                ],
+                Flexible(
+                  child: Text(
+                    '${w['title'] ?? ''}'.isNotEmpty ? '${w['title']}' : '${app['name']}',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+    if (chosen == null) return;
+    return _closeWindows(app, address: chosen == '\x00all' ? null : chosen);
+  }
+
+  /// Close: the app's windows (or the chosen one) are asked to close (as with their ✕).
+  Future<void> _closeWindows(Map app, {String? address}) async {
     try {
-      await widget.core('apps.close', {'key': app['key']});
+      await widget.core('apps.close', {'key': app['key'], 'address': ?address});
       await Future<void>.delayed(const Duration(milliseconds: 500));
       if (mounted) await _refreshRunning(always: true);
     } on ServiceError {
@@ -1701,15 +1759,20 @@ class CountChip extends StatelessWidget {
 }
 
 class MenuLine extends StatelessWidget {
-  const MenuLine(this.icon, this.text, {super.key});
+  const MenuLine(this.icon, this.text, {this.trailing, super.key});
   final IconData? icon;
   final String text;
+  final IconData? trailing;
   @override
   Widget build(BuildContext context) => Row(
     children: [
       SizedBox(width: 22, child: icon == null ? null : Icon(icon, size: 16)),
       const SizedBox(width: 8),
-      Flexible(child: Text(text, overflow: TextOverflow.ellipsis)),
+      Expanded(child: Text(text, overflow: TextOverflow.ellipsis)),
+      if (trailing != null) ...[
+        const SizedBox(width: 8),
+        Icon(trailing, size: 16),
+      ],
     ],
   );
 }

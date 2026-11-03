@@ -16,7 +16,7 @@ A request is `{"id", "protocol": 1, "method", "params"}`, the answer `{"id", "re
 | `apps.facts` | — | `facts`: {app key: size, package, version, … (details.app_facts)} |
 | `apps.running` | — | `running` (app keys); on Omarchy also `states` {key: `active` (open windows) or `background`} |
 | `apps.windows` | `key` | `windows` (Hyprland clients of the app; empty off Hyprland) |
-| `apps.close` | `key` | `closed` (how many of the app's windows were asked to close, as their ✕); `not_available` off Hyprland |
+| `apps.close` | `key`, `address`? (one window `apps.windows` listed; none: all) | `closed` (how many of the app's windows were asked to close, as their ✕); `not_available` off Hyprland |
 | `window.focus` | `address` (one `apps.windows` just listed) | `focused`; `not_found`, `focus_failed` |
 | `apps.open_floating` | `key` | `started` (Hyprland exec with float); `launch_failed` |
 | `apps.open_on_workspace` | `key`, `workspace` (int) | `started`; `bad_params`, `launch_failed` |
