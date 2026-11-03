@@ -1,0 +1,20 @@
+#!/bin/bash
+# Maprisma Launcher in a throwaway Omarchy VM, headless: the AUR package (installed, toggled through
+# the plugin script, removed) and the AppImage (started). Nothing is written to the image or this desktop.
+#
+#   tools/vm-packages <folder> [image]   <folder>: maprisma-launcher-bin-*.pkg.tar.zst, Maprisma-Launcher-*.AppImage and plugin/
+#
+# Prints the report and saves the screenshots as vm-packages-pkg.png and vm-packages-appimage.png in
+# the current folder.
+set -euo pipefail
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+dist=$(realpath "$1")
+image=${2:-$(ls -t ~/VMs/omarchy-edge/omarchy-edge-*.qcow2 | head -1)}
+out=$(mktemp)
+trap 'rm -f -- "$out"' EXIT
+QEMU_EXTRA="-virtfs local,path=$dist,mount_tag=dist,security_model=none,readonly=on" \
+  bash "$(dirname -- "$image")/vm-boot" "$image" bash -s < "$root/tools/vm-packages.sh" > "$out" 2>&1
+sed -n '/== SHOT/,/== END/!p' "$out"
+for shot in pkg appimage; do
+  sed -n "/== SHOT $shot/{n;p}" "$out" | base64 -d > "vm-packages-$shot.png" 2>/dev/null && echo "Screenshot: vm-packages-$shot.png"
+done

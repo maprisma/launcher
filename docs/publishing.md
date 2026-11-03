@@ -12,17 +12,25 @@ starts the app or says how to install it (no installer capability). The old App 
 | App | `/mnt/Data/Projects/maprisma-launcher` | version 0.1.0 (`flutter_app/pubspec.yaml`, metainfo release) |
 | Release tarball | `tools/build-release.py` → `dist/maprisma-launcher-<v>-x86_64.tar.gz` + `.sha256` | builds |
 | AppImage | `packaging/build-appimage.py` (pinned appimagetool 1.9.1 + runtime 20251108) | builds |
-| Desktop files | `packaging/share/` (desktop entry validated, metainfo validated) | icon is gnome-launcher's: replace with a Maprisma-style icon |
+| Desktop files | `packaging/share/` (desktop entry validated, metainfo validated) | Maprisma-style icon (grid of apps, 7625e27) |
 | AUR | `/mnt/Data/Projects/aur-maprisma-launcher-bin` (PKGBUILD, .SRCINFO) | `makepkg` builds from the local tarball; sha must be set to the uploaded tarball's |
 | Plugin | `/mnt/Data/Projects/omarchy-maprisma-launcher` | validate ✓, preflight: no hits, toggle test ✓; no preview.png yet |
 | Issue draft | `docs/release-drafts/plugin-issue-body.md` | form text, not posted |
 
 ## Before the first release (open work)
 
-1. Feature parity left: Details page, global shortcuts + key map, Change icon, marks legend.
-2. Ask AI tried with a real helper (Uwe's click), and on another distro (CachyOS) and desktops (GNOME, COSMIC VMs).
-3. A Maprisma-style icon (`packaging/share/icons/…/com.maprisma.Launcher.svg`, plugin glyph).
-4. Complete test suites (core: `dart test`, app: `flutter test`, `tools/i18n.py --check`).
+1. Done 2026-11-03: marks legend, Details page, Change icon, Maprisma-style icon, VM test (below).
+   Global shortcuts + key map: being ported on branch task/shortcuts (worktree maprisma-launcher-shortcuts).
+2. Ask AI tried with a real helper (Uwe's click); CachyOS; GNOME and COSMIC (no VMs for them yet).
+3. Complete test suites (core: `dart test`, app: `flutter test`, `tools/i18n.py --check`).
+
+## VM test (tools/vm-packages, Omarchy edge VM, throwaway snapshot)
+
+2026-11-03, 0.1.0: `pacman -U` installs (24.7 MiB), `/usr/bin/maprisma-launcher` starts, the plugin's toggle
+script opens / hides / shows the window (class com.maprisma.Launcher), `pacman -R` leaves nothing in
+/usr/lib, the toggle without the app shows the install note, the AppImage starts. Screenshots in the session's
+scratchpad. Run: build the release + AppImage, `makepkg` with the tarball's sha, put the package, the AppImage
+and the plugin folder (as `plugin/`) into one folder, `tools/vm-packages <folder>`.
 
 ## Release steps (each outward step only with Uwe's OK)
 
