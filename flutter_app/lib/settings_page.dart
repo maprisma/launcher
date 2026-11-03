@@ -36,11 +36,37 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   late Map<String, dynamic> settings = widget.settings;
   List<Map<String, dynamic>> managers = [];
+  Map<String, dynamic> admin = const {};
+  bool adminPending = false;
 
   @override
   void initState() {
     super.initState();
     _loadManagers();
+    widget.core('admin.state').then((r) {
+      if (mounted) setState(() => admin = r);
+    }).ignore();
+  }
+
+  /// on_admin_action_toggled: on only after polkit confirmed the password.
+  Future<void> _setAdmin(bool on) async {
+    setState(() => adminPending = true);
+    try {
+      final r = await widget.core('admin.enable', {'on': on});
+      if (mounted) setState(() => admin = {...admin, 'enabled': r['enabled']});
+    } on ServiceError catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${tr('Open as administrator was not switched on')}: ${e.code == 'not_confirmed' ? tr('The password was not confirmed.') : tr('Not authorized, or no polkit agent is running.')}',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => adminPending = false);
+    }
   }
 
   Future<void> _loadManagers() async {
@@ -252,6 +278,15 @@ class _SettingsPageState extends State<SettingsPage> {
                               },
                             ),
                         ],
+                      ),
+                    ),
+                  if (admin['available'] == true)
+                    _row(
+                      tr('Open as administrator'),
+                      tr("Adds “Open as administrator” to an app's menu. Switching it on asks for your password; it is off again after you log in next time."),
+                      Switch(
+                        value: admin['enabled'] == true,
+                        onChanged: adminPending ? null : _setAdmin,
                       ),
                     ),
                   _row(

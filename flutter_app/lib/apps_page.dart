@@ -708,12 +708,21 @@ class AppsPageState extends State<AppsPage> {
     final flatpakUpdate = (updates['flatpaks'] as Map?)?.containsKey(app['key']) == true;
     final omarchy = widget.desktop == 'omarchy';
     final hasWindows = runStates[app['key']] == 'active';
+    var asAdmin = false;
+    try {
+      asAdmin = (await widget.core('apps.admin_check', {'key': app['key']}))['can'] == true;
+    } on ServiceError {
+      asAdmin = false;
+    }
+    if (!mounted) return;
     final packageUpdate = (updates['apps'] as Map?)?.containsKey(app['desktop_path']) == true;
     final choice = await showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy),
       items: [
         PopupMenuItem(value: '\x00open', child: MenuLine(Icons.play_arrow, tr('Open'))),
+        if (asAdmin)
+          PopupMenuItem(value: '\x00admin', child: MenuLine(Icons.admin_panel_settings_outlined, tr('Open as administrator'))),
         if (omarchy) ...[
           PopupMenuItem(value: '\x00float', child: MenuLine(Icons.picture_in_picture_alt, tr('Open in floating window'))),
           PopupMenuItem(value: '\x00workspace', child: MenuLine(Icons.view_carousel_outlined, tr('Open on workspace'))),
@@ -762,6 +771,8 @@ class AppsPageState extends State<AppsPage> {
         return _uninstall(app);
       case '\x00switch':
         return _switchToWindow(app, position);
+      case '\x00admin':
+        return _openSpecial(app, 'apps.admin_launch', const {});
       case '\x00float':
         return _openSpecial(app, 'apps.open_floating', const {});
       case '\x00workspace':

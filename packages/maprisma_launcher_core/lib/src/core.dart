@@ -8,6 +8,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import 'admin.dart';
 import 'apps.dart';
 import 'ask_ai.dart';
 import 'bounded.dart';
@@ -67,6 +68,7 @@ final class CoreService {
   late final _iconChoices = IconChoices(session, store);
   late final _hyprland = Hyprland(session);
   late final _plugins = ShellPlugins(session);
+  late final _admin = Admin(session);
 
   /// The last plugin list: only these ids are opened, moved, updated, removed.
   Map<String, Map<String, dynamic>> _pluginList = {};
@@ -135,6 +137,31 @@ final class CoreService {
       return {'started': true};
     },
     'workspaces.list': (_) async => await _hyprland.workspaces() ?? {'workspaces': const [], 'free': null},
+    // Open as administrator: off by default; on only after polkit confirmed
+    // the password, for this login session only.
+    'admin.state': (_) async => {
+      'enabled': _admin.enabled(),
+      'available': session.which('pkexec') != null && _admin.sessionDir() != null && _admin.sessionToken() != null,
+    },
+    'admin.enable': (params) async {
+      if (params['on'] != true) {
+        _admin.setEnabled(false);
+        return {'enabled': false};
+      }
+      if (!await _admin.confirmPassword()) throw ServiceError('not_confirmed');
+      try {
+        _admin.setEnabled(true);
+      } on FileSystemException {
+        throw ServiceError('no_session');
+      }
+      return {'enabled': true};
+    },
+    'apps.admin_check': (params) async => {'can': _admin.enabled() && await _admin.command(_app(params)) != null},
+    'apps.admin_launch': (params) async {
+      if (!_admin.enabled()) throw ServiceError('not_enabled');
+      if (!await _admin.launch(_app(params))) throw ServiceError('launch_failed');
+      return {'started': true};
+    },
     'plugins.list': (_) async {
       final list = await _plugins.list();
       _pluginList = {for (final pl in list) pl['plugin_id'] as String: pl};
