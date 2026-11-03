@@ -81,3 +81,12 @@
 | 10 | Confirmed. | A failed `pi --list-models` keeps the last list. |
 | 11 | **False**: registry_global_cb already binds only while `grab_manager == nullptr`. | none |
 | 12 | Confirmed (cosmetic). | A new question forgets earlier Hide/Unhide clicks. |
+
+## Round 2 (Antigravity, 2026-11-03, commit 675e897)
+
+Checked the fixes: the Ask runner's stdin/stdout handling, piModels / hermesModel / piListedModels and the
+kept list, ensureLocalServer with --no-block under 10 s, the page's Ctrl+Enter guard, Hide/Unhide reset and
+failure reason, install-local's descendant check and docs/protocol.md. 74/74 core tests and the Ask page
+tests pass.
+
+CLEAN
