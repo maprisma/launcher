@@ -59,12 +59,13 @@ final class DockGeometry {
   int contentLength(List<DockSlot> slots) =>
       slots.fold<int>(0, (sum, s) => sum + slotLength(s)) + spacing * math.max(0, slots.length - 1);
 
-  /// The surface's thickness: the hover strip while hidden; else the dock,
-  /// its room and the room for names, or for a menu.
-  int thickness({required bool shown, bool menu = false}) {
-    if (!shown) return dockStrip;
-    return gap + room + (menu ? menuRoom(vertical) : tipRoom(vertical));
-  }
+  /// The surface's thickness: the dock, its room and the room for names, or
+  /// for a menu. A hidden dock keeps it (resizing the surface on every
+  /// hover raced with Flutter's frames); only its input shrinks to the strip.
+  int thickness({bool menu = false}) => gap + room + (menu ? menuRoom(vertical) : tipRoom(vertical));
+
+  /// The hidden dock's hover strip on the screen edge.
+  Rect stripRect(Size size) => place(size, 0, 0, alongLength(size), dockStrip.toDouble());
 
   /// Windows keep clear of the band; none with auto-hide.
   int get exclusive => autohide ? 0 : gap + band;

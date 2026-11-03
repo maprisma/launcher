@@ -346,15 +346,16 @@ class DockViewState extends State<DockView> with TickerProviderStateMixin {
   void _syncSurface(List<DockSlot> slots) {
     if (!mounted) return;
     final g = geometry;
-    final layout = {'edge': edge, 'thickness': g.thickness(shown: shown, menu: menu != null), 'exclusive': g.exclusive};
+    final layout = {'edge': edge, 'thickness': g.thickness(menu: menu != null), 'exclusive': g.exclusive};
     final key = jsonEncode(layout);
     if (key != _lastLayout) {
       _lastLayout = key;
       widget.surface('layout', layout);
     }
     Object? input;
-    if (shown && menu == null && dragging == null && _size.width > 0 && _size.height > 0) {
-      final r = g.inputRect(_size, slots);
+    if (menu == null && dragging == null && _size.width > 0 && _size.height > 0) {
+      // Shown: the dock; hidden: the strip on the screen edge that brings it back.
+      final r = shown ? g.inputRect(_size, slots) : g.stripRect(_size);
       input = [
         [r.left.floor(), r.top.floor(), (r.right.ceil() - r.left.floor()), (r.bottom.ceil() - r.top.floor())],
       ];
@@ -477,7 +478,18 @@ class DockViewState extends State<DockView> with TickerProviderStateMixin {
             opaque: false,
             onEnter: (_) => _enter(),
             onExit: (_) => _exit(),
-            child: shown ? _dock(size, slots, byKey) : const SizedBox.expand(),
+            // Hidden: the strip, all but invisible. (A frame with nothing in it at all
+            // left the last dock on screen under GTK3.)
+            child: shown
+                ? _dock(size, slots, byKey)
+                : Stack(
+                    children: [
+                      Positioned.fromRect(
+                        rect: geometry.stripRect(size),
+                        child: const ColoredBox(key: ValueKey('dock-strip'), color: Color(0x01000000)),
+                      ),
+                    ],
+                  ),
           );
         },
       ),

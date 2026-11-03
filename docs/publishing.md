@@ -17,6 +17,14 @@ starts the app or says how to install it (no installer capability). The old App 
 | Plugin | `/mnt/Data/Projects/omarchy-maprisma-launcher` | validate ✓, preflight: no hits, toggle test ✓; no preview.png yet |
 | Issue draft | `docs/release-drafts/plugin-issue-body.md` | form text, not posted |
 
+## The dock (optional, Omarchy)
+
+`maprisma-launcher --dock` needs the GTK3 layer-shell library (`libgtk-layer-shell.so.0`, Arch package
+`gtk-layer-shell`). It is loaded at run time and is not bundled: the AUR package lists it in `optdepends`,
+and the AppImage uses the system's copy. Without it the dock refuses to start and Settings › Dock says which
+package to install. The plugin's bar widget starts the dock with the shell (`maprisma-launcher-toggle --dock`).
+VM test: `tools/vm-dock <folder>` (bundle/, the gtk-layer-shell package, plugin/).
+
 ## Before the first release (open work)
 
 1. Done 2026-11-03: marks legend, Details page, Change icon, Maprisma-style icon, VM test (below).

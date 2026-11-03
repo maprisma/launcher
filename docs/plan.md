@@ -81,8 +81,8 @@ No add-on runs code.
 
 ## Open points
 
-- **Dock** (Omarchy 2.x dock.py is a layer-shell window): Flutter has no layer-shell out of the box. Options:
-  keep a separate small dock, use a layer-shell embedder, or drop it. Decide before milestone 4.
+- **Dock:** decided and done 2026-11-03 (below): the same binary as `maprisma-launcher --dock`, GTK3
+  gtk-layer-shell loaded at run time.
 - Omarchy popup feel: a floating window via window rules instead of a layer-shell popup; check focus/Esc.
 - Which GNOME/COSMIC VMs exist; create if missing.
 
@@ -179,3 +179,25 @@ No add-on runs code.
   bind each key twice). Not yet: two-step shortcuts in the UI (kept and rendered when in the state), key
   capture while the page is open (Hyprland submap / GNOME inhibit), list chips, removing dead hand-written
   binds, the key colours' hue fix (key_colors.py). Not run on a live desktop yet.
+- **2026-11-03 — the dock (Omarchy only, branch task/dock):** the Omarchy App Manager's dock ported.
+  Core `dock.dart` = dock_core.py (settings, edge, sizes, dock_rect, inside, indicator colour, split_events,
+  pinned operations, dropped_id, items, bar_position), equal to it in `oracle.py dock`; routes `dock.*`
+  (docs/protocol.md) with a fake hyprctl in `dock_service_test.dart`. The dock is a process of its own:
+  `maprisma-launcher --dock`, application id `com.maprisma.Launcher.Dock` (a second start makes it re-read its
+  settings; switched off it ends). The runner loads `libgtk-layer-shell.so.0` (GTK3, package gtk-layer-shell)
+  with dlopen and refuses with a message (exit 3) without it; Settings › Dock then names the package, and
+  off Omarchy says GNOME and COSMIC have their own docks. The surface is anchored along the whole edge and
+  transparent; Flutter draws the band and sets the input region (only the dock, or the 2 px strip while
+  auto-hidden, takes the pointer), the exclusive zone (gap + band) and the thickness (more while a menu is
+  open). Started with the shell by the plugin's bar widget (`maprisma-launcher-toggle --dock`, as the old
+  widget started dock.py) and by the app on Omarchy when the dock is on. Hyprland's socket2 with the line
+  limit, a 4 s poll, the settings files followed every second; only windows Hyprland just listed are focused
+  or closed. VM (tools/vm-dock, edge image, 1280×800): refused without the library (exit 3, no layer);
+  installed: bottom with the bar at the top, reserved [0, 26, 0, 54], no overlap; name on hover; click
+  launches Files, then focuses it; menu; Unpin; Pin to dock on running Chromium; drag reorder; Close;
+  auto-hide (hover over the hidden area does not reveal it, the edge does, it hides again); top asked with
+  the bar at the top → bottom; left (reserved 54 left); a second start and the toggle keep one dock; off
+  ends it. Screenshots in docs/shots/dock-*.png. Different from dock.py: no drop from the app (no
+  compositor drag and drop in the Flutter app; "Pin to dock" in its menu instead), no "popup-open" message
+  (the app is a normal floating window, the pointer reaches the edge), no hang watchdog, names and menus
+  drawn by Flutter inside the surface (it grows while a menu is open).

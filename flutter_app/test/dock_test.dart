@@ -131,9 +131,9 @@ void main() {
       final g = DockGeometry(edge: 'bottom', settings: dockState()['settings'] as Map, sizes: dockState()['sizes'] as Map);
       expect(slots.map((s) => s.kind), [SlotKind.manager, SlotKind.separator, SlotKind.placeholder]);
       expect(g.contentLength(slots), 40 + 9 + 40 + 2 * 6);
-      expect(g.thickness(shown: true), 6 + 48 + 34);
-      expect(g.thickness(shown: false), dockStrip);
-      expect(g.thickness(shown: true, menu: true), 6 + 48 + 380);
+      expect(g.thickness(), 6 + 48 + 34);
+      expect(g.thickness(menu: true), 6 + 48 + 380);
+      expect(g.stripRect(const Size(1000, 88)), const Rect.fromLTWH(0, 86, 1000, 2));
       expect(g.exclusive, 54);
       const size = Size(1000, 88);
       expect(g.bandRect(size, slots), Rect.fromLTWH((1000 - 117) / 2, 88 - 6 - 48, 117, 48));
@@ -151,7 +151,8 @@ void main() {
       const size = Size(302, 900);
       expect(g.gap, 0);
       expect(g.exclusive, 0);
-      expect(g.thickness(shown: true), 82 + 220);
+      expect(g.thickness(), 82 + 220);
+      expect(g.stripRect(const Size(302, 900)), const Rect.fromLTWH(0, 0, 2, 900));
       expect(g.bandRect(size, slots), const Rect.fromLTWH(0, 0, 48, 900));
       expect(g.inputRect(size, slots), const Rect.fromLTWH(0, 0, 82, 900));
       expect(g.slotRect(size, slots, 0).topLeft, const Offset(0, 8));
@@ -224,23 +225,29 @@ void main() {
     expect(core.calls.where((c) => c.$1 == 'dock.set').single.$2, {'key': 'dock_position', 'value': 'left'});
   });
 
-  testWidgets('auto-hide: a strip until the pointer comes, hidden again after it left', (tester) async {
+  testWidgets('auto-hide: only a strip takes the pointer until it comes; hidden again after it left', (tester) async {
     final core = await pumpDock(tester, FakeCore(dockState(settings: {'dock_autohide': true})));
-    expect(core.lastLayout(), {'edge': 'bottom', 'thickness': dockStrip, 'exclusive': 0});
-    expect(core.lastInput(), isNull);
+    expect(core.lastLayout(), {'edge': 'bottom', 'thickness': 88, 'exclusive': 0});
+    expect(core.lastInput(), [
+      [0, 86, 1280, 2],
+    ]);
     expect(find.byKey(const ValueKey('dock-manager')), findsNothing);
+    expect(find.byKey(const ValueKey('dock-strip')), findsOneWidget);
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     addTearDown(mouse.removePointer);
-    await mouse.addPointer(location: const Offset(640, 1));
-    await mouse.moveTo(const Offset(640, 1)); // The 2 px strip on the screen edge.
+    await mouse.addPointer(location: const Offset(640, 87));
+    await mouse.moveTo(const Offset(640, 87)); // The 2 px strip on the screen edge.
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
-    expect(core.lastLayout(), {'edge': 'bottom', 'thickness': 88, 'exclusive': 0});
     expect(find.byKey(const ValueKey('dock-manager')), findsOneWidget);
+    expect((core.lastInput() as List).single, [((1280 - 162 - 16) / 2).floor(), 34, 178, 54]);
     await mouse.moveTo(const Offset(-50, -50));
     await tester.pump(const Duration(milliseconds: 800));
     await tester.pump();
-    expect(core.lastLayout(), {'edge': 'bottom', 'thickness': dockStrip, 'exclusive': 0});
+    expect(find.byKey(const ValueKey('dock-manager')), findsNothing);
+    expect(core.lastInput(), [
+      [0, 86, 1280, 2],
+    ]);
   });
 
   testWidgets('nothing pinned: the placeholder; switched off: the dock quits', (tester) async {
