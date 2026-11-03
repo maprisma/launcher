@@ -54,6 +54,14 @@ A request is `{"id", "protocol": 1, "method", "params"}`, the answer `{"id", "re
 | `shortcuts.remove` / `shortcuts.disable` / `shortcuts.restore` | `key`, `combo` {`mods`, `key`, `then`?} | `saved`; `not_found` |
 | `shortcuts.labels` | — | `labels`: {app key: [combo labels]} of the launcher's shortcuts |
 | `shortcuts.default_mods` | `mods` (empty: back to Super + Shift) | `default_mods` |
+| `dock.state` | — | `settings` (dock_*: dock_core.settings), `bar` (shell.json's edge), `edge` (never the bar's), `sizes` {`band`, `item`, `room`, `grow`}, `available` (Omarchy, Hyprland and gtk-layer-shell), `reason` (`not_omarchy`, `no_layer_shell`), `look`, `indicator_color`, `corners`, `watch` (files the dock follows) |
+| `dock.set` / `dock.reset` | `key`, `value` (a dock_* setting; not `dock_pinned`) / — | the state; `bad_params` |
+| `dock.pin` | `key`, `pinned`? (false: unpin) | `pinned` (desktop ids, in order) |
+| `dock.move` | `id`, `target` (both pinned), `after`? | `pinned`; `not_found` |
+| `dock.items` | `rescan`? | `items` [{`key`, `desktop_id`, `name`, `icon_file`, `actions` (≤ 6), `pinned`, `windows` (addresses, last focused first), `new_window_action`}], `active` (focused address) |
+| `dock.activate` | `key` | `focused` (its next window, from a fresh window list) or `started`; `focus_failed`, `launch_failed` |
+| `dock.close` | `key` | `closed` (windows asked to close) |
+| `dock.start` / `dock.open_manager` | — | `started` (`maprisma-launcher --dock` only when on and available; `--toggle`) |
 | `settings.get` / `settings.set` / `settings.reset` | — / `key`, `value` / — | the checked settings; `bad_params` when a value does not fit |
 
 Errors: `bad_request`, `unknown_route`, `bad_params`, `unknown_app`, `refused` (with `message`), `internal`.

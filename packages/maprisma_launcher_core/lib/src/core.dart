@@ -15,6 +15,7 @@ import 'bounded.dart';
 import 'config.dart';
 import 'desktop_entries.dart';
 import 'desktops.dart';
+import 'dock.dart';
 import 'facts.dart';
 import 'groups.dart' as groups;
 import 'icon_theme.dart';
@@ -45,13 +46,18 @@ final class CoreService {
     Map<String, String>? environment,
     Session? session,
     String? configDir,
-  }) : session = session ?? Session(environment: environment ?? const {}) {
+    String? executable,
+  }) : session = session ?? Session(environment: environment ?? const {}),
+       executable = executable ?? Platform.resolvedExecutable {
     desktop = detectDesktop(this.session);
     store = ConfigStore(this.session, dir: configDir);
     settings = Settings(store);
   }
 
   final Session session;
+
+  /// This program (the dock and the window are both `maprisma-launcher`).
+  final String executable;
   late final Desktop desktop;
   late final ConfigStore store;
   late final Settings settings;
@@ -76,6 +82,12 @@ final class CoreService {
   late final _plugins = ShellPlugins(session);
   late final _admin = Admin(session);
   late final _tray = Tray(session);
+
+  /// The dock's settings and pinned apps (settings.json, keys dock_*).
+  late final dock = DockStore(store);
+
+  /// The last full list (apps.list's entries): what the dock shows.
+  List<Map<String, dynamic>> _listed = const [];
 
   /// The last plugin list: only these ids are opened, moved, updated, removed.
   Map<String, Map<String, dynamic>> _pluginList = {};
@@ -411,6 +423,95 @@ final class CoreService {
       shortcuts.saveDefaultMods(mods.isEmpty ? defaultMods : mods);
       return {'default_mods': shortcuts.defaultMods()};
     },
+    // The dock (Omarchy only): settings, pinned apps, what it shows.
+    'dock.state': (_) => _dockState(),
+    'dock.set': (params) async {
+      try {
+        dock.set(_string(params, 'key'), params['value']);
+      } on ArgumentError {
+        throw ServiceError('bad_params');
+      }
+      return _dockState();
+    },
+    'dock.reset': (_) async {
+      dock.reset();
+      return _dockState();
+    },
+    'dock.pin': (params) async {
+      final id = _app(params)['desktop_id'] as String;
+      params['pinned'] == false ? dock.unpin(id) : dock.pin(id);
+      return {'pinned': dock.pinned()};
+    },
+    'dock.move': (params) async {
+      final id = _string(params, 'id'), target = _string(params, 'target');
+      final ids = dock.pinned();
+      if (!ids.contains(id) || !ids.contains(target)) throw ServiceError('not_found');
+      dock.setPinned(movePinned(ids, id, target, after: params['after'] == true));
+      return {'pinned': dock.pinned()};
+    },
+    'dock.items': (params) async {
+      if (params['rescan'] == true || _listed.isEmpty) {
+        _listed = [for (final a in (await _listApps())['apps'] as List) a as Map<String, dynamic>];
+      }
+      final clients = dockClients(await _hyprland.clients());
+      _clients = clients;
+      final items = dockItems(_listed, dock.pinned(), clients);
+      final active = clients.where((c) => c['focusHistoryID'] == 0).firstOrNull?['address'];
+      return {
+        'items': [
+          for (final (app, windows, pinned) in items)
+            {
+              'key': app['key'],
+              'desktop_id': app['desktop_id'],
+              'name': app['name'],
+              'icon_file': app['icon_file'],
+              'actions': [
+                for (final a in (app['actions'] as List? ?? const []).take(6))
+                  if (a is Map) {'id': a['id'], 'name': a['name']},
+              ],
+              'pinned': pinned,
+              'windows': [for (final w in windows) if (Hyprland.validAddress(w['address'])) w['address']],
+              'new_window_action': hasNewWindowAction(app),
+            },
+        ],
+        'active': Hyprland.validAddress(active) ? active : null,
+      };
+    },
+    // A click: not running, start it; running, its last window; already
+    // focused, the next one. Only windows Hyprland lists right now.
+    'dock.activate': (params) async {
+      final app = _app(params);
+      final clients = dockClients(await _hyprland.clients());
+      _clients = clients;
+      final windows = [for (final w in dockWindowsOf(app, clients)) if (Hyprland.validAddress(w['address'])) w];
+      if (windows.isEmpty) return _launch(params, null);
+      final active = windows.indexWhere((w) => w['focusHistoryID'] == 0);
+      final target = windows[active >= 0 ? (active + 1) % windows.length : 0]['address'] as String;
+      if (!await _hyprland.focus(target)) throw ServiceError('focus_failed');
+      return {'focused': target};
+    },
+    'dock.close': (params) async {
+      final app = _app(params);
+      final clients = dockClients(await _hyprland.clients());
+      _clients = clients;
+      var closed = 0;
+      for (final w in dockWindowsOf(app, clients)) {
+        if (Hyprland.validAddress(w['address']) && await _hyprland.closeWindow(w['address'] as String)) closed++;
+      }
+      return {'closed': closed};
+    },
+    // The dock process (`maprisma-launcher --dock`): a running one re-reads its settings.
+    'dock.start': (_) async {
+      final state = await _dockState();
+      if (state['available'] != true || (state['settings'] as Map)['dock_enabled'] != true) {
+        return {'started': false, 'reason': state['reason'] ?? 'off'};
+      }
+      return {'started': await startDetached([executable, '--dock'], session)};
+    },
+    'dock.open_manager': (_) async {
+      if (!await startDetached([executable, '--toggle'], session)) throw ServiceError('launch_failed');
+      return {'started': true};
+    },
     'settings.get': (_) async => settings.read(),
     'settings.reset': (_) async {
       settings.reset();
@@ -425,6 +526,30 @@ final class CoreService {
       return settings.read();
     },
   };
+
+  /// The dock's settings, the edge it really uses (never the bar's), its
+  /// sizes, the theme, and whether it can run here.
+  Future<Map<String, dynamic>> _dockState() async {
+    final values = dock.read();
+    final bar = barPosition(session);
+    final (band, item, room) = dockSizes(values);
+    final omarchy = desktop is OmarchyDesktop && _hyprland.available;
+    final library = layerShellInstalled();
+    final look = await desktop.look();
+    return {
+      'settings': values,
+      'bar': bar,
+      'edge': dockEdge(values, bar),
+      'sizes': {'band': band, 'item': item, 'room': room, 'grow': dockGrow(values)},
+      'available': omarchy && library,
+      'reason': !omarchy ? 'not_omarchy' : (!library ? 'no_layer_shell' : null),
+      'look': look,
+      'indicator_color': dockIndicatorColor(values, look['colors'] as Map? ?? const {}),
+      'corners': settings.read()['corners'],
+      // The dock follows these files (the app's settings and icons, the bar's edge).
+      'watch': [store.path('settings.json'), store.path('icons.json'), p.join(session.home, '.config/omarchy/shell.json')],
+    };
+  }
 
   void _start() {
     if (_started) return;
