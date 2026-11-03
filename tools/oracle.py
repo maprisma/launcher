@@ -10,6 +10,7 @@ fixture's environment.
   oracle.py facts             details.app_facts of every scanned app
   oracle.py icons < spec      icons.py: index entries, score, search, looks_like, tint
   oracle.py windows < clients the Omarchy plugin: app_window_classes, client_matches_app, lua_string
+  oracle.py plugins           the Omarchy plugin's parse_plugins on this machine (reads only)
 """
 import json
 import sys
@@ -102,6 +103,13 @@ def main(argv):
                                          list(details.uninstall_plan(a, look_up_package=False) or []) or None]
                        for a in apps}
         print(json.dumps(out))
+        return 0
+    if argv[1:] == ["plugins"]:
+        sys.path.insert(0, str(REF / "omarchy-plugin"))
+        import launcher_core as olc
+        print(json.dumps([{k: p.get(k) for k in ("plugin_id", "name", "description", "bar_widget", "in_bar",
+                                                  "openable", "removable", "category", "plugin_dir", "bar_section")}
+                          for p in olc.parse_plugins() if not p.get("self_launcher")]))
         return 0
     if argv[1:] == ["windows"]:
         use("gnome-launcher")

@@ -28,6 +28,7 @@ import 'i18n.dart';
 import 'ask_page.dart';
 import 'details_page.dart';
 import 'icon_page.dart';
+import 'plugins_page.dart';
 import 'install_page.dart';
 import 'settings_page.dart';
 import 'theme.dart';
@@ -1258,6 +1259,15 @@ class AppsPageState extends State<AppsPage> {
             ),
           ),
         ),
+        if (widget.desktop == 'omarchy')
+          IconButton(
+            visualDensity: wide ? null : VisualDensity.compact,
+            tooltip: tr('Omarchy plugins'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => PluginsPage(core: widget.core, onHide: widget.onHide)),
+            ),
+            icon: const Icon(Icons.extension_outlined),
+          ),
         IconButton(
           visualDensity: wide ? null : VisualDensity.compact,
           tooltip: tr('Install apps'),

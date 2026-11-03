@@ -19,6 +19,7 @@ import 'groups.dart' as groups;
 import 'icon_theme.dart';
 import 'icons.dart';
 import 'hyprland.dart';
+import 'plugins.dart';
 import 'launch.dart';
 import 'newapps.dart';
 import 'origins.dart' show defaultRoles;
@@ -65,6 +66,12 @@ final class CoreService {
   late final _ask = AskRunner(session);
   late final _iconChoices = IconChoices(session, store);
   late final _hyprland = Hyprland(session);
+  late final _plugins = ShellPlugins(session);
+
+  /// The last plugin list: only these ids are opened, moved, updated, removed.
+  Map<String, Map<String, dynamic>> _pluginList = {};
+  Map<String, int> _pluginUpdates = {};
+  DateTime? _pluginUpdatesAt;
 
   /// The last window list (Hyprland): only these addresses can be focused.
   List<Map> _clients = const [];
@@ -128,6 +135,54 @@ final class CoreService {
       return {'started': true};
     },
     'workspaces.list': (_) async => await _hyprland.workspaces() ?? {'workspaces': const [], 'free': null},
+    'plugins.list': (_) async {
+      final list = await _plugins.list();
+      _pluginList = {for (final pl in list) pl['plugin_id'] as String: pl};
+      return {'plugins': [for (final pl in list) {...pl, 'behind': ?_pluginUpdates[pl['plugin_id']]}]};
+    },
+    'plugins.open': (params) async {
+      if (!await _plugins.open(_plugin(params)['plugin_id'] as String)) throw ServiceError('open_failed');
+      return {'opened': true};
+    },
+    'plugins.bar': (params) async {
+      final plugin = _plugin(params);
+      final section = params['section'];
+      if (section != null && !barSections.contains(section)) throw ServiceError('bad_params');
+      if (!await _plugins.setInBar(plugin['plugin_id'] as String, params['placed'] == true, section as String?)) {
+        throw ServiceError('bar_failed');
+      }
+      return {'done': true};
+    },
+    'plugins.remove_plan': (params) async => _plugins.removalNote(_plugin(params)['plugin_id'] as String),
+    'plugins.remove': (params) async {
+      final plugin = _plugin(params);
+      if (plugin['removable'] != true || !await _plugins.remove(plugin['plugin_id'] as String)) {
+        throw ServiceError('remove_failed');
+      }
+      return {'removed': true};
+    },
+    // updates.plugin_updates: the user's git checkouts behind origin's
+    // default branch, at most every 30 minutes unless forced.
+    'plugins.updates': (params) async {
+      final fresh = _pluginUpdatesAt != null && DateTime.now().difference(_pluginUpdatesAt!) < const Duration(minutes: 30);
+      if (!fresh || params['force'] == true) {
+        final ids = _pluginList.keys.where((id) => Directory(p.join(_plugins.userDir, id, '.git')).existsSync()).take(200);
+        final counts = await Future.wait([for (final id in ids) _plugins.behind(id)]);
+        _pluginUpdates = {
+          for (final (i, id) in ids.indexed)
+            if ((counts[i] ?? 0) > 0) id: counts[i]!,
+        };
+        _pluginUpdatesAt = DateTime.now();
+      }
+      return {'behind': _pluginUpdates};
+    },
+    'plugins.update': (params) async {
+      final id = _plugin(params)['plugin_id'] as String;
+      final (ok, message) = await _plugins.update(id);
+      if (!ok) throw ServiceError('update_failed', message);
+      _pluginUpdates.remove(id);
+      return {'updated': true};
+    },
     'window.popup': (params) async {
       final width = params['width'], height = params['height'];
       if (width is! int || height is! int) throw ServiceError('bad_params');
@@ -574,6 +629,12 @@ final class CoreService {
   static String? _color(Map<String, dynamic> params) {
     final c = params['color'];
     return c is String && RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(c) ? c : null;
+  }
+
+  Map<String, dynamic> _plugin(Map<String, dynamic> params) {
+    final plugin = _pluginList[params['plugin_id']];
+    if (plugin == null) throw ServiceError('unknown_plugin');
+    return plugin;
   }
 
   /// How a normal start runs the app (for Hyprland's exec with a rule):

@@ -24,3 +24,4 @@ export 'src/packages.dart';
 export 'src/ask_ai.dart';
 export 'src/icons.dart' hide aliases, host;
 export 'src/hyprland.dart';
+export 'src/plugins.dart';
