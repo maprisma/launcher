@@ -175,9 +175,8 @@ final class CoreService {
 
   /// group_member_ids: the ids of a group's entries in the order they show.
   List<String> _memberIds(groups.GroupData data, String gid) {
-    final hidden = loadHidden(store);
-    final shown = _list.where((a) => !hidden.contains(a['desktop_id'])).toList();
-    final section = groups.sections(shown, data).where((s) => s.$1 == gid).firstOrNull;
+    // All entries, hidden ones too: their places stay when they come back.
+    final section = groups.sections(_list, data).where((s) => s.$1 == gid).firstOrNull;
     return [for (final a in section?.$2 ?? const <Map>[]) a['desktop_id'] as String];
   }
 

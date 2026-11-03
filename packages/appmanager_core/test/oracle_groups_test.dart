@@ -116,7 +116,7 @@ void main() {
       'ops': [
         ['group_of'],
         ['sections'],
-        ['clean_name', 'a‮b\t\tc ${'x' * 50}'],
+        ['clean_name', 'a\u202eb\t\tc ${'x' * 50}'],
         ['add_group', 'Media'],
         ['add_group', 'my media'],
         ['add_group', 'Other'],

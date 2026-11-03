@@ -122,4 +122,64 @@ void main() {
     await settle(tester);
     expect(find.text('Writer'), findsOneWidget);
   });
+
+  testWidgets('drag and drop: onto a heading, beside an entry, groups, New group', (tester) async {
+    tester.view.physicalSize = const Size(900, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final key = GlobalKey<AppsPageState>();
+    await tester.pumpWidget(MaterialApp(home: AppsPage(key: key, core: call, desktop: 'generic')));
+    await settle(tester);
+    await key.currentState!.setView(AppView.groups);
+    await settle(tester);
+
+    Future<void> drag(Finder from, Offset to) async {
+      final start = tester.getCenter(from);
+      final gesture = await tester.startGesture(start);
+      for (var i = 1; i <= 10; i++) {
+        await gesture.moveTo(Offset.lerp(start, to, i / 10)!);
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await gesture.up();
+      await settle(tester);
+    }
+
+    Future<List> section(String id) async {
+      final result = await tester.runAsync(
+        () => call('apps.sections', {
+          'view': 'groups',
+          'keys': [for (final a in ['misc', 'player', 'writer']) p.join(home.path, 'data/applications/$a.desktop')],
+        }),
+      );
+      return [
+        for (final s in result!['sections'] as List)
+          if (s['id'] == id)
+            for (final k in s['keys'] as List) p.basenameWithoutExtension(k as String),
+      ];
+    }
+
+    // Misc (Other) onto the Office heading: into Office, at the end.
+    await drag(find.text('Misc'), tester.getCenter(find.text('Office')));
+    expect(await section('office'), ['writer', 'misc']);
+
+    // Player onto the upper half of Writer: into Office, before Writer.
+    final writer = tester.getRect(find.ancestor(of: find.text('Writer'), matching: find.byType(ListTile)));
+    await drag(find.text('Player'), Offset(writer.center.dx, writer.top + 6));
+    expect(await section('office'), ['player', 'writer', 'misc']);
+
+    // The Games heading onto the upper half of the Office heading: before it.
+    final office = tester.getRect(find.ancestor(of: find.text('Office'), matching: find.byType(InkWell)).first);
+    await drag(find.text('Games'), Offset(office.center.dx, office.top + 4));
+    final ids = [for (final g in (await tester.runAsync(() => call('groups.get')))!['groups'] as List) g['id']];
+    expect(ids.indexOf('games'), ids.indexOf('office') - 1);
+
+    // Writer onto New group: the name dialog, then a group with it.
+    await drag(find.text('Writer'), tester.getCenter(find.text('New group')));
+    expect(find.text('New group'), findsWidgets);
+    await tester.enterText(find.byType(TextField).last, 'Docs');
+    await tester.tap(find.text('Save'));
+    await settle(tester);
+    expect(find.text('Docs'), findsOneWidget);
+    expect(await section('g1'), ['writer']);
+  });
 }

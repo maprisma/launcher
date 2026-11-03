@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'app_icon.dart';
 import 'backend.dart';
 import 'core_call.dart';
+import 'drag_drop.dart';
 import 'theme.dart';
 
 enum Layout { list, icons }
@@ -43,8 +44,11 @@ final class HeadingRow extends ListItem {
 }
 
 final class AppRow extends ListItem {
-  AppRow(this.app);
+  AppRow(this.app, [this.section]);
   final Map<String, dynamic> app;
+
+  /// The group or origin section it shows in (none in A–Z).
+  final String? section;
 }
 
 class AppsPage extends StatefulWidget {
@@ -191,7 +195,7 @@ class AppsPageState extends State<AppsPage> {
       out.add(HeadingRow(id, keys.length, folded));
       if (!folded) {
         for (final k in keys) {
-          if (byKey[k] case final app?) out.add(AppRow(app));
+          if (byKey[k] case final app?) out.add(AppRow(app, id));
         }
       }
     }
@@ -265,10 +269,28 @@ class AppsPageState extends State<AppsPage> {
     }
   }
 
-  Future<void> _putInGroup(Map app, String gid) async {
-    await _editGroups('groups.place', {'key': app['key'], 'group': gid});
+  /// put_in_group: into group gid, at the end or next to target (dropped on it).
+  Future<void> _place(String key, String gid, {String? target, bool after = false}) async {
+    await _editGroups('groups.place', {'key': key, 'group': gid, 'target': ?target, 'after': after});
     await _load();
-    setState(() => selectedKey = app['key'] as String);
+    if (mounted) setState(() => selectedKey = key);
+  }
+
+  Future<void> _putInGroup(Map app, String gid) => _place(app['key'] as String, gid);
+
+  /// Groups move among themselves (Other stays last); entries go into any
+  /// group of the groups view, never into Running or an origin.
+  bool _ownGroup(String id) => groups.any((g) => g['id'] == id);
+  bool _canDropInto(String id) => _ownGroup(id) || id == 'other';
+
+  void _dropOnHeading(String id, Dragged dragged, bool after) {
+    switch (dragged) {
+      case DraggedApp(:final key):
+        _place(key, id);
+      case DraggedGroup(id: final moved):
+        _editGroups('groups.reorder', {'id': moved, 'target': id, 'after': after})
+            .then((_) => _refreshSections());
+    }
   }
 
   Future<void> _setHidden(Map app, bool hidden) async {
@@ -619,10 +641,17 @@ class AppsPageState extends State<AppsPage> {
                       label: Text(showHidden ? 'Hide hidden apps' : 'Show hidden ($hiddenCount)'),
                     ),
                   if (view == AppView.groups)
-                    TextButton.icon(
-                      onPressed: _newGroup,
-                      icon: const Icon(Icons.create_new_folder_outlined, size: 16),
-                      label: const Text('New group'),
+                    DropSlot(
+                      accepts: (d) => d is DraggedApp,
+                      onDrop: (d, _) => _newGroup(app: byKey[(d as DraggedApp).key]),
+                      child: Tooltip(
+                        message: 'New group (or drop an app here to start one with it)',
+                        child: TextButton.icon(
+                          onPressed: _newGroup,
+                          icon: const Icon(Icons.create_new_folder_outlined, size: 16),
+                          label: const Text('New group'),
+                        ),
+                      ),
                     ),
                 ],
               ),
@@ -638,9 +667,10 @@ class AppsPageState extends State<AppsPage> {
       _columns = (constraints.maxWidth / tileWidth).floor().clamp(1, 99);
       final slivers = <Widget>[];
       var chunk = <Map<String, dynamic>>[];
+      String? chunkSection;
       void flush() {
         if (chunk.isEmpty) return;
-        final apps = chunk;
+        final apps = chunk, section = chunkSection;
         slivers.add(
           layout == Layout.icons
               ? SliverGrid.builder(
@@ -649,12 +679,12 @@ class AppsPageState extends State<AppsPage> {
                     mainAxisExtent: tileHeight,
                   ),
                   itemCount: apps.length,
-                  itemBuilder: (context, i) => _tile(apps[i], apps[i]['key'] == selected),
+                  itemBuilder: (context, i) => _tile(apps[i], apps[i]['key'] == selected, section),
                 )
               : SliverFixedExtentList.builder(
                   itemExtent: rowHeight,
                   itemCount: apps.length,
-                  itemBuilder: (context, i) => _listRow(apps[i], apps[i]['key'] == selected),
+                  itemBuilder: (context, i) => _listRow(apps[i], apps[i]['key'] == selected, section),
                 ),
         );
         chunk = [];
@@ -662,7 +692,8 @@ class AppsPageState extends State<AppsPage> {
 
       for (final row in shown) {
         switch (row) {
-          case AppRow(:final app):
+          case AppRow(:final app, :final section):
+            chunkSection = section;
             chunk.add(app);
           case HeadingRow():
             flush();
@@ -685,7 +716,7 @@ class AppsPageState extends State<AppsPage> {
     final scheme = Theme.of(context).colorScheme;
     final own = !row.id.startsWith('o-') && row.id != '_running';
     final isNew = groups.any((g) => g['id'] == row.id && g['new'] == true);
-    return Padding(
+    final heading = Padding(
       padding: const EdgeInsets.only(top: 6),
       child: InkWell(
         borderRadius: BorderRadius.circular(corners(context).clamp(0, 8)),
@@ -718,7 +749,7 @@ class AppsPageState extends State<AppsPage> {
                 child: Text('${row.count}', style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant)),
               ),
               const Spacer(),
-              if (own)
+              if (own && row.id != 'other')
                 Builder(
                   builder: (context) => IconButton(
                     tooltip: 'Group actions',
@@ -735,15 +766,52 @@ class AppsPageState extends State<AppsPage> {
         ),
       ),
     );
+    if (view != AppView.groups || !_canDropInto(row.id)) return heading;
+    final slot = DropSlot(
+      accepts: (d) => switch (d) {
+        DraggedApp() => true,
+        DraggedGroup(:final id) => _ownGroup(row.id) && id != row.id,
+      },
+      sided: (d) => d is DraggedGroup,
+      onDrop: (d, after) => _dropOnHeading(row.id, d, after),
+      child: heading,
+    );
+    if (!_ownGroup(row.id)) return slot;
+    return Draggable<Dragged>(
+      data: DraggedGroup(row.id),
+      dragAnchorStrategy: pointerDragAnchorStrategy,
+      feedback: groupDragFeedback(context, groupName(row.id)),
+      childWhenDragging: Opacity(opacity: .4, child: heading),
+      child: slot,
+    );
   }
 
-  Widget _entry(Map app, Widget child) => GestureDetector(
-    onSecondaryTapDown: (d) => _menu(app, d.globalPosition),
-    onLongPressStart: (d) => _menu(app, d.globalPosition),
-    child: Opacity(opacity: app['hidden'] == true ? .5 : 1, child: child),
-  );
+  /// An entry: its menu on right-click; in the groups view it can be moved
+  /// (onto a heading, another entry, or New group) and takes drops beside it.
+  Widget _entry(Map app, Widget child, {String? section, bool horizontal = false}) {
+    final shown = GestureDetector(
+      onSecondaryTapDown: (d) => _menu(app, d.globalPosition),
+      onLongPressStart: (d) => _menu(app, d.globalPosition),
+      child: Opacity(opacity: app['hidden'] == true ? .5 : 1, child: child),
+    );
+    if (view != AppView.groups || section == null || !_canDropInto(section)) return shown;
+    final key = app['key'] as String;
+    return Draggable<Dragged>(
+      data: DraggedApp(key),
+      dragAnchorStrategy: pointerDragAnchorStrategy,
+      feedback: appDragFeedback(app['icon_file'] as String?),
+      childWhenDragging: Opacity(opacity: .35, child: shown),
+      child: DropSlot(
+        accepts: (d) => d is DraggedApp && d.key != key,
+        sided: (_) => true,
+        horizontal: horizontal,
+        onDrop: (d, after) => _place((d as DraggedApp).key, section, target: key, after: after),
+        child: shown,
+      ),
+    );
+  }
 
-  Widget _listRow(Map<String, dynamic> app, bool isSelected) {
+  Widget _listRow(Map<String, dynamic> app, bool isSelected, String? section) {
     final scheme = Theme.of(context).colorScheme;
     final description = app['description'] as String? ?? '';
     return _entry(
@@ -759,10 +827,11 @@ class AppsPageState extends State<AppsPage> {
         subtitle: description.isEmpty ? null : Text(description, maxLines: 1, overflow: TextOverflow.ellipsis),
         onTap: () => _launch(app),
       ),
+      section: section,
     );
   }
 
-  Widget _tile(Map<String, dynamic> app, bool isSelected) {
+  Widget _tile(Map<String, dynamic> app, bool isSelected, String? section) {
     final scheme = Theme.of(context).colorScheme;
     final radius = BorderRadius.circular(corners(context).clamp(0, 12));
     final description = '${app['description'] ?? ''}';
@@ -800,6 +869,8 @@ class AppsPageState extends State<AppsPage> {
           ),
         ),
       ),
+      section: section,
+      horizontal: true,
     );
   }
 }

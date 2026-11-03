@@ -104,6 +104,9 @@ No add-on runs code.
   this machine); hidden entries; settings; first start copies ~/.config/applauncher or gnome-launcher
   (originals kept). App: A–Z / Groups / By origin (Ctrl+G, saved), foldable headings with ⋮ (rename, move,
   delete, new group), Move to group…, Hide from list, Show hidden. Widget test on a fixture home.
-- **Next (parity with gnome-launcher, in this order):** drag and drop between groups, folders/cards/footer layouts, settings page (sizes, corners, layouts, language) + 8 languages, hidden
+- **2026-11-03 — drag and drop (groups view):** entries onto a heading (into it), onto an entry (before/after
+  it, accent bar), onto New group (starts one with it); group headings onto each other (reorder). In-window
+  Flutter drags, no compositor DnD (as gnome-launcher's pointer moves, which COSMIC never started).
+- **Next (parity with gnome-launcher, in this order):** folders/cards/footer layouts, settings page (sizes, corners, layouts, language) + 8 languages, hidden
   entries and marks (new ★, updates), running state, shortcuts + key map per desktop (shortcuts.py),
   Change icon (icons.py), updates (updates.py), admin launch.
