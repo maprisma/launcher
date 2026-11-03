@@ -196,7 +196,8 @@ class AppsPageState extends State<AppsPage> {
     // Shown again (bar icon, toggle): always the app list, not the page
     // that was open when it was hidden (Settings, Ask AI, …).
     // Not while the app's terminal runs a command: that page stays.
-    if (mounted && TerminalPage.running.value == 0) Navigator.of(context).popUntil((route) => route.isFirst);
+    if (TerminalPage.running.value > 0) return; // The terminal page stays, and its keys.
+    if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     _clearFilter();
     unawaited(_load());
     filterFocus.requestFocus();
@@ -312,7 +313,11 @@ class AppsPageState extends State<AppsPage> {
           ),
         ),
       )
-      .then((_) => _loadHelpers());
+      .then((_) {
+        _loadHelpers();
+        // Ask AI may have installed, removed or updated something.
+        return _load();
+      });
 
   Future<void> _loadFacts() async {
     try {

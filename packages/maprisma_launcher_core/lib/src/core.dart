@@ -187,7 +187,11 @@ final class CoreService {
     // update); the page shows the output and passes the keys on.
     'term.start': (params) async {
       final (argv, command) = await _termCommand(params);
-      _terms.removeWhere((_, t) => t.ended && _terms.length >= 4);
+      // Ended terminals nobody closed (the page went away): let them go.
+      for (final id in [for (final e in _terms.entries) if (e.value.ended) e.key]) {
+        _terms.remove(id)?.close();
+      }
+      _updatesAt = null; // An install or update changes what is out of date.
       if (_terms.values.where((t) => !t.ended).length >= 4) throw ServiceError('busy');
       final cols = params['cols'], rows = params['rows'];
       final id = 't${++_termCount}';
@@ -455,6 +459,7 @@ final class CoreService {
     'packages.install': (params) async {
       final plan = await _installPlan(params);
       final command = plan['argv'] as List<String>;
+      if (desktop.terminal() == null) throw ServiceError('no_terminal');
       if (!await startDetached(command, session)) throw ServiceError('no_terminal');
       return {'started': true};
     },
@@ -900,9 +905,10 @@ final class CoreService {
     final manager = _string(params, 'manager'), package = _string(params, 'package');
     final found = _found.where((f) => f['manager'] == manager && f['package'] == package).firstOrNull;
     if (found == null || !_enabledManagers().contains(manager)) throw ServiceError('not_found');
+    // The app's own terminal needs no outside one; packages.install does.
     final terminal = desktop.terminal();
-    final argv = terminal == null ? null : _managers.installCommand(manager, found, terminal);
-    if (argv == null) throw ServiceError('no_terminal');
+    final argv = _managers.installCommand(manager, found, terminal ?? const []);
+    if (argv == null) throw ServiceError('not_found');
     return {
       'manager': manager,
       'package': package,
@@ -1136,5 +1142,10 @@ final class CoreService {
     }
   }
 
-  void dispose() {}
+  void dispose() {
+    for (final t in _terms.values) {
+      t.close();
+    }
+    _terms.clear();
+  }
 }

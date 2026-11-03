@@ -16,6 +16,7 @@ import 'i18n.dart';
 
 export 'apps_page.dart' show AppView, WideLayout;
 export 'core_call.dart';
+import 'terminal_page.dart';
 import 'theme.dart';
 
 /// The runner's channel: "shown" (the window came back), "titlebar"
@@ -126,6 +127,9 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
   bool _shotKey(KeyEvent event) {
     if (event is! KeyDownEvent || event.logicalKey != LogicalKeyboardKey.f12) return false;
     if (settings['screenshot_key'] == false) return false;
+    // Never while the app's terminal runs: sudo may be asking for the
+    // password, and the note's field would take the rest of it.
+    if (TerminalPage.running.value > 0) return false;
     unawaited(_takeShot());
     return true;
   }

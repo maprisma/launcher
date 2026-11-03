@@ -8,6 +8,7 @@ import 'dart:io';
 import 'package:maprisma_launcher/apps_page.dart';
 import 'package:maprisma_launcher/i18n.dart';
 import 'package:maprisma_launcher/install_page.dart';
+import 'package:maprisma_launcher/terminal_page.dart';
 import 'package:flutter/gestures.dart' show kSecondaryButton;
 import 'package:maprisma_launcher/main.dart' show MaprismaLauncherApp;
 import 'package:maprisma_launcher_core/maprisma_launcher_core.dart';
@@ -367,6 +368,19 @@ void main() {
     final saved = (await tester.runAsync(() => call('settings.get')))!['header_order'] as List;
     expect(saved.indexOf('settings') < saved.indexOf('reload'), isTrue);
 
+    // Dropped beside itself: nothing moves, no line is shown.
+    final before = (await tester.runAsync(() => call('settings.get')))!['header_order'];
+    final g2 = await tester.startGesture(tester.getCenter(find.byTooltip('Reload')));
+    final self = tester.getCenter(find.byTooltip('Reload')) + const Offset(12, 0);
+    for (var i = 1; i <= 6; i++) {
+      await g2.moveTo(Offset.lerp(tester.getCenter(find.byTooltip('Reload')), self, i / 6)!);
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(find.byKey(const ValueKey('header-drop-line')), findsNothing);
+    await g2.up();
+    await settle(tester);
+    expect((await tester.runAsync(() => call('settings.get')))!['header_order'], before);
+
     // A click is still a click: Settings opens.
     await tester.tap(find.byTooltip('Settings'));
     await settle(tester);
@@ -467,6 +481,16 @@ void main() {
     }
     final note = File(pictures.single.path.replaceFirst(RegExp(r'\.png$'), '.txt'));
     expect(note.readAsStringSync(), 'Writer is cut off\n');
+
+    // While the app's terminal runs (sudo may want the password): no picture, no note field.
+    TerminalPage.running.value++;
+    await tester.sendKeyEvent(LogicalKeyboardKey.f12);
+    for (var i = 0; i < 4; i++) {
+      await settle(tester);
+    }
+    TerminalPage.running.value--;
+    expect(shots.listSync().where((f) => f.path.endsWith('.png')), hasLength(1));
+    expect(find.byKey(const ValueKey('screenshot-note')), findsNothing);
 
     // Off in Settings: F12 does nothing.
     final off = (await tester.runAsync(() => call('settings.set', {'key': 'screenshot_key', 'value': false})))!;

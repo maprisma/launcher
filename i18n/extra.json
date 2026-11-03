@@ -161,7 +161,8 @@
   "Stop (Ctrl+C)": "Abbrechen (Strg+C)",
   "Stopped.": "Abgebrochen.",
   "System update": "Systemaktualisierung",
-  "Close": "Schließen"
+  "Close": "Schließen",
+  "The terminal stopped.": "Das Terminal wurde beendet."
  },
  "es": {
   "\u0004{0} app": [
@@ -325,7 +326,8 @@
   "Stop (Ctrl+C)": "Detener (Ctrl+C)",
   "Stopped.": "Detenido.",
   "System update": "Actualización del sistema",
-  "Close": "Cerrar"
+  "Close": "Cerrar",
+  "The terminal stopped.": "El terminal se detuvo."
  },
  "fr": {
   "\u0004{0} app": [
@@ -489,7 +491,8 @@
   "Stop (Ctrl+C)": "Arrêter (Ctrl+C)",
   "Stopped.": "Arrêté.",
   "System update": "Mise à jour du système",
-  "Close": "Fermer"
+  "Close": "Fermer",
+  "The terminal stopped.": "Le terminal s’est arrêté."
  },
  "it": {
   "\u0004{0} app": [
@@ -653,7 +656,8 @@
   "Stop (Ctrl+C)": "Ferma (Ctrl+C)",
   "Stopped.": "Fermato.",
   "System update": "Aggiornamento di sistema",
-  "Close": "Chiudi"
+  "Close": "Chiudi",
+  "The terminal stopped.": "Il terminale si è fermato."
  },
  "nl": {
   "\u0004{0} app": [
@@ -817,7 +821,8 @@
   "Stop (Ctrl+C)": "Stoppen (Ctrl+C)",
   "Stopped.": "Gestopt.",
   "System update": "Systeemupdate",
-  "Close": "Sluiten"
+  "Close": "Sluiten",
+  "The terminal stopped.": "De terminal is gestopt."
  },
  "pl": {
   "\u0004{0} app": [
@@ -983,7 +988,8 @@
   "Stop (Ctrl+C)": "Zatrzymaj (Ctrl+C)",
   "Stopped.": "Zatrzymano.",
   "System update": "Aktualizacja systemu",
-  "Close": "Zamknij"
+  "Close": "Zamknij",
+  "The terminal stopped.": "Terminal został zatrzymany."
  },
  "pt": {
   "\u0004{0} app": [
@@ -1147,6 +1153,7 @@
   "Stop (Ctrl+C)": "Parar (Ctrl+C)",
   "Stopped.": "Parado.",
   "System update": "Atualização do sistema",
-  "Close": "Fechar"
+  "Close": "Fechar",
+  "The terminal stopped.": "O terminal parou."
  }
 }

@@ -149,16 +149,35 @@ final class PtySession {
       calloc.free(buffer);
     }
     if (_out.length > maxPending) {
+      // Keep the newer half, from a line start (not inside a character or
+      // an escape sequence), after a reset of any open control string.
       final all = _out.takeBytes();
-      _out.add(Uint8List.sublistView(all, all.length - maxPending ~/ 2));
+      var from = all.length - maxPending ~/ 2;
+      final newline = all.indexOf(0x0a, from);
+      if (newline >= 0 && newline < all.length - 1) from = newline + 1;
+      _out
+        ..add(const [0x1b, 0x5c, 0x0d, 0x0a]) // ST, then a new line
+        ..add(Uint8List.sublistView(all, from));
     }
     if (ended) _poll?.cancel();
   }
 
-  /// The output since the last call.
+  /// The output since the last call. Once the program ended and its last
+  /// output is taken, the terminal itself closes.
   Uint8List take() {
     _pump();
-    return _out.takeBytes();
+    // Ended: read what is left in the terminal before it closes.
+    for (var before = -1; ended && !_closed && _out.length != before;) {
+      before = _out.length;
+      _pump();
+    }
+    final out = _out.takeBytes();
+    if (ended && !_closed) {
+      _poll?.cancel();
+      _closed = true;
+      _Libc.close(_master);
+    }
+    return out;
   }
 
   /// Writes what the terminal takes now; the count written.

@@ -94,4 +94,36 @@ void main() {
     expect(find.text('go'), findsOneWidget);
     expect(TerminalPage.running.value, 0);
   });
+
+  testWidgets('the core loses the terminal: the page stops and can be left; Esc closes a finished page', (tester) async {
+    Future<Map<String, dynamic>> core(String method, [Map<String, dynamic> params = const {}]) async => switch (method) {
+      'term.start' => {'id': 't9', 'command': 'omarchy-update'},
+      'term.read' => throw ServiceError('not_found'),
+      _ => <String, dynamic>{},
+    };
+    int? result = -1;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async => result = await runInTerminal(context, core, const {'action': 'system'}, 'System update'),
+            child: const Text('go'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('go'));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 60));
+    }
+    expect(find.text('That did not work (not_found).'), findsOneWidget);
+    expect(TerminalPage.running.value, 0);
+    expect(tester.widget<TextButton>(find.widgetWithText(TextButton, 'Back')).onPressed, isNotNull);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 60));
+    }
+    expect(find.text('go'), findsOneWidget);
+    expect(result, isNull);
+  });
 }

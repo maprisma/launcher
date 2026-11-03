@@ -108,9 +108,11 @@ extension HeaderBar on AppsPageState {
   /// The new order: [id] before the shown button at [slot] (hidden buttons
   /// keep their places among the rest).
   void _dropHeaderButton(String id, List<String> shown, int slot) {
+    final from = shown.indexOf(id);
+    // Beside itself (left or right edge of its own place): nothing moves.
+    if (slot == from || slot == from + 1) return;
     final order = headerOrder;
     final before = slot < shown.length ? shown[slot] : null;
-    if (before == id) return;
     order.remove(id);
     final at = before == null ? order.length : order.indexOf(before);
     order.insert(at < 0 ? order.length : at, id);
@@ -159,7 +161,10 @@ extension HeaderBar on AppsPageState {
       onWillAcceptWithDetails: (d) => d.data.startsWith('header:'),
       onMove: (d) {
         final slot = _headerSlot(shown, d.offset.dx);
-        if (slot != headerDropAt) _set(() => headerDropAt = slot);
+        final from = shown.indexOf(d.data.substring('header:'.length));
+        // No line where a drop would change nothing.
+        final shownSlot = slot == from || slot == from + 1 ? null : slot;
+        if (shownSlot != headerDropAt) _set(() => headerDropAt = shownSlot);
       },
       onLeave: (_) => _set(() => headerDropAt = null),
       onAcceptWithDetails: (d) {
