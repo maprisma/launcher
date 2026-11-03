@@ -114,6 +114,18 @@ final class Posix {
     }
   }
 
+  /// The owner's uid of [path] (following links), or null.
+  int? ownerOf(String path) {
+    final buffer = calloc<Uint8>(256);
+    try {
+      final ok = _withPath(path, (name) => _statx(-100, name, 0, 0x8, buffer) == 0);
+      if (ok != true) return null;
+      return ByteData.sublistView(buffer.asTypedList(256)).getUint32(20, Endian.host);
+    } finally {
+      calloc.free(buffer);
+    }
+  }
+
   /// (mode, size) of an open descriptor.
   (int, int)? _fstat(int fd) {
     final buffer = calloc<Uint8>(256);

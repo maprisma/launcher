@@ -15,7 +15,8 @@ extension Overview on AppsPageState {
   List<(String, List<String>)> get overviewSections => [
     ('all', [for (final a in filtered) a['key'] as String]),
     for (final (id, keys) in groupSections)
-      if (keys.isNotEmpty || id != 'other' || filtering) (id, keys),
+      // Running only while something runs; Other with entries or filtering.
+      if (id == '_running' ? keys.isNotEmpty : (keys.isNotEmpty || id != 'other' || filtering)) (id, keys),
   ];
 
   /// The group shown: during a search the one picked for it (else All).
@@ -156,9 +157,12 @@ extension Overview on AppsPageState {
         TextSpan(
           children: [
             if (isNewGroup(gid))
-              TextSpan(
-                text: '★ ',
-                style: TextStyle(color: scheme.primary),
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 3),
+                  child: Icon(Icons.star_rounded, size: 14, color: markColors(context).fresh),
+                ),
               ),
             TextSpan(text: groupName(gid)),
           ],
@@ -208,16 +212,15 @@ extension Overview on AppsPageState {
   }
 
   Widget _folderIcon(Map<String, dynamic> app, String gid, double size) {
-    final hidden = app['hidden'] == true;
     return _entry(
       app,
       Tooltip(
-        message: hidden ? '${app['name']} (${tr('Hidden')})' : '${app['name']}',
+        message: [app['name'], marksNote(app)].where((t) => '$t'.isNotEmpty).join('\n'),
         waitDuration: const Duration(milliseconds: 500),
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
           onTap: () => _launch(app),
-          child: Center(child: AppIcon(app['icon_file'] as String?, size: size)),
+          child: Center(child: marked(app, size)),
         ),
       ),
       section: gid,
@@ -276,7 +279,7 @@ extension Overview on AppsPageState {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    AppIcon(app['icon_file'] as String?, size: iconSize),
+                    marked(app, iconSize),
                     const Spacer(),
                     Builder(
                       builder: (context) => IconButton(
@@ -338,13 +341,16 @@ extension Overview on AppsPageState {
           borderRadius: radius,
           onTap: () => _launch(app),
           child: Tooltip(
-            message: description.isEmpty ? '${app['name']}' : '${app['name']} — $description',
+            message: [
+              description.isEmpty ? '${app['name']}' : '${app['name']} — $description',
+              marksNote(app),
+            ].where((t) => t.isNotEmpty).join('\n'),
             waitDuration: const Duration(milliseconds: 600),
             child: Padding(
               padding: const EdgeInsets.all(8),
               child: Column(
                 children: [
-                  AppIcon(app['icon_file'] as String?, size: iconSize),
+                  marked(app, iconSize),
                   const SizedBox(height: 8),
                   Text(
                     '${app['name']}',
@@ -438,7 +444,11 @@ extension Overview on AppsPageState {
           '${groupName(id)} · ${trn('{0} entry', '{0} entries', count)}\n${id == 'all' ? tr('Show everything (Ctrl+G: next group)') : tr('Show only this group (Ctrl+G: next group). Right click: rename, move or delete.')}',
       waitDuration: const Duration(milliseconds: 600),
       child: FooterItem(
-        icon: id == 'all' ? Icons.home_outlined : Icons.folder_outlined,
+        icon: id == 'all'
+            ? Icons.home_outlined
+            : id == '_running'
+            ? Icons.play_circle_outline
+            : Icons.folder_outlined,
         label: groupName(id),
         star: isNewGroup(id),
         on: on,
@@ -507,9 +517,12 @@ class FooterItem extends StatelessWidget {
               TextSpan(
                 children: [
                   if (star)
-                    TextSpan(
-                      text: '★ ',
-                      style: TextStyle(color: scheme.primary),
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.middle,
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 3),
+                        child: Icon(Icons.star_rounded, size: 14, color: markColors(context).fresh),
+                      ),
                     ),
                   TextSpan(text: label),
                 ],

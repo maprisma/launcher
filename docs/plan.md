@@ -119,5 +119,11 @@ No add-on runs code.
   Translations: `tools/i18n.py` builds `flutter_app/assets/translations/` from the Omarchy plugin's tables plus
   `i18n/extra.json` (App Manager's own texts); a test fails when a text lacks a language or the files are stale.
   Group names from the core stay English in the name check (a German "Büro" could be added once more).
+- **2026-11-03 — marks:** new ★ (newapps.py: seen.json, 7 days or until opened), running dot (process scan every
+  3 s in the core's isolate), Running folder/chip (wide) and ● running-first (narrow), update dot + Update (Flatpak,
+  alone) / Update system… (packages: the desktop's updater; never one package alone on Arch), from updates.py
+  (pacman -Qo, checkupdates, yay/paru -Qua, flatpak) at most every 30 minutes; uninstall_plan ported (the
+  Flatpak id). Equal to the references (marks oracle incl. all 111 real apps' process names and plans). Live: VS Code
+  update found on this machine. Not yet: the legend of the marks, Open windows vs background (Hyprland clients).
 - **Next (parity with gnome-launcher, in this order):** marks (new ★, updates), running state, shortcuts + key map per desktop (shortcuts.py),
   Change icon (icons.py), updates (updates.py), admin launch.

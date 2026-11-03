@@ -59,6 +59,27 @@ abstract class Desktop {
   /// Which of [origins] (without "o-") an app is in.
   String origin(Map app, Set<String> defaults) => genericOrigin(app, defaults, session);
   Future<bool> launch(Map app) => launchApp(app, session, terminal: terminal());
+
+  /// The command that updates the whole system in a window, or null:
+  /// the desktop's own updater, else a terminal running the package
+  /// manager's full update (an AUR helper's when there is one).
+  List<String>? systemUpdate() {
+    final term = terminal();
+    if (term == null) return null;
+    String? line;
+    final helper = ['paru', 'yay'].where((h) => session.which(h) != null).firstOrNull;
+    if (session.which('pacman') != null) {
+      line = helper != null ? '$helper -Syu' : 'sudo pacman -Syu';
+    } else if (session.which('apt') != null) {
+      line = 'sudo apt update && sudo apt upgrade';
+    } else if (session.which('dnf') != null) {
+      line = 'sudo dnf upgrade';
+    } else if (session.which('zypper') != null) {
+      line = 'sudo zypper update';
+    }
+    if (line == null) return null;
+    return [...term, 'sh', '-c', "$line; echo; read -r -p 'Press Enter to close. ' _"];
+  }
   List<String>? terminal() => defaultTerminal(session);
 
   Future<Map<String, dynamic>> look() async => {
@@ -220,6 +241,15 @@ final class OmarchyDesktop extends Desktop {
     return super.launch(app);
   }
 
+  /// desktop_omarchy.system_update: Omarchy's own update window.
+  @override
+  List<String>? systemUpdate() {
+    final launcher = session.which('omarchy-launch-floating-terminal-with-presentation');
+    final update = session.which('omarchy-update');
+    if (launcher == null || update == null) return super.systemUpdate();
+    return [launcher, 'omarchy-update'];
+  }
+
   @override
   List<String>? terminal() {
     final xte = session.which('xdg-terminal-exec');
@@ -262,6 +292,13 @@ final class GnomeDesktop extends Desktop {
 
   @override
   Future<int?> windowRounding() async => 12;
+
+  /// GNOME Software's update page first.
+  @override
+  List<String>? systemUpdate() {
+    final software = session.which('gnome-software');
+    return software != null ? [software, '--mode=updates'] : super.systemUpdate();
+  }
 
   @override
   Future<String?> iconTheme() async {

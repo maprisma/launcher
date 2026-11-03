@@ -6,6 +6,7 @@ fixture's environment.
   oracle.py groups < ops.json run group operations, print each result
   oracle.py origins [omarchy] origin of every scanned app, default apps
   oracle.py layout < cases    wide-window sizes (launcher.py) for each case
+  oracle.py marks < spec      newapps, update parsing, process names, uninstall plans
 """
 import json
 import sys
@@ -76,6 +77,28 @@ def main(argv):
             origin = {a["desktop_id"]: details.origin_section(a, defaults) for a in apps}
         roles = {a["desktop_id"]: details.default_roles(a) for a in apps}
         print(json.dumps({"defaults": sorted(defaults), "origin": origin, "roles": roles}))
+        return 0
+    if argv[1:] == ["marks"]:
+        use("gnome-launcher")
+        import newapps, updates, details, launcher_core
+        spec = json.load(sys.stdin)
+        out = {}
+        data = newapps.empty()
+        steps = []
+        for ids, now, installed in spec["notes"]:
+            changed = newapps.note(data, ids, "apps", now=now, installed=installed)
+            steps.append([changed, json.loads(json.dumps(data)),
+                          {k: newapps.is_new(data, k, now=now) for k in ids}])
+        steps.append(newapps.opened(data, spec["opened"]))
+        out["notes"] = steps
+        out["updates"] = {k: list(v) for k, v in updates.parse_update_lines(spec["update_text"]).items()}
+        out["owners"] = updates.parse_owner_lines(spec["owner_text"])
+        out["flatpaks"] = updates.parse_flatpak_lines(spec["flatpak_text"])
+        apps = launcher_core.parse_desktop_files()
+        out["apps"] = {a["desktop_id"]: [launcher_core.terminal_command(dict(a)), launcher_core.app_process_name(a),
+                                         list(details.uninstall_plan(a, look_up_package=False) or []) or None]
+                       for a in apps}
+        print(json.dumps(out))
         return 0
     if argv[1:] == ["layout"]:
         use("gnome-launcher")

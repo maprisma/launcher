@@ -121,6 +121,14 @@ class AppsPageState extends State<AppsPage> {
   String? searchFilter;
   bool wide = false;
   String? selectedKey;
+
+  /// Running entries (keys), from the core's process scan every few seconds.
+  Set<String> running = {};
+
+  /// Updates: {"apps": {desktop path: [package, installed, available]},
+  /// "flatpaks": {key: [installed, available]}}.
+  Map<String, dynamic> updates = const {};
+  Timer? _poll;
   int _columns = 1;
   int _asked = 0;
   final filter = TextEditingController();
@@ -137,11 +145,14 @@ class AppsPageState extends State<AppsPage> {
     super.initState();
     _load();
     widget.shownAgain?.addListener(_onShown);
+    // refresh_running_async: the process scan runs in the core's isolate.
+    _poll = Timer.periodic(const Duration(seconds: 3), (_) => _refreshRunning());
   }
 
   @override
   void dispose() {
     widget.shownAgain?.removeListener(_onShown);
+    _poll?.cancel();
     filter.dispose();
     filterFocus.dispose();
     pageFocus.dispose();
@@ -192,13 +203,74 @@ class AppsPageState extends State<AppsPage> {
         _takeSettings(settings);
         loading = false;
       });
-      await _refreshSections();
+      await _refreshRunning(always: true);
+      unawaited(_checkUpdates());
     } on Object catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
       _tell(trf('Could not read the apps ({0}).', [e]));
     }
   }
+
+  Future<void> _refreshRunning({bool always = false}) async {
+    if (loading && !always) return;
+    try {
+      final result = await widget.core('apps.running');
+      final now = (result['running'] as List).cast<String>().toSet();
+      final changed = now.length != running.length || !now.containsAll(running);
+      if (!mounted) return;
+      if (changed) setState(() => running = now);
+      if (changed || always) await _refreshSections();
+    } on ServiceError {
+      // The marks wait for the next scan.
+    }
+  }
+
+  /// updates.check (the core asks the package managers at most every 30
+  /// minutes; [force] asks now).
+  Future<void> _checkUpdates({bool force = false}) async {
+    try {
+      final result = await widget.core('updates.check', {'force': force});
+      if (mounted) setState(() => updates = result);
+    } on ServiceError {
+      // No marks then.
+    }
+  }
+
+  /// update_note: "Update available: …" for an entry with an update.
+  String? updateNote(Map app) {
+    if ((updates['flatpaks'] as Map?)?[app['key']] case final List v) {
+      return '${v[0]}'.isNotEmpty ? trf('Update available: {0} → {1}', v) : tr('Update available');
+    }
+    if ((updates['apps'] as Map?)?[app['desktop_path']] case final List v) {
+      return trf('Update available: {0} {1} → {2}', v);
+    }
+    return null;
+  }
+
+  bool isRunning(Map app) => running.contains(app['key']);
+
+  /// Settings' running_first (the header's ● button) in the narrow window;
+  /// the wide window always has Running when anything runs.
+  bool get runningFirst => settings['running_first'] == true;
+
+  /// An icon with its marks (run dot, update dot, ★, hidden eye).
+  Widget marked(Map app, double size) => MarkedIcon(
+    app['icon_file'] as String?,
+    size: size,
+    running: isRunning(app),
+    update: updateNote(app) != null,
+    fresh: app['new'] == true,
+    hidden: app['hidden'] == true,
+  );
+
+  /// The tooltip line for an entry's marks.
+  String marksNote(Map app) => [
+    if (isRunning(app)) tr('Running'),
+    if (app['new'] == true) tr('Newly installed'),
+    ?updateNote(app),
+    if (app['hidden'] == true) tr('Hidden'),
+  ].join(' · ');
 
   bool get filtering => query.trim().isNotEmpty;
 
@@ -219,9 +291,13 @@ class AppsPageState extends State<AppsPage> {
     final asked = ++_asked;
     final keys = [for (final a in filtered) a['key']];
     try {
-      final byGroup = await widget.core('apps.sections', {'view': 'groups', 'keys': keys});
+      // Running on top: always in the wide window's bar, in the narrow
+      // views when the header's ● asks for it.
+      final byGroup = await widget.core('apps.sections', {'view': 'groups', 'keys': keys, 'running': true});
       final byView = view == AppView.origin
-          ? await widget.core('apps.sections', {'view': 'origin', 'keys': keys})
+          ? await widget.core('apps.sections', {'view': 'origin', 'keys': keys, 'running': runningFirst})
+          : view == AppView.groups && !runningFirst
+          ? await widget.core('apps.sections', {'view': 'groups', 'keys': keys})
           : byGroup;
       if (!mounted || asked != _asked) return;
       setState(() {
@@ -238,7 +314,11 @@ class AppsPageState extends State<AppsPage> {
   /// them), never while filtering; Other and origin sections only with entries.
   List<ListItem> get rows {
     final list = filtered;
-    if (view == AppView.list || sections.isEmpty) return [for (final a in list) AppRow(a)];
+    if (view == AppView.list || sections.isEmpty) {
+      // Stable: running apps first, each part in the usual order.
+      final ordered = runningFirst ? [...list.where(isRunning), ...list.where((a) => !isRunning(a))] : list;
+      return [for (final a in ordered) AppRow(a)];
+    }
     final out = <ListItem>[];
     for (final (id, keys) in sections) {
       if (keys.isEmpty && (filtering || id == 'other' || id.startsWith('o-') || id == '_running')) continue;
@@ -379,8 +459,10 @@ class AppsPageState extends State<AppsPage> {
     }
   }
 
-  Future<String?> _askName(String title, {String initial = ''}) =>
-      showDialog<String>(context: context, builder: (_) => NameDialog(title: title, initial: initial));
+  Future<String?> _askName(String title, {String initial = ''}) => showDialog<String>(
+    context: context,
+    builder: (_) => NameDialog(title: title, initial: initial),
+  );
 
   Future<void> _newGroup({Map? app}) async {
     final name = await _askName(tr('New group'));
@@ -446,12 +528,18 @@ class AppsPageState extends State<AppsPage> {
   Future<void> _menu(Map app, Offset position) async {
     final actions = [for (final a in app['actions'] as List? ?? []) Map<String, dynamic>.from(a)];
     final hidden = app['hidden'] == true;
+    final flatpakUpdate = (updates['flatpaks'] as Map?)?.containsKey(app['key']) == true;
+    final packageUpdate = (updates['apps'] as Map?)?.containsKey(app['desktop_path']) == true;
     final choice = await showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy),
       items: [
         PopupMenuItem(value: '\x00open', child: MenuLine(Icons.play_arrow, tr('Open'))),
         for (final a in actions) PopupMenuItem(value: a['id'] as String, child: MenuLine(Icons.launch, '${a['name']}')),
+        if (flatpakUpdate)
+          PopupMenuItem(value: '\x00update', child: MenuLine(Icons.system_update_alt, tr('Update')))
+        else if (packageUpdate)
+          PopupMenuItem(value: '\x00system', child: MenuLine(Icons.system_update_alt, tr('Update system…'))),
         const PopupMenuDivider(),
         PopupMenuItem(value: '\x00group', child: MenuLine(Icons.folder_outlined, tr('Move to group…'))),
         PopupMenuItem(value: '\x00details', child: MenuLine(Icons.info_outline, tr('Details…'))),
@@ -476,8 +564,36 @@ class AppsPageState extends State<AppsPage> {
         return _setHidden(app, !hidden);
       case '\x00group':
         return _groupChoice(app, position);
+      case '\x00update':
+        return _updateFlatpak(app);
+      case '\x00system':
+        return _updateSystem();
       default:
         return _launch(app, action: choice);
+    }
+  }
+
+  /// update_flatpak: this one app, in the background; says how it went.
+  Future<void> _updateFlatpak(Map app) async {
+    _tell(trf('Updating {0}…', [app['name']]));
+    try {
+      final result = await widget.core('updates.flatpak', {'key': app['key']});
+      if (!mounted) return;
+      setState(() => updates = result);
+      _tell(trf('{0} updated', [app['name']]));
+    } on ServiceError catch (e) {
+      _tell('${trf('{0} could not be updated', [app['name']])}${e.reason == null ? '' : ': ${e.reason}'}');
+    }
+  }
+
+  /// update_system: the desktop's updater, or the package manager's full
+  /// update in a terminal (never one package alone on Arch).
+  Future<void> _updateSystem() async {
+    try {
+      await widget.core('updates.system');
+      widget.onHide?.call();
+    } on ServiceError {
+      _tell(tr('Could not start the update'));
     }
   }
 
@@ -656,7 +772,8 @@ class AppsPageState extends State<AppsPage> {
             // No field to type in: the page takes the keys (typing filters).
             WidgetsBinding.instance.addPostFrameCallback((_) {
               final focused = FocusManager.instance.primaryFocus;
-              if (mounted && (focused == null || focused == filterFocus || !focused.hasPrimaryFocus || focused.context == null)) {
+              if (mounted &&
+                  (focused == null || focused == filterFocus || !focused.hasPrimaryFocus || focused.context == null)) {
                 pageFocus.requestFocus();
               }
             });
@@ -728,6 +845,7 @@ class AppsPageState extends State<AppsPage> {
             onSelectionChanged: (s) => setView(s.first),
           ),
         ],
+        _runningToggle(),
         _hiddenToggle(),
         IconButton(
           visualDensity: wide ? null : VisualDensity.compact,
@@ -744,6 +862,23 @@ class AppsPageState extends State<AppsPage> {
       ],
     ),
   );
+
+  /// The header's ● (narrow window): running apps first, or by name.
+  Widget _runningToggle() {
+    if (wide) return const SizedBox.shrink();
+    final marks = markColors(context);
+    return IconButton(
+      visualDensity: VisualDensity.compact,
+      tooltip: runningFirst ? tr('Sort apps by name') : tr('Show running apps first'),
+      isSelected: runningFirst,
+      onPressed: () async {
+        await _saveSetting('running_first', !runningFirst);
+        unawaited(_refreshSections());
+      },
+      icon: Icon(Icons.fiber_manual_record_outlined, color: running.isNotEmpty ? marks.running : null),
+      selectedIcon: Icon(Icons.fiber_manual_record, color: marks.running),
+    );
+  }
 
   Widget _hiddenToggle() {
     final count = apps.where((a) => a['hidden'] == true).length;
@@ -866,7 +1001,7 @@ class AppsPageState extends State<AppsPage> {
               if (isNewGroup(row.id)) ...[
                 Tooltip(
                   message: tr('New group: drag apps onto it to fill it.'),
-                  child: Icon(Icons.star, size: 14, color: scheme.primary),
+                  child: Icon(Icons.star_rounded, size: 15, color: markColors(context).fresh),
                 ),
                 const SizedBox(width: 4),
               ],
@@ -948,7 +1083,7 @@ class AppsPageState extends State<AppsPage> {
         selectedTileColor: scheme.secondaryContainer,
         selectedColor: scheme.onSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(corners(context).clamp(0, 10))),
-        leading: AppIcon(app['icon_file'] as String?, size: size),
+        leading: Tooltip(message: marksNote(app), child: marked(app, size)),
         title: Text('${app['name']}', maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: description.isEmpty ? null : Text(description, maxLines: 1, overflow: TextOverflow.ellipsis),
         onTap: () => _launch(app),

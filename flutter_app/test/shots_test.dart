@@ -68,6 +68,8 @@ void main() {
         switch (method) {
           'desktop.look' => look,
           'apps.list' => list,
+          // Never in shots: checkupdates and flatpak fetch from the network.
+          'updates.check' => <String, dynamic>{'apps': {}, 'flatpaks': {}},
           // The other routes only read and write files: they run here.
           _ => await call(core, method, params),
         };

@@ -18,6 +18,22 @@ class Corners extends ThemeExtension<Corners> {
   Corners lerp(Corners? other, double t) => other ?? this;
 }
 
+/// The marks' colours: running (green), update (orange), new (yellow),
+/// from the desktop's palette.
+class MarkColors extends ThemeExtension<MarkColors> {
+  const MarkColors({required this.running, required this.update, required this.fresh});
+  final Color running, update, fresh;
+  @override
+  MarkColors copyWith({Color? running, Color? update, Color? fresh}) =>
+      MarkColors(running: running ?? this.running, update: update ?? this.update, fresh: fresh ?? this.fresh);
+  @override
+  MarkColors lerp(MarkColors? other, double t) => other ?? this;
+}
+
+MarkColors markColors(BuildContext context) =>
+    Theme.of(context).extension<MarkColors>() ??
+    const MarkColors(running: Color(0xff3a944a), update: Color(0xffed5b00), fresh: Color(0xffc88800));
+
 double corners(BuildContext context) => Theme.of(context).extension<Corners>()?.radius ?? 12;
 
 /// "windows" follows the desktop's window corners, "rounded" 12, "square" 0.
@@ -63,7 +79,14 @@ ThemeData appTheme(Brightness platform, Map colors, double radius) {
     colorScheme: scheme,
     useMaterial3: true,
     scaffoldBackgroundColor: scheme.surface,
-    extensions: [Corners(radius)],
+    extensions: [
+      Corners(radius),
+      MarkColors(
+        running: hexColor(colors, 'green') ?? const Color(0xff3a944a),
+        update: hexColor(colors, 'orange') ?? const Color(0xffed5b00),
+        fresh: hexColor(colors, 'yellow') ?? const Color(0xffc88800),
+      ),
+    ],
     cardTheme: CardThemeData(
       color: scheme.surfaceContainerLow,
       elevation: 0,

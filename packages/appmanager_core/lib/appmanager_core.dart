@@ -16,3 +16,6 @@ export 'src/launch.dart';
 export 'src/config.dart';
 export 'src/origins.dart';
 export 'src/wide_layout.dart';
+export 'src/newapps.dart';
+export 'src/running.dart';
+export 'src/updates.dart';

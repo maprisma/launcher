@@ -4,6 +4,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'apps.dart';
 import 'config.dart';
@@ -12,6 +13,9 @@ import 'desktops.dart';
 import 'groups.dart' as groups;
 import 'icon_theme.dart';
 import 'launch.dart';
+import 'newapps.dart';
+import 'running.dart';
+import 'updates.dart';
 import 'protocol.dart';
 
 const coreVersion = '0.2.0';
@@ -43,6 +47,10 @@ final class CoreService {
   String? _iconThemeName;
   final _apps = <String, Map<String, dynamic>>{};
   List<Map<String, dynamic>> _list = [];
+  Set<String> _running = {};
+  Map<String, dynamic> _updates = {'apps': {}, 'flatpaks': {}};
+  DateTime? _updatesAt;
+  Future<Map<String, dynamic>>? _checking;
 
   late final Map<String, Future<Map<String, dynamic>> Function(Map<String, dynamic>)>
   routes = {
@@ -57,6 +65,26 @@ final class CoreService {
     'apps.launch': (params) => _launch(params, null),
     'apps.action': (params) => _launch(params, _string(params, 'action')),
     'apps.sections': _sections,
+    'apps.running': (_) async {
+      final (names, exes) = processNames();
+      _running = runningApps(_apps, names, exes);
+      return {'running': _running.toList()};
+    },
+    'updates.check': (params) => _checkUpdates(force: params['force'] == true),
+    'updates.flatpak': (params) async {
+      final plan = uninstallPlan(_app(params), session);
+      if (plan == null || plan.$1 != 'flatpak') throw ServiceError('bad_params');
+      final (ok, message) = await UpdateCheck(session).runFlatpakUpdate(plan.$2!);
+      if (!ok) throw ServiceError('update_failed', message);
+      (_updates['flatpaks'] as Map).remove(plan.$2);
+      return _updatesView();
+    },
+    'updates.system': (_) async {
+      final command = desktop.systemUpdate();
+      if (command == null || !await startDetached(command, session)) throw ServiceError('no_updater');
+      _updatesAt = null; // Check again the next time.
+      return {'started': true};
+    },
     'apps.hide': (params) async {
       final app = _app(params);
       final hidden = loadHidden(store);
@@ -212,6 +240,14 @@ final class CoreService {
     final hidden = loadHidden(store);
     final defaults = desktop.defaultDesktops();
     final data = _loadGroups();
+    final seen = cleanSeen(store.readJson('seen.json', cap: 512 * 1024));
+    final installed = {
+      for (final a in apps)
+        if (a['installed_at'] case final num at) a['desktop_id'] as String: at,
+    };
+    if (noteSeen(seen, [for (final a in apps) a['desktop_id'] as String], 'apps', installed: installed)) {
+      _saveSeen(seen);
+    }
     _apps.clear();
     _list = apps;
     final out = <Map<String, dynamic>>[];
@@ -227,6 +263,8 @@ final class CoreService {
         'group': groups.groupOf(app, data),
         'origin': desktop.origin(app, defaults),
         'roles': desktop.defaultRoles(app),
+        'new': isNewApp(seen, app['desktop_id'] as String),
+        'uninstall': uninstallPlan(app, session)?.$1,
       });
     }
     return {'apps': out, 'icon_theme': _iconThemeName, ..._groupsView(data)};
@@ -246,13 +284,10 @@ final class CoreService {
     ];
     final data = _loadGroups();
     final defaults = desktop.defaultDesktops();
+    final running = params['running'] == true ? (Map app) => _running.contains(appKey(app)) : null;
     final sections = view == 'groups'
-        ? groups.sections(entries, data)
-        : groups.originSections(
-            entries,
-            desktop.origins,
-            (app) => desktop.origin(app, defaults),
-          );
+        ? groups.sections(entries, data, isRunning: running)
+        : groups.originSections(entries, desktop.origins, (app) => desktop.origin(app, defaults), isRunning: running);
     return {
       'sections': [
         for (final (id, members) in sections)
@@ -265,8 +300,43 @@ final class CoreService {
     };
   }
 
+  void _saveSeen(SeenData seen) {
+    try {
+      store.writeJson('seen.json', seen);
+    } on FileSystemException {
+      // The marks are a convenience: a read-only config only loses them.
+    }
+  }
+
+  Map<String, dynamic> _updatesView() => {
+    'apps': _updates['apps'],
+    'flatpaks': {
+      for (final e in _apps.entries)
+        if (uninstallPlan(e.value, session) case ('flatpak', final id?))
+          if ((_updates['flatpaks'] as Map)[id] case final List v) e.key: v,
+    },
+    'checked': _updatesAt?.toIso8601String(),
+  };
+
+  /// updates.check, at most every 30 minutes unless forced; one at a time.
+  Future<Map<String, dynamic>> _checkUpdates({bool force = false}) {
+    final fresh = _updatesAt != null && DateTime.now().difference(_updatesAt!) < const Duration(minutes: 30);
+    if (fresh && !force) return Future.value(_updatesView());
+    return _checking ??= () async {
+      try {
+        _updates = await UpdateCheck(session).check([for (final a in _list) a['desktop_path'] as String? ?? '']);
+        _updatesAt = DateTime.now();
+        return _updatesView();
+      } finally {
+        _checking = null;
+      }
+    }();
+  }
+
   Future<Map<String, dynamic>> _launch(Map<String, dynamic> params, String? action) async {
     final app = _app(params);
+    final seen = cleanSeen(store.readJson('seen.json', cap: 512 * 1024));
+    if (openedApp(seen, app['desktop_id'] as String)) _saveSeen(seen); // Opened once: no longer new.
     final ok = action == null
         ? await desktop.launch(app)
         : await launchApp(app, session, terminal: desktop.terminal(), action: action);
