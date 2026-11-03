@@ -111,6 +111,7 @@
  "Drag a button to move it": "Faites glisser un bouton pour le déplacer",
  "Drag apps here": "Glissez des applications ici",
  "Enter a name.": "Saisissez un nom.",
+ "Enter asks, Ctrl+Enter: new line.": "Entrée demande, Ctrl+Entrée : nouvelle ligne.",
  "Esc goes back": "Échap pour revenir",
  "F12 saves a screenshot": "F12 enregistre une capture d’écran",
  "Failed (exit code {0}).": "Échec (code de sortie {0}).",

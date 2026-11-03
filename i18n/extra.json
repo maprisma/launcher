@@ -181,7 +181,8 @@
   "\u0004{0} hidden app": [
    "{0} ausgeblendete App",
    "{0} ausgeblendete Apps"
-  ]
+  ],
+  "Enter asks, Ctrl+Enter: new line.": "Enter fragt, Strg+Enter: neue Zeile."
  },
  "es": {
   "\u0004{0} app": [
@@ -365,7 +366,8 @@
   "\u0004{0} hidden app": [
    "{0} app oculta",
    "{0} apps ocultas"
-  ]
+  ],
+  "Enter asks, Ctrl+Enter: new line.": "Intro pregunta, Ctrl+Intro: nueva línea."
  },
  "fr": {
   "\u0004{0} app": [
@@ -549,7 +551,8 @@
   "\u0004{0} hidden app": [
    "{0} application masquée",
    "{0} applications masquées"
-  ]
+  ],
+  "Enter asks, Ctrl+Enter: new line.": "Entrée demande, Ctrl+Entrée : nouvelle ligne."
  },
  "it": {
   "\u0004{0} app": [
@@ -733,7 +736,8 @@
   "\u0004{0} hidden app": [
    "{0} app nascosta",
    "{0} app nascoste"
-  ]
+  ],
+  "Enter asks, Ctrl+Enter: new line.": "Invio chiede, Ctrl+Invio: nuova riga."
  },
  "nl": {
   "\u0004{0} app": [
@@ -917,7 +921,8 @@
   "\u0004{0} hidden app": [
    "{0} verborgen app",
    "{0} verborgen apps"
-  ]
+  ],
+  "Enter asks, Ctrl+Enter: new line.": "Enter vraagt, Ctrl+Enter: nieuwe regel."
  },
  "pl": {
   "\u0004{0} app": [
@@ -1104,7 +1109,8 @@
    "{0} ukryta aplikacja",
    "{0} ukryte aplikacje",
    "{0} ukrytych aplikacji"
-  ]
+  ],
+  "Enter asks, Ctrl+Enter: new line.": "Enter pyta, Ctrl+Enter: nowa linia."
  },
  "pt": {
   "\u0004{0} app": [
@@ -1288,6 +1294,7 @@
   "\u0004{0} hidden app": [
    "{0} app oculta",
    "{0} apps ocultas"
-  ]
+  ],
+  "Enter asks, Ctrl+Enter: new line.": "Enter pergunta, Ctrl+Enter: nova linha."
  }
 }

@@ -115,7 +115,11 @@ class _AskPageState extends State<AskPage> {
       if (mounted) setState(() => result = r);
     } on ServiceError catch (e) {
       if (mounted) {
-        setState(() => error = e.code == 'helper_failed' ? tr('The helper did not answer.') : trf('That did not work ({0}).', [e.code]));
+        setState(
+          () => error = e.code == 'helper_failed'
+              ? tr('The helper did not answer.')
+              : trf('That did not work ({0}).', [e.code]),
+        );
       }
     } finally {
       if (mounted) setState(() => asking = false);
@@ -123,6 +127,17 @@ class _AskPageState extends State<AskPage> {
   }
 
   Future<void> _stop() => widget.core('ask.cancel');
+
+  /// Ctrl+Enter: a line break at the cursor (Enter alone asks).
+  void _newLine() {
+    final value = request.value;
+    final sel = value.selection.isValid ? value.selection : TextSelection.collapsed(offset: value.text.length);
+    final text = value.text.replaceRange(sel.start, sel.end, '\n');
+    request.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: sel.start + 1),
+    );
+  }
 
   Widget _header(ColorScheme scheme, {required bool ready}) => Padding(
     padding: const EdgeInsets.fromLTRB(8, 10, 16, 4),
@@ -225,9 +240,7 @@ class _AskPageState extends State<AskPage> {
           ),
         ),
       ),
-      Expanded(
-        child: InstallPage(core: widget.core, embedded: true),
-      ),
+      Expanded(child: InstallPage(core: widget.core, embedded: true)),
     ],
   );
 
@@ -263,9 +276,7 @@ class _AskPageState extends State<AskPage> {
                         for (final h in helpers.where((h) => h['installed'] == true))
                           DropdownMenuItem(
                             value: h['command'] as String,
-                            child: Text(
-                              '${h['name']}${h['signed_in'] == true ? '' : ' (${tr('needs sign-in')})'}',
-                            ),
+                            child: Text('${h['name']}${h['signed_in'] == true ? '' : ' (${tr('needs sign-in')})'}'),
                           ),
                       ],
                       onChanged: asking ? null : (v) => setState(() => helper = v),
@@ -273,7 +284,8 @@ class _AskPageState extends State<AskPage> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        trf('Uses your {0} plan or tokens, only when you click Ask.', [chosen?['name'] ?? '']),
+                        '${trf('Uses your {0} plan or tokens, only when you click Ask.', [chosen?['name'] ?? ''])} '
+                        '${tr('Enter asks, Ctrl+Enter: new line.')}',
                         style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -283,20 +295,37 @@ class _AskPageState extends State<AskPage> {
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-                child: TextField(
-                  controller: request,
-                  autofocus: true,
-                  minLines: 1,
-                  maxLines: 4,
-                  maxLength: 2000,
-                  decoration: InputDecoration(
-                    hintText: tr('What do you need? e.g. “something to edit photos”'),
-                    counterText: '',
-                    suffixIcon: asking
-                        ? IconButton(tooltip: tr('Stop'), onPressed: _stop, icon: const Icon(Icons.stop_circle_outlined))
-                        : IconButton(tooltip: tr('Ask'), onPressed: () => _ask(), icon: const Icon(Icons.send)),
+                // Enter asks; Ctrl+Enter starts a new line (where the cursor is).
+                child: CallbackShortcuts(
+                  bindings: {
+                    const SingleActivator(LogicalKeyboardKey.enter, control: true): _newLine,
+                    const SingleActivator(LogicalKeyboardKey.numpadEnter, control: true): _newLine,
+                  },
+                  child: TextField(
+                    controller: request,
+                    autofocus: true,
+                    minLines: 1,
+                    maxLines: 4,
+                    maxLength: 2000,
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.send,
+                    decoration: InputDecoration(
+                      hintText: tr('What do you need? e.g. “something to edit photos”'),
+                      counterText: '',
+                      suffixIcon: asking
+                          ? IconButton(
+                              tooltip: tr('Stop'),
+                              onPressed: _stop,
+                              icon: const Icon(Icons.stop_circle_outlined),
+                            )
+                          : IconButton(
+                              tooltip: tr('Ask'),
+                              onPressed: () => _ask(),
+                              icon: Icon(Icons.send, color: scheme.primary),
+                            ),
+                    ),
+                    onSubmitted: (_) => _ask(),
                   ),
-                  onSubmitted: (_) => _ask(),
                 ),
               ),
               if (result == null && !asking)
@@ -480,12 +509,18 @@ class _AskPageState extends State<AskPage> {
             runSpacing: 6,
             children: [
               for (final choice in (r['choices'] as List? ?? const []))
-                ActionChip(label: Text('$choice'), onPressed: () => _ask(answer: '$choice')),
+                ActionChip(
+                  label: Text('$choice'),
+                  onPressed: () => _ask(answer: '$choice'),
+                ),
             ],
           ),
         );
         children.add(
-          Text(tr('Choosing asks the helper once more.'), style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+          Text(
+            tr('Choosing asks the helper once more.'),
+            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+          ),
         );
       default:
         final hint = '${r['hint'] ?? ''}';

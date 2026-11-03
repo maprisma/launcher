@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:maprisma_launcher/ask_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -170,5 +171,23 @@ void main() {
     await tester.pumpAndSettle();
     expect(changed, ['k4 false']);
     expect(find.text('Hide'), findsOneWidget);
+  });
+
+  testWidgets('Enter asks; Ctrl+Enter only adds a line; the hint says so', (tester) async {
+    asked.clear();
+    await tester.pumpWidget(MaterialApp(home: AskPage(core: fake, apps: apps, actions: actions())));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Enter asks, Ctrl+Enter: new line.'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'list my hidden apps');
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, 'list my hidden apps\n');
+    expect(asked.where((a) => a['method'] == 'ask.run'), isEmpty);
+    // Enter: the field's send action.
+    await tester.testTextInput.receiveAction(TextInputAction.send);
+    await tester.pumpAndSettle();
+    expect(asked.where((a) => a['method'] == 'ask.run'), hasLength(1));
   });
 }
