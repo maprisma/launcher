@@ -24,6 +24,7 @@ import 'backend.dart';
 import 'core_call.dart';
 import 'drag_drop.dart';
 import 'i18n.dart';
+import 'install_page.dart';
 import 'settings_page.dart';
 import 'theme.dart';
 
@@ -612,6 +613,8 @@ class AppsPageState extends State<AppsPage> {
         PopupMenuItem(value: '\x00group', child: MenuLine(Icons.folder_outlined, tr('Move to group…'))),
         PopupMenuItem(value: '\x00details', child: MenuLine(Icons.info_outline, tr('Details…'))),
         const PopupMenuDivider(),
+        if (app['uninstall'] != null && app['cli_command'] == null)
+          PopupMenuItem(value: '\x00uninstall', child: MenuLine(Icons.delete_outline, tr('Uninstall…'))),
         PopupMenuItem(
           value: '\x00hide',
           child: MenuLine(
@@ -634,12 +637,121 @@ class AppsPageState extends State<AppsPage> {
         return _groupChoice(app, position);
       case '\x00update':
         return _updateFlatpak(app);
+      case '\x00uninstall':
+        return _uninstall(app);
       case '\x00system':
         return _updateSystem();
       default:
         return _launch(app, action: choice);
     }
   }
+
+  static const _appsPages = {
+    'Chrome': 'chrome://apps',
+    'Chromium': 'chrome://apps',
+    'Brave': 'brave://apps',
+    'Edge': 'edge://apps',
+    'Vivaldi': 'vivaldi://apps',
+  };
+
+  /// confirm_uninstall: how it goes (Flatpak, a package in a terminal, your
+  /// own entry to the trash; a web app only its browser removes), with a
+  /// warning for default apps and packages Omarchy installs itself.
+  Future<void> _uninstall(Map app) async {
+    Map<String, dynamic> plan;
+    try {
+      plan = await widget.core('apps.uninstall_plan', {'key': app['key']});
+    } on ServiceError catch (e) {
+      _tell(trf('That did not work ({0}).', [e.code]));
+      return;
+    }
+    final kind = plan['kind'] as String?, what = '${plan['what']}';
+    if (kind == null) {
+      _tell('${trf('Could not uninstall {0}', [app['name']])}: ${tr('No package owns its desktop file.')}');
+      return;
+    }
+    final manager = plan['manager'] as String?;
+    final text = switch (kind) {
+      'webapp' => trf(
+        '{0} is a web app installed in {1}, so only {1} can uninstall it: open the app and choose ⋮ → Uninstall, or right-click it on {2} and choose Remove.',
+        [app['name'], what, _appsPages[what] ?? tr('its apps page')],
+      ),
+      'flatpak' => trf('Removes the Flatpak {0}. Its data in ~/.var/app stays.', [what]),
+      'package' when manager == 'pacman' => trf(
+        'Removes the package {0} with pacman, in a terminal that asks for your password.',
+        [what],
+      ),
+      'package' => trf('Removes the package {0} with {1}, in a terminal that asks for your password.', [what, manager]),
+      _ => trf('Moves {0} to the trash.', [what]),
+    };
+    final warnings = (plan['warnings'] as List? ?? const []).cast<String>();
+    if (!mounted) return;
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          kind == 'webapp'
+              ? trf('How to uninstall {0}', [app['name']])
+              : trf('Do you want to uninstall {0}?', [app['name']]),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(text),
+            for (final w in warnings) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.error.withValues(alpha: .15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  w == 'default'
+                      ? trf('{0} is one of your default apps.', [app['name']])
+                      : tr('Omarchy installs this package itself; removing it can break the desktop.'),
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: kind == 'webapp'
+            ? [TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Close')))]
+            : [
+                TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Cancel'))),
+                FilledButton(
+                  style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+                  onPressed: () => Navigator.pop(context, true),
+                  child: Text(tr('Uninstall')),
+                ),
+              ],
+      ),
+    );
+    if (go != true) return;
+    if (kind == 'flatpak') _tell(trf('Uninstalling {0}…', [app['name']]));
+    try {
+      final result = await widget.core('apps.uninstall', {'key': app['key']});
+      if (result['done'] == true) {
+        _tell(
+          kind == 'trash'
+              ? '${trf('Uninstalled {0}', [app['name']])}: ${trf('{0} is in the trash.', [what])}'
+              : trf('Uninstalled {0}', [app['name']]),
+        );
+        await _load();
+      }
+    } on ServiceError catch (e) {
+      _tell(
+        e.code == 'no_terminal'
+            ? '${trf('Could not uninstall {0}', [app['name']])}: ${tr('No terminal found.')}'
+            : trf('Could not uninstall {0}', [app['name']]),
+      );
+    }
+  }
+
+  Future<void> openInstall() => Navigator.of(context).push(
+    MaterialPageRoute<void>(builder: (_) => InstallPage(core: widget.core)),
+  ).then((_) => _load());
 
   /// update_flatpak: this one app, in the background; says how it went.
   Future<void> _updateFlatpak(Map app) async {
@@ -926,6 +1038,12 @@ class AppsPageState extends State<AppsPage> {
           tooltip: tr('Reload'),
           onPressed: _load,
           icon: const Icon(Icons.refresh),
+        ),
+        IconButton(
+          visualDensity: wide ? null : VisualDensity.compact,
+          tooltip: tr('Install apps'),
+          onPressed: openInstall,
+          icon: const Icon(Icons.add_box_outlined),
         ),
         IconButton(
           visualDensity: wide ? null : VisualDensity.compact,

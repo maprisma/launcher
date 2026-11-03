@@ -7,6 +7,8 @@ import 'dart:io';
 
 import 'package:appmanager/apps_page.dart';
 import 'package:appmanager/i18n.dart';
+import 'package:appmanager/install_page.dart';
+import 'package:flutter/gestures.dart' show kSecondaryButton;
 import 'package:appmanager/main.dart' show AppManager;
 import 'package:appmanager_core/appmanager_core.dart';
 import 'package:flutter/material.dart';
@@ -347,5 +349,71 @@ void main() {
     }
     expect(shots.listSync().where((f) => f.path.endsWith('.png')), hasLength(1));
     expect(find.textContaining('Screenshot saved: '), findsNothing);
+  });
+
+  testWidgets('Uninstall…: your own entry goes to the trash after the question', (tester) async {
+    tester.view.physicalSize = const Size(420, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final key = GlobalKey<AppsPageState>();
+    await tester.pumpWidget(MaterialApp(home: AppsPage(key: key, core: call, desktop: 'generic')));
+    await settle(tester);
+    await tester.tapAt(tester.getCenter(find.text('Misc')), buttons: kSecondaryButton);
+    await settle(tester);
+    await tester.tap(find.text('Uninstall…'));
+    await settle(tester);
+    expect(find.text('Do you want to uninstall Misc?'), findsOneWidget);
+    expect(find.textContaining('to the trash'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Uninstall'));
+    await settle(tester);
+    await settle(tester);
+    expect(File(p.join(home.path, 'data/applications/misc.desktop')).existsSync(), isFalse);
+    expect(File(p.join(home.path, 'data/Trash/files/misc.desktop')).existsSync(), isTrue);
+    expect(find.text('Misc'), findsNothing);
+  });
+
+  testWidgets('Install apps: search, review with the command and the AUR warning', (tester) async {
+    tester.view.physicalSize = const Size(700, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final asked = <String>[];
+    Future<Map<String, dynamic>> fake(String method, [Map<String, dynamic> params = const {}]) async {
+      asked.add(method);
+      return switch (method) {
+        'packages.managers' => {
+          'managers': [
+            {'id': 'pacman', 'label': 'pacman', 'program': 'pacman', 'enabled': true},
+            {'id': 'aur', 'label': 'AUR', 'program': 'yay', 'enabled': true},
+          ],
+        },
+        'packages.search' => {
+          'results': [
+            {'manager': 'pacman', 'package': 'gimp', 'version': '3.2', 'description': 'GNU Image Manipulation Program'},
+            {'manager': 'aur', 'package': 'gimp-git', 'version': 'r1', 'description': 'GIMP from git', 'aur': true},
+            {'manager': 'pacman', 'package': 'krita', 'version': '5', 'description': 'Paint', 'installed': true},
+          ],
+        },
+        'packages.install_plan' => {
+          'command': '${params['manager'] == 'aur' ? 'yay' : 'sudo pacman'} -S -- ${params['package']}',
+          'aur': params['manager'] == 'aur',
+        },
+        _ => {'started': true},
+      };
+    }
+
+    await tester.pumpWidget(MaterialApp(home: InstallPage(core: fake)));
+    await settle(tester);
+    expect(find.text('Searches: pacman, AUR'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'gimp');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await settle(tester);
+    expect(find.text('Install…'), findsNWidgets(2)); // krita is installed already
+    await tester.tap(find.text('Install…').last);
+    await settle(tester);
+    expect(find.text('yay -S -- gimp-git'), findsOneWidget);
+    expect(find.textContaining('Arch User Repository'), findsOneWidget);
+    await tester.tap(find.text('Install in terminal'));
+    await settle(tester);
+    expect(asked, contains('packages.install'));
   });
 }

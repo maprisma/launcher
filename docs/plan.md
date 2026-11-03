@@ -136,6 +136,13 @@ No add-on runs code.
   and the package description when the entry has none, only for the app's own package (web apps and CLI tools
   show their kind); Details lists package, size, website. Found: `pacman -Qo` exits with the number of misses,
   so the reference's update check (ok 0/1) finds nothing once two /usr desktop files have no owner; fixed here.
-  Next in step 1: Settings › Package managers, search + install page, uninstall beyond pacman/Flatpak.
+- **2026-11-03 — step 1 continued:** packages.dart: managers detected (pacman, AUR helper, Flatpak, Snap, apt,
+  dnf, zypper), Settings › Package managers (AUR off by default), search over the enabled ones (no shell;
+  pacman's regex escaped), Install apps page with a review showing the exact command (+ AUR warning), installs
+  in a terminal with the package as "$1" and only for packages the last search returned; Uninstall… extended
+  to apt/dnf/zypper (dpkg -S, rpm -qf) and Snap, warnings for default apps and Omarchy base packages, own
+  entries to the freedesktop trash. Live: `gimp` found, plan `sudo pacman -S -- gimp`. Not run for real
+  (would install/remove); apt/dnf/zypper/snap parsers only on sample output.
+  Step 1 left: Details page (now a dialog), the AUR PKGBUILD view (the helper shows it in the terminal).
 - **Next (parity with gnome-launcher, in this order):** marks (new ★, updates), running state, shortcuts + key map per desktop (shortcuts.py),
   Change icon (icons.py), updates (updates.py), admin launch.

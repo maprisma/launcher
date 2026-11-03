@@ -226,6 +226,8 @@ final class OmarchyIndex {
   String? _key;
   (Set<String>, Set<String>) _index = (const {}, const {});
 
+  Set<String> get basePackages => _names('omarchy-base.packages');
+
   Set<String> _names(String file) => {
     for (final line in _readLines(p.join(root, 'install', file)))
       if (line.trim().isNotEmpty && !line.trimLeft().startsWith('#')) line.trim(),

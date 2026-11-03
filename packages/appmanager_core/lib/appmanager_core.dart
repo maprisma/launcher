@@ -20,3 +20,4 @@ export 'src/newapps.dart';
 export 'src/running.dart';
 export 'src/updates.dart';
 export 'src/facts.dart';
+export 'src/packages.dart';

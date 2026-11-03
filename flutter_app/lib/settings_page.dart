@@ -34,6 +34,22 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   late Map<String, dynamic> settings = widget.settings;
+  List<Map<String, dynamic>> managers = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadManagers();
+  }
+
+  Future<void> _loadManagers() async {
+    try {
+      final r = await widget.core('packages.managers');
+      if (mounted) setState(() => managers = [for (final m in r['managers'] as List) Map<String, dynamic>.from(m)]);
+    } on ServiceError {
+      // No row then.
+    }
+  }
 
   Future<void> _set(String key, Object? value) async {
     try {
@@ -203,6 +219,31 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                     Switch(value: settings['filter_field'] != false, onChanged: (v) => _set('filter_field', v)),
                   ),
+                  if (managers.isNotEmpty)
+                    _row(
+                      tr('Package managers'),
+                      tr('Which package managers Install apps (and later Ask AI) may use. The AUR is off until you choose it: community build scripts, not checked by the distribution.'),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        alignment: WrapAlignment.end,
+                        children: [
+                          for (final m in managers)
+                            FilterChip(
+                              label: Text(m['id'] == 'aur' ? 'AUR (${m['program']})' : '${m['label']}'),
+                              selected: m['enabled'] == true,
+                              onSelected: (on) async {
+                                final next = [
+                                  for (final x in managers)
+                                    if (x['id'] == m['id'] ? on : x['enabled'] == true) x['id'],
+                                ];
+                                await _set('package_managers', next);
+                                await _loadManagers();
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
                   _row(
                     tr('F12 saves a screenshot'),
                     tr('A picture of this window is saved, with a note if you like.'),

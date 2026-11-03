@@ -44,10 +44,17 @@ def _unescape(text):
     return re.sub(r"\\(.)", lambda m: {"n": "\n", "t": "\t"}.get(m.group(1), m.group(1)), text)
 
 
+_SPLIT = re.compile(r"\btr[fn]?\(\s*" + _STR + r"\s*\n?\s*['\"]")
+
+
 def keys():
     plain, plural = set(DYNAMIC), set()
     for path in sorted(LIB.glob("*.dart")):
         source = path.read_text(encoding="utf-8")
+        split = _SPLIT.search(source)
+        if split:
+            # 'a' 'b' joined by Dart: only 'a' would be found, 'b' never translated.
+            raise SystemExit(f"{path.name}: tr() text split into adjacent literals near: {split.group(0)[:60]!r}")
         for m in _TR.finditer(source):
             plain.add(_unescape(m.group(1) if m.group(1) is not None else m.group(2)))
         for m in _TRN.finditer(source):

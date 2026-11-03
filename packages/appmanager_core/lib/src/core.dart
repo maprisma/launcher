@@ -6,7 +6,10 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
+
 import 'apps.dart';
+import 'bounded.dart';
 import 'config.dart';
 import 'desktop_entries.dart';
 import 'desktops.dart';
@@ -15,6 +18,8 @@ import 'groups.dart' as groups;
 import 'icon_theme.dart';
 import 'launch.dart';
 import 'newapps.dart';
+import 'origins.dart' show defaultRoles;
+import 'packages.dart';
 import 'running.dart';
 import 'updates.dart';
 import 'protocol.dart';
@@ -50,6 +55,10 @@ final class CoreService {
   List<Map<String, dynamic>> _list = [];
   Set<String> _running = {};
   late final _facts = AppFacts(session);
+  late final _managers = Managers(session);
+
+  /// The last search's results: only these can be installed.
+  List<Found> _found = [];
   Map<String, dynamic> _updates = {'apps': {}, 'flatpaks': {}};
   DateTime? _updatesAt;
   Future<Map<String, dynamic>>? _checking;
@@ -146,6 +155,24 @@ final class CoreService {
       if (!foldable.contains(gid)) throw ServiceError('bad_params');
       groups.toggleCollapsed(data, gid);
     }),
+    'packages.managers': (_) async => _managersView(),
+    'packages.search': (params) async {
+      final query = _string(params, 'query').trim();
+      if (query.isEmpty || query.length > 100 || query.contains(RegExp(r'[\x00-\x1f]'))) {
+        throw ServiceError('bad_params');
+      }
+      _found = await _managers.search(query, _enabledManagers());
+      return {'results': _found};
+    },
+    'packages.install_plan': (params) async => _installPlan(params),
+    'packages.install': (params) async {
+      final plan = await _installPlan(params);
+      final command = plan['argv'] as List<String>;
+      if (!await startDetached(command, session)) throw ServiceError('no_terminal');
+      return {'started': true};
+    },
+    'apps.uninstall_plan': (params) async => _uninstallPlan(_app(params)),
+    'apps.uninstall': (params) => _uninstall(_app(params)),
     'settings.get': (_) async => settings.read(),
     'settings.reset': (_) async {
       settings.reset();
@@ -303,6 +330,104 @@ final class CoreService {
       ],
       ..._groupsView(data),
     };
+  }
+
+  List<String> _enabledManagers() =>
+      (settings.read()['package_managers'] as List?)?.cast<String>() ?? _managers.defaults();
+
+  Map<String, dynamic> _managersView() {
+    final there = _managers.installed();
+    final enabled = _enabledManagers();
+    return {
+      'managers': [
+        for (final (id, label, _) in managerKinds)
+          if (there[id] case final program?)
+            {'id': id, 'label': label, 'program': p.basename(program), 'enabled': enabled.contains(id)},
+      ],
+    };
+  }
+
+  /// What an install will run: only a package the last search found, of an
+  /// enabled manager; the exact command line is shown before it runs.
+  Future<Map<String, dynamic>> _installPlan(Map<String, dynamic> params) async {
+    final manager = _string(params, 'manager'), package = _string(params, 'package');
+    final found = _found.where((f) => f['manager'] == manager && f['package'] == package).firstOrNull;
+    if (found == null || !_enabledManagers().contains(manager)) throw ServiceError('not_found');
+    final terminal = desktop.terminal();
+    final argv = terminal == null ? null : _managers.installCommand(manager, found, terminal);
+    if (argv == null) throw ServiceError('no_terminal');
+    return {
+      'manager': manager,
+      'package': package,
+      'argv': argv,
+      // Shown to the user: the line the terminal runs, with the package in it.
+      'command': _shownCommand(argv),
+      'aur': manager == 'aur',
+    };
+  }
+
+  static String _shownCommand(List<String> argv) {
+    final i = argv.indexOf('-c');
+    if (i < 0 || i + 1 >= argv.length) return argv.join(' ');
+    var line = argv[i + 1].split(';').first;
+    final args = argv.sublist(i + 3);
+    for (var n = 0; n < args.length; n++) {
+      line = line.replaceAll('"\$${n + 1}"', args[n]);
+    }
+    return line;
+  }
+
+  /// details.uninstall_plan, extended: the owning package of any system
+  /// manager (pacman, apt, dnf, zypper), Snap apps, and warnings for default
+  /// apps and Omarchy's own packages.
+  Future<Map<String, dynamic>> _uninstallPlan(Map app) async {
+    final plan = uninstallPlan(app, session);
+    final desktopPath = app['desktop_path'] as String? ?? '';
+    final roles = defaultRoles(app, session);
+    final warnings = [if (roles.isNotEmpty) 'default'];
+    if (plan == null) return {'kind': null};
+    if (plan.$1 == 'package') {
+      if (app['sandboxed'] == true && desktopPath.contains('/snapd/')) {
+        final name = p.basename(desktopPath).split('_').first;
+        return {'kind': 'package', 'manager': 'snap', 'what': name, 'warnings': warnings};
+      }
+      final owner = await _managers.ownerOf(desktopPath);
+      if (owner == null) return {'kind': null};
+      if (desktop is OmarchyDesktop && (desktop as OmarchyDesktop).basePackages.contains(owner.$2)) {
+        warnings.add('omarchy');
+      }
+      return {'kind': 'package', 'manager': owner.$1, 'what': owner.$2, 'warnings': warnings};
+    }
+    return {'kind': plan.$1, 'what': plan.$2, 'warnings': warnings};
+  }
+
+  Future<Map<String, dynamic>> _uninstall(Map app) async {
+    final plan = await _uninstallPlan(app);
+    final what = plan['what'] as String?;
+    switch (plan['kind']) {
+      case 'trash':
+        final moved = what == null ? null : moveToTrash(what, session);
+        if (moved == null) throw ServiceError('uninstall_failed');
+        return {'done': true, 'trash': moved};
+      case 'flatpak':
+        final flatpak = session.which('flatpak');
+        final out = flatpak == null
+            ? null
+            : await readBoundedText(
+                [flatpak, 'uninstall', '-y', '--noninteractive', what!],
+                maxBytes: 64 * 1024,
+                timeout: const Duration(seconds: 300),
+              );
+        if (out == null) throw ServiceError('uninstall_failed');
+        return {'done': true};
+      case 'package':
+        final terminal = desktop.terminal();
+        final argv = terminal == null ? null : _managers.removeCommand(plan['manager'] as String, what!, terminal);
+        if (argv == null || !await startDetached(argv, session)) throw ServiceError('no_terminal');
+        return {'started': true};
+      default:
+        throw ServiceError('cannot_uninstall');
+    }
   }
 
   void _saveSeen(SeenData seen) {

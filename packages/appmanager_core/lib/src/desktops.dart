@@ -130,6 +130,9 @@ final class OmarchyDesktop extends Desktop {
   @override
   String get name => 'omarchy';
   late final _index = OmarchyIndex(session);
+
+  /// Packages Omarchy installs itself (removing them can break the desktop).
+  Set<String> get basePackages => _index.basePackages;
   @override
   List<String> get origins => const ['o-defaults', 'o-omarchy', 'o-other'];
   @override

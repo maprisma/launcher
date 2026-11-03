@@ -111,6 +111,7 @@ final class ConfigStore {
 
 const wideLayouts = ['folders', 'cards', 'icons'];
 const languageCodes = ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl'];
+const managerIds = ['pacman', 'aur', 'flatpak', 'snap', 'apt', 'dnf', 'zypper'];
 const iconSizeChoices = {
   'list': [20, 24, 28, 32, 36, 44, 52],
   'cards': [32, 40, 44, 48, 56, 64],
@@ -155,6 +156,10 @@ final class Settings {
       'size': _size(data['size']),
       // F12 saves a picture of the window (as in Maprisma); on by default.
       'screenshot_key': data['screenshot_key'] != false,
+      // The package managers the user allows (null: the defaults, see Managers).
+      'package_managers': data['package_managers'] is List
+          ? [for (final m in data['package_managers'] as List) if (managerIds.contains(m)) m]
+          : null,
       'screenshot_folder': _folder(data['screenshot_folder']),
     };
   }
@@ -195,7 +200,7 @@ final class Settings {
     final data = raw();
     for (final key in const [
       'view', 'wide_layout', 'shown_layouts', 'corners', 'icon_sizes', 'app_icon_size',
-      'view_buttons', 'filter_field', 'running_first', 'language', 'screenshot_key', 'screenshot_folder',
+      'view_buttons', 'filter_field', 'running_first', 'language', 'screenshot_key', 'screenshot_folder', 'package_managers',
     ]) {
       data.remove(key);
     }
@@ -220,6 +225,9 @@ final class Settings {
       case 'corners':
         if (!const ['windows', 'rounded', 'square'].contains(value)) throw ArgumentError(key);
         stored = value;
+      case 'package_managers':
+        if (value is! List || value.any((m) => !managerIds.contains(m))) throw ArgumentError(key);
+        stored = [for (final id in managerIds) if (value.contains(id)) id];
       case 'screenshot_folder':
         // null: back to the default folder.
         if (value == null) {
