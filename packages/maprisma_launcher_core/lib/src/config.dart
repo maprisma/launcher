@@ -271,3 +271,32 @@ Set<String> loadHidden(ConfigStore store) {
 
 void saveHidden(ConfigStore store, Set<String> hidden) =>
     store.writeJson('hidden.json', hidden.toList()..sort());
+
+/// Write [text] to [path] atomically (a private temporary file next to it,
+/// then renamed over it): a reader such as COSMIC or Hyprland sees the old
+/// file or the new one, never half of it. A file that was there keeps its
+/// permission bits; a link there is replaced, never followed.
+void writeTextAtomic(String path, String text) {
+  final dir = Directory(p.dirname(path));
+  if (!dir.existsSync()) dir.createSync(recursive: true);
+  final old = FileStat.statSync(path);
+  final tmp = File(p.join(dir.path, '.${p.basename(path)}.$pid.tmp'));
+  try {
+    tmp.deleteSync();
+  } on FileSystemException {
+    // Nothing there.
+  }
+  if (!Posix.instance.writeNewPrivate(tmp.path, utf8.encode(text))) {
+    if (tmp.existsSync()) tmp.deleteSync();
+    throw FileSystemException('Could not write', path);
+  }
+  try {
+    if (old.type == FileSystemEntityType.file) {
+      Process.runSync('chmod', [(old.mode & 0x1ff).toRadixString(8), tmp.path]);
+    }
+    tmp.renameSync(path);
+  } catch (_) {
+    if (tmp.existsSync()) tmp.deleteSync();
+    rethrow;
+  }
+}

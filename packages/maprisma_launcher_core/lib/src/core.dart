@@ -23,8 +23,10 @@ import 'newapps.dart';
 import 'origins.dart' show defaultRoles;
 import 'packages.dart';
 import 'running.dart';
+import 'shortcut_service.dart';
 import 'updates.dart';
 import 'protocol.dart';
+import 'shortcuts.dart' show defaultMods;
 
 const coreVersion = '0.2.0';
 
@@ -57,6 +59,9 @@ final class CoreService {
   List<Map<String, dynamic>> _list = [];
   Set<String> _running = {};
   late final _facts = AppFacts(session);
+
+  /// Global shortcuts: the desktop's backend (none on generic desktops).
+  late final shortcuts = ShortcutService(backendFor(desktop, store), store);
   late final _managers = Managers(session);
 
   /// The last search's results: only these can be installed.
@@ -257,6 +262,17 @@ final class CoreService {
     },
     'apps.uninstall_plan': (params) async => _uninstallPlan(_app(params)),
     'apps.uninstall': (params) => _uninstall(_app(params)),
+    'shortcuts.state': (params) async => shortcuts.view(_app(params), params),
+    'shortcuts.set': (params) async => shortcuts.assign(_app(params), params),
+    'shortcuts.remove': (params) async => shortcuts.remove(_app(params), params),
+    'shortcuts.disable': (params) async => shortcuts.disable(_app(params), params),
+    'shortcuts.restore': (params) async => shortcuts.restore(_app(params), params),
+    'shortcuts.labels': (_) => shortcuts.labels(),
+    'shortcuts.default_mods': (params) async {
+      final mods = ShortcutService.mods(params['mods']);
+      shortcuts.saveDefaultMods(mods.isEmpty ? defaultMods : mods);
+      return {'default_mods': shortcuts.defaultMods()};
+    },
     'settings.get': (_) async => settings.read(),
     'settings.reset': (_) async {
       settings.reset();
