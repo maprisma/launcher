@@ -6,9 +6,19 @@ echo omarchy | sudo -S mount -t 9p -o trans=virtio,version=9p2000.L,ro dist /mnt
 D=/mnt/dist
 ls "$D" | tr '\n' ' '; echo
 export XDG_RUNTIME_DIR=/run/user/$(id -u)
+# The desktop may still be starting: wait for its Wayland socket and Hyprland (up to 90 s).
+for _ in $(seq 1 90); do
+  ls "$XDG_RUNTIME_DIR" 2>/dev/null | grep -q '^wayland-[0-9]*$' && ls "$XDG_RUNTIME_DIR/hypr" >/dev/null 2>&1 && break
+  sleep 1
+done
+sleep 5
 export WAYLAND_DISPLAY=$(ls "$XDG_RUNTIME_DIR" | grep -m1 '^wayland-[0-9]*$')
 export HYPRLAND_INSTANCE_SIGNATURE=$(ls "$XDG_RUNTIME_DIR/hypr" 2>/dev/null | head -1)
-window() { hyprctl clients 2>/dev/null | grep -A8 -i "class: com.maprisma.launcher" | grep -E "class:|title:|mapped:|hidden:" | tr -d '\t' | tr '\n' ' '; echo; }
+window() { hyprctl clients -j 2>/dev/null | python3 -c 'import json,sys
+for c in json.load(sys.stdin):
+    if c.get("class") == "com.maprisma.Launcher":
+        print("class", c["class"], "floating", c.get("floating"), "at", c.get("at"), "size", c.get("size"), "hidden", c.get("hidden"))'
+  hyprctl monitors -j 2>/dev/null | python3 -c 'import json,sys; m=json.load(sys.stdin)[0]; print("monitor", m["width"], m["height"], "scale", m["scale"], "reserved", m["reserved"])'; }
 
 echo "== A the AUR package (pacman -U)"
 pkg=$(ls "$D"/maprisma-launcher-bin-*.pkg.tar.zst | head -1)
