@@ -16,7 +16,9 @@ typedef AppActions = ({
   Future<void> Function(Map app) update,
   Future<void> Function() updateSystem,
   Future<void> Function(Map app) details,
-  bool Function(Map app) hasUpdate,
+
+  /// 'flatpak' (updated alone), 'package' (with the whole system), or null.
+  String? Function(Map app) updateKind,
 });
 
 /// Ask AI (docs/proposals/ask-ai.md, step 2): one question, one checked
@@ -42,6 +44,9 @@ class _AskPageState extends State<AskPage> {
   Map<String, dynamic>? result;
   String? error;
   String? lastRequest;
+
+  /// Flatpaks being updated now (their row shows a spinner).
+  final Set<String> updating = {};
 
   @override
   void initState() {
@@ -331,11 +336,30 @@ class _AskPageState extends State<AskPage> {
       case 'update':
         children.add(_section(tr('Update')));
         for (final app in apps) {
+          final key = '${app['key']}';
           children.add(
             _appRow(app, [
-              a.hasUpdate(app)
-                  ? TextButton(onPressed: () => a.update(app), child: Text(tr('Update')))
-                  : Text(tr('No update known'), style: TextStyle(color: scheme.onSurfaceVariant)),
+              switch (a.updateKind(app)) {
+                // A Flatpak updates alone; the row shows it is working.
+                'flatpak' when updating.contains(key) => const Padding(
+                  padding: EdgeInsets.all(10),
+                  child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                ),
+                'flatpak' => TextButton(
+                  onPressed: () async {
+                    setState(() => updating.add(key));
+                    try {
+                      await a.update(app);
+                    } finally {
+                      if (mounted) setState(() => updating.remove(key));
+                    }
+                  },
+                  child: Text(tr('Update')),
+                ),
+                // A package: on Arch never alone, so with the whole system.
+                'package' => TextButton(onPressed: a.updateSystem, child: Text(tr('Update system…'))),
+                _ => Text(tr('No update known'), style: TextStyle(color: scheme.onSurfaceVariant)),
+              },
             ]),
           );
         }

@@ -292,7 +292,11 @@ class AppsPageState extends State<AppsPage> {
               update: _updateFlatpak,
               updateSystem: _updateSystem,
               details: _details,
-              hasUpdate: (app) => updateNote(app) != null,
+              updateKind: (app) => (updates['flatpaks'] as Map?)?.containsKey(app['key']) == true
+                  ? 'flatpak'
+                  : (updates['apps'] as Map?)?.containsKey(app['desktop_path']) == true
+                  ? 'package'
+                  : null,
             ),
           ),
         ),
@@ -1058,6 +1062,22 @@ class AppsPageState extends State<AppsPage> {
   /// update_system: the desktop's updater, or the package manager's full
   /// update in a terminal (never one package alone on Arch).
   Future<void> _updateSystem() async {
+    // What happens, before a terminal appears: it asks for the password.
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(tr('Update the system?')),
+        content: Text(
+          '${tr('Updates the whole system in a terminal (on Arch never one package alone).')}\n\n'
+          '${tr('The terminal asks for your password and shows the progress.')}',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Cancel'))),
+          FilledButton(autofocus: true, onPressed: () => Navigator.pop(context, true), child: Text(tr('Update'))),
+        ],
+      ),
+    );
+    if (go != true || !mounted) return;
     try {
       await widget.core('updates.system');
       widget.onHide?.call();

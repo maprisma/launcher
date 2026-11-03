@@ -149,7 +149,9 @@
   "The dock needs the gtk-layer-shell package (sudo pacman -S gtk-layer-shell).": "Das Dock braucht das Paket gtk-layer-shell (sudo pacman -S gtk-layer-shell).",
   "Cube": "Würfel",
   "Group actions": "Gruppenaktionen",
-  "Drag apps here": "Apps hierher ziehen"
+  "Drag apps here": "Apps hierher ziehen",
+  "Update the system?": "System aktualisieren?",
+  "The terminal asks for your password and shows the progress.": "Das Terminal fragt nach deinem Passwort und zeigt den Fortschritt."
  },
  "es": {
   "\u0004{0} app": [
@@ -301,7 +303,9 @@
   "The dock needs the gtk-layer-shell package (sudo pacman -S gtk-layer-shell).": "El dock necesita el paquete gtk-layer-shell (sudo pacman -S gtk-layer-shell).",
   "Cube": "Cubo",
   "Group actions": "Acciones del grupo",
-  "Drag apps here": "Arrastra aplicaciones aquí"
+  "Drag apps here": "Arrastra aplicaciones aquí",
+  "Update the system?": "¿Actualizar el sistema?",
+  "The terminal asks for your password and shows the progress.": "El terminal pide tu contraseña y muestra el progreso."
  },
  "fr": {
   "\u0004{0} app": [
@@ -453,7 +457,9 @@
   "The dock needs the gtk-layer-shell package (sudo pacman -S gtk-layer-shell).": "Le dock a besoin du paquet gtk-layer-shell (sudo pacman -S gtk-layer-shell).",
   "Cube": "Cube",
   "Group actions": "Actions du groupe",
-  "Drag apps here": "Glissez des applications ici"
+  "Drag apps here": "Glissez des applications ici",
+  "Update the system?": "Mettre à jour le système ?",
+  "The terminal asks for your password and shows the progress.": "Le terminal demande votre mot de passe et affiche la progression."
  },
  "it": {
   "\u0004{0} app": [
@@ -605,7 +611,9 @@
   "The dock needs the gtk-layer-shell package (sudo pacman -S gtk-layer-shell).": "Il dock richiede il pacchetto gtk-layer-shell (sudo pacman -S gtk-layer-shell).",
   "Cube": "Cubo",
   "Group actions": "Azioni del gruppo",
-  "Drag apps here": "Trascina qui le app"
+  "Drag apps here": "Trascina qui le app",
+  "Update the system?": "Aggiornare il sistema?",
+  "The terminal asks for your password and shows the progress.": "Il terminale chiede la password e mostra l’avanzamento."
  },
  "nl": {
   "\u0004{0} app": [
@@ -757,7 +765,9 @@
   "The dock needs the gtk-layer-shell package (sudo pacman -S gtk-layer-shell).": "Het dock heeft het pakket gtk-layer-shell nodig (sudo pacman -S gtk-layer-shell).",
   "Cube": "Kubus",
   "Group actions": "Groepsacties",
-  "Drag apps here": "Sleep apps hierheen"
+  "Drag apps here": "Sleep apps hierheen",
+  "Update the system?": "Systeem bijwerken?",
+  "The terminal asks for your password and shows the progress.": "De terminal vraagt om je wachtwoord en toont de voortgang."
  },
  "pl": {
   "\u0004{0} app": [
@@ -911,7 +921,9 @@
   "The dock needs the gtk-layer-shell package (sudo pacman -S gtk-layer-shell).": "Dock wymaga pakietu gtk-layer-shell (sudo pacman -S gtk-layer-shell).",
   "Cube": "Kostka",
   "Group actions": "Działania grupy",
-  "Drag apps here": "Przeciągnij tutaj aplikacje"
+  "Drag apps here": "Przeciągnij tutaj aplikacje",
+  "Update the system?": "Zaktualizować system?",
+  "The terminal asks for your password and shows the progress.": "Terminal poprosi o hasło i pokaże postęp."
  },
  "pt": {
   "\u0004{0} app": [
@@ -1063,6 +1075,8 @@
   "The dock needs the gtk-layer-shell package (sudo pacman -S gtk-layer-shell).": "A dock precisa do pacote gtk-layer-shell (sudo pacman -S gtk-layer-shell).",
   "Cube": "Cubo",
   "Group actions": "Ações do grupo",
-  "Drag apps here": "Arraste aplicações para aqui"
+  "Drag apps here": "Arraste aplicações para aqui",
+  "Update the system?": "Atualizar o sistema?",
+  "The terminal asks for your password and shows the progress.": "O terminal pede a sua palavra-passe e mostra o progresso."
  }
 }

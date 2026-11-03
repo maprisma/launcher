@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:maprisma_launcher/ask_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,6 +15,10 @@ void main() {
           {'command': 'claude', 'name': 'Claude Code', 'installed': helpersReady, 'signed_in': helpersReady},
           {'command': 'agy', 'name': 'Antigravity', 'installed': false, 'signed_in': false},
         ],
+      },
+      'ask.run' when '${params['request']}'.contains('update') => {
+        'action': 'update',
+        'apps': ['k2', 'k3'],
       },
       'ask.run' when params['answer'] == null && '${params['request']}'.contains('editor') => {
         'action': 'clarify',
@@ -34,6 +40,8 @@ void main() {
 
   final apps = {
     'k1': <String, dynamic>{'key': 'k1', 'name': 'Pinta', 'description': 'Paint'},
+    'k2': <String, dynamic>{'key': 'k2', 'name': 'Code', 'description': 'Editor'},
+    'k3': <String, dynamic>{'key': 'k3', 'name': 'Flat', 'description': 'A Flatpak'},
   };
   final opened = <String>[];
   AppActions actions() => (
@@ -42,7 +50,7 @@ void main() {
     update: (app) async {},
     updateSystem: () async {},
     details: (app) async {},
-    hasUpdate: (app) => false,
+    updateKind: (app) => null,
   );
 
   testWidgets('no helper: how to get one, and Install apps without AI', (tester) async {
@@ -80,5 +88,44 @@ void main() {
     expect(find.text('sudo pacman -S -- gimp'), findsOneWidget);
     // Exactly the two clicks spent tokens.
     expect(asked.where((a) => a['method'] == 'ask.run'), hasLength(2));
+  });
+
+  testWidgets('update: a package goes with the system, a Flatpak alone with a spinner', (tester) async {
+    final done = <String>[];
+    final flatpak = Completer<void>();
+    final actions = (
+      open: (Map app) {},
+      uninstall: (Map app) async {},
+      update: (Map app) async {
+        done.add('flatpak ${app['name']}');
+        await flatpak.future;
+      },
+      updateSystem: () async => done.add('system'),
+      details: (Map app) async {},
+      updateKind: (Map app) => switch (app['key']) {
+        'k2' => 'package',
+        'k3' => 'flatpak',
+        _ => null,
+      },
+    );
+    await tester.pumpWidget(MaterialApp(home: AskPage(core: fake, apps: apps, actions: actions)));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'what can I update');
+    await tester.tap(find.byTooltip('Ask'));
+    await tester.pumpAndSettle();
+    // Code (a package): "Update system…" in its row and below the list.
+    expect(find.text('Update system…'), findsNWidgets(2));
+    await tester.tap(find.text('Update system…').first);
+    await tester.pump();
+    expect(done, ['system']);
+    // Flat (a Flatpak): Update, then a spinner until it is done.
+    await tester.tap(find.widgetWithText(TextButton, 'Update'));
+    await tester.pump();
+    expect(done, ['system', 'flatpak Flat']);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    flatpak.complete();
+    await tester.pumpAndSettle();
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.widgetWithText(TextButton, 'Update'), findsOneWidget);
   });
 }
