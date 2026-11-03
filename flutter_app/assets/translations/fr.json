@@ -11,6 +11,10 @@
   "{0} entrée",
   "{0} entrées"
  ],
+ "\u0004{0} hidden app": [
+  "{0} application masquée",
+  "{0} applications masquées"
+ ],
  "\u0004{0} new commit": [
   "{0} nouveau commit",
   "{0} nouveaux commits"
@@ -134,7 +138,9 @@
  "Hidden": "Masqué",
  "Hidden until the pointer touches the screen edge. Off: the dock keeps its space and windows stay clear of it.": "Caché jusqu'à ce que le pointeur touche le bord de l'écran. Désactivé : le dock garde sa place et les fenêtres ne le recouvrent pas.",
  "Hidden: shown only with the eye button": "Masqué : visible seulement avec le bouton œil",
+ "Hide": "Masquer",
  "Hide from list": "Masquer de la liste",
+ "Hide from the list": "Masquer de la liste",
  "Hide hidden apps": "Cacher les applications masquées",
  "How high the dock's background is.": "La hauteur du fond du dock.",
  "How large the app icons are in the narrow window's list.": "Taille des icônes d’application dans la liste de la fenêtre étroite.",
@@ -202,6 +208,7 @@
  "New window": "Nouvelle fenêtre",
  "New: installed recently (until you open it), or a new group (until it has an entry)": "Nouveau : installé récemment (jusqu'à la première ouverture), ou un nouveau groupe (jusqu'à sa première entrée)",
  "Newly installed": "Nouvellement installé",
+ "No app is hidden.": "Aucune application n’est masquée.",
  "No app matches “{0}”.": "Aucune application ne correspond à « {0} ».",
  "No apps found.": "Aucune application trouvée.",
  "No background, only the icons. Double-click the dock's background to switch, as on the bar.": "Pas de fond, seulement les icônes. Double-cliquez sur le fond du dock pour basculer, comme sur la barre.",
@@ -218,6 +225,7 @@
  "Not installed": "Non installé",
  "Nothing found for “{0}”.": "Rien trouvé pour « {0} ».",
  "Nothing found. Try another name, e.g. the company.": "Rien trouvé. Essayez un autre nom, par ex. l'entreprise.",
+ "Nothing to change.": "Rien à changer.",
  "Off": "Désactivé",
  "Office": "Bureautique",
  "Omarchy default": "Défaut Omarchy",
@@ -292,6 +300,7 @@
  "Show dock": "Afficher le dock",
  "Show everything (Ctrl+G: next group)": "Tout afficher (Ctrl+G : groupe suivant)",
  "Show hidden apps ({0})": "Afficher les applications masquées ({0})",
+ "Show in the list again": "Réafficher dans la liste",
  "Show indicator": "Afficher l'indicateur",
  "Show only these (click again or Esc: all)": "Afficher seulement ceux-ci (cliquer à nouveau ou Échap : tous)",
  "Show only this group (Ctrl+G: next group). Right click: rename, move or delete.": "Afficher seulement ce groupe (Ctrl+G : groupe suivant). Clic droit : renommer, déplacer ou supprimer.",
@@ -339,6 +348,7 @@
  "Turned off": "Désactivé",
  "Type": "Type",
  "Type to filter": "Tapez pour filtrer",
+ "Unhide": "Afficher",
  "Unhide from list": "Afficher dans la liste",
  "Uninstall": "Désinstaller",
  "Uninstalled {0}": "{0} désinstallé",

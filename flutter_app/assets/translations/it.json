@@ -11,6 +11,10 @@
   "{0} voce",
   "{0} voci"
  ],
+ "\u0004{0} hidden app": [
+  "{0} app nascosta",
+  "{0} app nascoste"
+ ],
  "\u0004{0} new commit": [
   "{0} nuovo commit",
   "{0} nuovi commit"
@@ -134,7 +138,9 @@
  "Hidden": "Nascosta",
  "Hidden until the pointer touches the screen edge. Off: the dock keeps its space and windows stay clear of it.": "Nascosto finché il puntatore non tocca il bordo dello schermo. Disattivato: il dock mantiene il suo spazio e le finestre non lo coprono.",
  "Hidden: shown only with the eye button": "Nascosto: visibile solo con il pulsante occhio",
+ "Hide": "Nascondi",
  "Hide from list": "Nascondi dall’elenco",
+ "Hide from the list": "Nascondi dall’elenco",
  "Hide hidden apps": "Nascondi le app nascoste",
  "How high the dock's background is.": "L'altezza dello sfondo del dock.",
  "How large the app icons are in the narrow window's list.": "Quanto sono grandi le icone delle app nell’elenco della finestra stretta.",
@@ -202,6 +208,7 @@
  "New window": "Nuova finestra",
  "New: installed recently (until you open it), or a new group (until it has an entry)": "Nuovo: installato di recente (finché non lo apri) o un nuovo gruppo (finché non ha una voce)",
  "Newly installed": "Appena installato",
+ "No app is hidden.": "Nessuna app è nascosta.",
  "No app matches “{0}”.": "Nessuna app corrisponde a «{0}».",
  "No apps found.": "Nessuna app trovata.",
  "No background, only the icons. Double-click the dock's background to switch, as on the bar.": "Nessuno sfondo, solo le icone. Fai doppio clic sullo sfondo del dock per cambiare, come sulla barra.",
@@ -218,6 +225,7 @@
  "Not installed": "Non installato",
  "Nothing found for “{0}”.": "Niente trovato per «{0}».",
  "Nothing found. Try another name, e.g. the company.": "Nessun risultato. Prova un altro nome, ad es. l'azienda.",
+ "Nothing to change.": "Niente da cambiare.",
  "Off": "Disattivato",
  "Office": "Ufficio",
  "Omarchy default": "Predefinita di Omarchy",
@@ -292,6 +300,7 @@
  "Show dock": "Mostra dock",
  "Show everything (Ctrl+G: next group)": "Mostra tutto (Ctrl+G: gruppo successivo)",
  "Show hidden apps ({0})": "Mostra le app nascoste ({0})",
+ "Show in the list again": "Mostra di nuovo nell’elenco",
  "Show indicator": "Mostra indicatore",
  "Show only these (click again or Esc: all)": "Mostra solo questi (clic di nuovo o Esc: tutti)",
  "Show only this group (Ctrl+G: next group). Right click: rename, move or delete.": "Mostra solo questo gruppo (Ctrl+G: gruppo successivo). Clic destro: rinomina, sposta o elimina.",
@@ -339,6 +348,7 @@
  "Turned off": "Disattivata",
  "Type": "Tipo",
  "Type to filter": "Digita per filtrare",
+ "Unhide": "Mostra",
  "Unhide from list": "Mostra nell’elenco",
  "Uninstall": "Disinstalla",
  "Uninstalled {0}": "{0} disinstallato",

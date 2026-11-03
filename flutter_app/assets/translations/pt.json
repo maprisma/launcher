@@ -11,6 +11,10 @@
   "{0} entrada",
   "{0} entradas"
  ],
+ "\u0004{0} hidden app": [
+  "{0} app oculta",
+  "{0} apps ocultas"
+ ],
  "\u0004{0} new commit": [
   "{0} commit novo",
   "{0} commits novos"
@@ -134,7 +138,9 @@
  "Hidden": "Oculto",
  "Hidden until the pointer touches the screen edge. Off: the dock keeps its space and windows stay clear of it.": "Oculta até o ponteiro tocar no rebordo do ecrã. Desligado: a dock mantém o seu espaço e as janelas não a tapam.",
  "Hidden: shown only with the eye button": "Oculto: só visível com o botão do olho",
+ "Hide": "Ocultar",
  "Hide from list": "Ocultar da lista",
+ "Hide from the list": "Ocultar da lista",
  "Hide hidden apps": "Esconder apps ocultos",
  "How high the dock's background is.": "A altura do fundo da dock.",
  "How large the app icons are in the narrow window's list.": "O tamanho dos ícones dos apps na lista da janela estreita.",
@@ -202,6 +208,7 @@
  "New window": "Nova janela",
  "New: installed recently (until you open it), or a new group (until it has an entry)": "Novo: instalado recentemente (até o abrir) ou um grupo novo (até ter uma entrada)",
  "Newly installed": "Instalado recentemente",
+ "No app is hidden.": "Nenhuma app está oculta.",
  "No app matches “{0}”.": "Nenhum app corresponde a “{0}”.",
  "No apps found.": "Nenhum app encontrado.",
  "No background, only the icons. Double-click the dock's background to switch, as on the bar.": "Sem fundo, só os ícones. Clique duas vezes no fundo da dock para mudar, como na barra.",
@@ -218,6 +225,7 @@
  "Not installed": "Não instalado",
  "Nothing found for “{0}”.": "Nada encontrado para “{0}”.",
  "Nothing found. Try another name, e.g. the company.": "Nada encontrado. Experimente outro nome, p. ex. a empresa.",
+ "Nothing to change.": "Nada a alterar.",
  "Off": "Desligado",
  "Office": "Escritório",
  "Omarchy default": "Padrão do Omarchy",
@@ -292,6 +300,7 @@
  "Show dock": "Mostrar dock",
  "Show everything (Ctrl+G: next group)": "Mostrar tudo (Ctrl+G: próximo grupo)",
  "Show hidden apps ({0})": "Mostrar apps ocultos ({0})",
+ "Show in the list again": "Mostrar de novo na lista",
  "Show indicator": "Mostrar indicador",
  "Show only these (click again or Esc: all)": "Mostrar só estes (clicar de novo ou Esc: todos)",
  "Show only this group (Ctrl+G: next group). Right click: rename, move or delete.": "Mostrar só este grupo (Ctrl+G: próximo grupo). Clique direito: renomear, mover ou excluir.",
@@ -339,6 +348,7 @@
  "Turned off": "Desligado",
  "Type": "Tipo",
  "Type to filter": "Escreva para filtrar",
+ "Unhide": "Mostrar",
  "Unhide from list": "Mostrar na lista",
  "Uninstall": "Desinstalar",
  "Uninstalled {0}": "{0} desinstalado",

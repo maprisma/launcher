@@ -115,7 +115,8 @@ String askPrompt({
   String? language,
 }) =>
     '$_rules\n\n'
-    'Installed apps (id, name, description, origin, update available, can be removed): '
+    'Installed apps (id, name, description, origin, update available, can be removed, hidden from the '
+    'launcher\'s list): '
     '${jsonEncode(installed)}\n'
     'Package managers the user allows: ${jsonEncode(managers)}\n\n'
     '${_request(request, answer)}\n'
@@ -128,12 +129,19 @@ String askPrompt({
     '{"action": "remove", "apps": ["<ids of installed apps>"]}\n'
     '{"action": "update", "apps": ["<ids of installed apps>"]}\n'
     '{"action": "update_system"}\n'
+    '{"action": "hide", "apps": ["<ids of installed apps>"]}\n'
+    'when the user wants apps out of the launcher\'s list (they stay installed).\n'
+    '{"action": "unhide", "apps": ["<ids of hidden apps>"]}\n'
+    'when the user wants hidden apps back in the list.\n'
+    '{"action": "list_hidden"}\n'
+    'when the user asks which apps are hidden.\n'
     '{"action": "explain", "apps": ["<ids of installed apps>"], "answer": "<short plain answer>"}\n'
     'when the user asks what an installed app is or which installed app to use.\n'
     '{"action": "clarify", "question": "<one short question>", "choices": ["<2 to 4 short answers>"]}\n'
     'when the request is too broad to act on.\n'
     '{"action": "redirect", "hint": "<short helpful explanation>"}\n'
-    'when Maprisma Launcher cannot do it (it only finds, installs, updates, removes and explains apps).\n'
+    'when Maprisma Launcher cannot do it (it only finds, installs, updates, removes, hides, unhides and '
+    'explains apps).\n'
     '${_language(language)}';
 
 /// Call 2: the best real packages among what the search found.
@@ -217,11 +225,13 @@ Map<String, dynamic> checkAsk(Map<String, dynamic>? answer, Set<String> ids) {
       ];
       if (queries.isEmpty) return {'action': 'redirect', 'hint': ''};
       return {'action': 'search', 'queries': queries, 'installed': known(answer['installed'])};
-    case 'remove' || 'update':
+    case 'remove' || 'update' || 'hide' || 'unhide':
       final apps = known(answer!['apps']);
       return apps.isEmpty ? {'action': 'redirect', 'hint': ''} : {'action': action, 'apps': apps};
     case 'update_system':
       return {'action': 'update_system'};
+    case 'list_hidden':
+      return {'action': 'list_hidden'};
     case 'explain':
       return {'action': 'explain', 'apps': known(answer!['apps']), 'answer': _line(answer['answer'], 1500)};
     case 'clarify':

@@ -306,6 +306,7 @@ class AppsPageState extends State<AppsPage> {
               update: _updateFlatpak,
               updateSystem: _updateSystem,
               details: _details,
+              setHidden: _setHidden,
               updateKind: (app) => (updates['flatpaks'] as Map?)?.containsKey(app['key']) == true
                   ? 'flatpak'
                   : (updates['apps'] as Map?)?.containsKey(app['desktop_path']) == true

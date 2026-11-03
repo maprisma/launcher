@@ -171,7 +171,17 @@
   "Icon sizes": "Symbolgrößen",
   "Apps & AI": "Apps & KI",
   "Screenshots": "Bildschirmfotos",
-  "Dock": "Dock"
+  "Dock": "Dock",
+  "Hide": "Ausblenden",
+  "Unhide": "Einblenden",
+  "Hide from the list": "Aus der Liste ausblenden",
+  "Show in the list again": "Wieder in der Liste zeigen",
+  "No app is hidden.": "Keine App ist ausgeblendet.",
+  "Nothing to change.": "Nichts zu ändern.",
+  "\u0004{0} hidden app": [
+   "{0} ausgeblendete App",
+   "{0} ausgeblendete Apps"
+  ]
  },
  "es": {
   "\u0004{0} app": [
@@ -345,7 +355,17 @@
   "Icon sizes": "Tamaños de iconos",
   "Apps & AI": "Apps e IA",
   "Screenshots": "Capturas de pantalla",
-  "Dock": "Dock"
+  "Dock": "Dock",
+  "Hide": "Ocultar",
+  "Unhide": "Mostrar",
+  "Hide from the list": "Ocultar de la lista",
+  "Show in the list again": "Volver a mostrar en la lista",
+  "No app is hidden.": "No hay apps ocultas.",
+  "Nothing to change.": "Nada que cambiar.",
+  "\u0004{0} hidden app": [
+   "{0} app oculta",
+   "{0} apps ocultas"
+  ]
  },
  "fr": {
   "\u0004{0} app": [
@@ -519,7 +539,17 @@
   "Icon sizes": "Tailles des icônes",
   "Apps & AI": "Applications et IA",
   "Screenshots": "Captures d’écran",
-  "Dock": "Dock"
+  "Dock": "Dock",
+  "Hide": "Masquer",
+  "Unhide": "Afficher",
+  "Hide from the list": "Masquer de la liste",
+  "Show in the list again": "Réafficher dans la liste",
+  "No app is hidden.": "Aucune application n’est masquée.",
+  "Nothing to change.": "Rien à changer.",
+  "\u0004{0} hidden app": [
+   "{0} application masquée",
+   "{0} applications masquées"
+  ]
  },
  "it": {
   "\u0004{0} app": [
@@ -693,7 +723,17 @@
   "Icon sizes": "Dimensioni icone",
   "Apps & AI": "App e IA",
   "Screenshots": "Screenshot",
-  "Dock": "Dock"
+  "Dock": "Dock",
+  "Hide": "Nascondi",
+  "Unhide": "Mostra",
+  "Hide from the list": "Nascondi dall’elenco",
+  "Show in the list again": "Mostra di nuovo nell’elenco",
+  "No app is hidden.": "Nessuna app è nascosta.",
+  "Nothing to change.": "Niente da cambiare.",
+  "\u0004{0} hidden app": [
+   "{0} app nascosta",
+   "{0} app nascoste"
+  ]
  },
  "nl": {
   "\u0004{0} app": [
@@ -867,7 +907,17 @@
   "Icon sizes": "Pictogramgroottes",
   "Apps & AI": "Apps & AI",
   "Screenshots": "Schermafbeeldingen",
-  "Dock": "Dock"
+  "Dock": "Dock",
+  "Hide": "Verbergen",
+  "Unhide": "Tonen",
+  "Hide from the list": "Uit de lijst verbergen",
+  "Show in the list again": "Weer in de lijst tonen",
+  "No app is hidden.": "Er is geen app verborgen.",
+  "Nothing to change.": "Niets te wijzigen.",
+  "\u0004{0} hidden app": [
+   "{0} verborgen app",
+   "{0} verborgen apps"
+  ]
  },
  "pl": {
   "\u0004{0} app": [
@@ -1043,7 +1093,18 @@
   "Icon sizes": "Rozmiary ikon",
   "Apps & AI": "Aplikacje i AI",
   "Screenshots": "Zrzuty ekranu",
-  "Dock": "Dok"
+  "Dock": "Dok",
+  "Hide": "Ukryj",
+  "Unhide": "Pokaż",
+  "Hide from the list": "Ukryj na liście",
+  "Show in the list again": "Pokaż ponownie na liście",
+  "No app is hidden.": "Żadna aplikacja nie jest ukryta.",
+  "Nothing to change.": "Nic do zmiany.",
+  "\u0004{0} hidden app": [
+   "{0} ukryta aplikacja",
+   "{0} ukryte aplikacje",
+   "{0} ukrytych aplikacji"
+  ]
  },
  "pt": {
   "\u0004{0} app": [
@@ -1217,6 +1278,16 @@
   "Icon sizes": "Tamanhos dos ícones",
   "Apps & AI": "Apps e IA",
   "Screenshots": "Capturas de ecrã",
-  "Dock": "Dock"
+  "Dock": "Dock",
+  "Hide": "Ocultar",
+  "Unhide": "Mostrar",
+  "Hide from the list": "Ocultar da lista",
+  "Show in the list again": "Mostrar de novo na lista",
+  "No app is hidden.": "Nenhuma app está oculta.",
+  "Nothing to change.": "Nada a alterar.",
+  "\u0004{0} hidden app": [
+   "{0} app oculta",
+   "{0} apps ocultas"
+  ]
  }
 }

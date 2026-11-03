@@ -11,6 +11,10 @@
   "{0} entrada",
   "{0} entradas"
  ],
+ "\u0004{0} hidden app": [
+  "{0} app oculta",
+  "{0} apps ocultas"
+ ],
  "\u0004{0} new commit": [
   "{0} commit nuevo",
   "{0} commits nuevos"
@@ -134,7 +138,9 @@
  "Hidden": "Oculta",
  "Hidden until the pointer touches the screen edge. Off: the dock keeps its space and windows stay clear of it.": "Oculto hasta que el puntero toca el borde de la pantalla. Desactivado: el dock conserva su espacio y las ventanas no lo tapan.",
  "Hidden: shown only with the eye button": "Oculto: solo visible con el botón del ojo",
+ "Hide": "Ocultar",
  "Hide from list": "Ocultar de la lista",
+ "Hide from the list": "Ocultar de la lista",
  "Hide hidden apps": "Ocultar apps ocultas",
  "How high the dock's background is.": "La altura del fondo del dock.",
  "How large the app icons are in the narrow window's list.": "Qué tamaño tienen los iconos de las apps en la lista de la ventana estrecha.",
@@ -202,6 +208,7 @@
  "New window": "Nueva ventana",
  "New: installed recently (until you open it), or a new group (until it has an entry)": "Nuevo: instalado hace poco (hasta que lo abras) o un grupo nuevo (hasta que tenga una entrada)",
  "Newly installed": "Recién instalado",
+ "No app is hidden.": "No hay apps ocultas.",
  "No app matches “{0}”.": "Ninguna app coincide con «{0}».",
  "No apps found.": "No se encontraron apps.",
  "No background, only the icons. Double-click the dock's background to switch, as on the bar.": "Sin fondo, solo los iconos. Haz doble clic en el fondo del dock para cambiar, como en la barra.",
@@ -218,6 +225,7 @@
  "Not installed": "No instalado",
  "Nothing found for “{0}”.": "Nada encontrado para «{0}».",
  "Nothing found. Try another name, e.g. the company.": "No se encontró nada. Prueba otro nombre, p. ej. la empresa.",
+ "Nothing to change.": "Nada que cambiar.",
  "Off": "Desactivado",
  "Office": "Oficina",
  "Omarchy default": "Predeterminado de Omarchy",
@@ -292,6 +300,7 @@
  "Show dock": "Mostrar dock",
  "Show everything (Ctrl+G: next group)": "Mostrar todo (Ctrl+G: grupo siguiente)",
  "Show hidden apps ({0})": "Mostrar apps ocultas ({0})",
+ "Show in the list again": "Volver a mostrar en la lista",
  "Show indicator": "Mostrar indicador",
  "Show only these (click again or Esc: all)": "Mostrar solo estos (clic de nuevo o Esc: todos)",
  "Show only this group (Ctrl+G: next group). Right click: rename, move or delete.": "Mostrar solo este grupo (Ctrl+G: grupo siguiente). Clic derecho: renombrar, mover o eliminar.",
@@ -339,6 +348,7 @@
  "Turned off": "Desactivado",
  "Type": "Tipo",
  "Type to filter": "Escribe para filtrar",
+ "Unhide": "Mostrar",
  "Unhide from list": "Mostrar en la lista",
  "Uninstall": "Desinstalar",
  "Uninstalled {0}": "{0} desinstalado",

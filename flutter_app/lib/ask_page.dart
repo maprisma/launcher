@@ -17,6 +17,9 @@ typedef AppActions = ({
   Future<void> Function() updateSystem,
   Future<void> Function(Map app) details,
 
+  /// Hide from the launcher's list (true) or show again (false).
+  Future<void> Function(Map app, bool hidden) setHidden,
+
   /// 'flatpak' (updated alone), 'package' (with the whole system), or null.
   String? Function(Map app) updateKind,
 });
@@ -47,6 +50,24 @@ class _AskPageState extends State<AskPage> {
 
   /// Flatpaks being updated now (their row shows a spinner).
   final Set<String> updating = {};
+
+  /// Hidden or shown here, by key: the buttons follow at once.
+  final Map<String, bool> hiddenNow = {};
+
+  bool _isHidden(Map app) => hiddenNow['${app['key']}'] ?? app['hidden'] == true;
+
+  /// Hide / Unhide as a toggle: one click each way, nothing without it.
+  Widget _hideButton(Map app) {
+    final hidden = _isHidden(app);
+    return TextButton.icon(
+      onPressed: () async {
+        await widget.actions.setHidden(app, !hidden);
+        if (mounted) setState(() => hiddenNow['${app['key']}'] = !hidden);
+      },
+      icon: Icon(hidden ? Icons.visibility : Icons.visibility_off, size: 16),
+      label: Text(hidden ? tr('Unhide') : tr('Hide')),
+    );
+  }
 
   @override
   void initState() {
@@ -373,6 +394,23 @@ class _AskPageState extends State<AskPage> {
               ),
             ),
           );
+        }
+      case 'hide' || 'unhide' || 'list_hidden':
+        final listing = r['action'] == 'list_hidden';
+        children.add(
+          _section(
+            listing
+                ? trn('{0} hidden app', '{0} hidden apps', apps.length)
+                : r['action'] == 'hide'
+                ? tr('Hide from the list')
+                : tr('Show in the list again'),
+          ),
+        );
+        if (apps.isEmpty) {
+          children.add(Text(listing ? tr('No app is hidden.') : tr('Nothing to change.')));
+        }
+        for (final app in apps) {
+          children.add(_appRow(app, [_hideButton(app)]));
         }
       case 'remove':
         children.add(_section(tr('Uninstall')));

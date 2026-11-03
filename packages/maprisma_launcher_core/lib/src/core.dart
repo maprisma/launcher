@@ -787,7 +787,7 @@ final class CoreService {
     List<Map> facts(Iterable<String> only) => [
       for (final e in ids.entries)
         if (only.isEmpty || only.contains(e.key))
-          if (_apps[e.value] case final app? when !hidden.contains(app['desktop_id']))
+          if (_apps[e.value] case final app?)
             {
               'id': e.key,
               'name': app['name'],
@@ -797,6 +797,8 @@ final class CoreService {
               'origin': desktop.origin(app, defaults),
               if ((_updates['apps'] as Map).containsKey(app['desktop_path'])) 'update': true,
               if (uninstallPlan(app, session) case (final kind, _) when kind != 'webapp') 'removable': true,
+              // Hidden apps too (marked), so they can be listed and unhidden.
+              if (hidden.contains(app['desktop_id'])) 'hidden': true,
             },
     ];
     final managers = _enabledManagers();
@@ -864,6 +866,17 @@ final class CoreService {
         };
       case 'remove' || 'update' || 'explain':
         return {...first, 'apps': toKeys(first['apps'])};
+      // Hide only what shows, unhide only what is hidden; each still needs the user's click.
+      case 'hide':
+        return {...first, 'apps': [for (final k in toKeys(first['apps'])) if (!hidden.contains(_apps[k]?['desktop_id'])) k]};
+      case 'unhide':
+        return {...first, 'apps': [for (final k in toKeys(first['apps'])) if (hidden.contains(_apps[k]?['desktop_id'])) k]};
+      case 'list_hidden':
+        // The core knows: no ids from the helper needed.
+        return {
+          'action': 'list_hidden',
+          'apps': [for (final e in _apps.entries) if (hidden.contains(e.value['desktop_id'])) e.key],
+        };
       default:
         return first;
     }

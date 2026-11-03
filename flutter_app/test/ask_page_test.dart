@@ -16,6 +16,10 @@ void main() {
           {'command': 'agy', 'name': 'Antigravity', 'installed': false, 'signed_in': false},
         ],
       },
+      'ask.run' when '${params['request']}'.contains('hidden') => {
+        'action': 'list_hidden',
+        'apps': ['k4'],
+      },
       'ask.run' when '${params['request']}'.contains('update') => {
         'action': 'update',
         'apps': ['k2', 'k3'],
@@ -42,6 +46,7 @@ void main() {
     'k1': <String, dynamic>{'key': 'k1', 'name': 'Pinta', 'description': 'Paint'},
     'k2': <String, dynamic>{'key': 'k2', 'name': 'Code', 'description': 'Editor'},
     'k3': <String, dynamic>{'key': 'k3', 'name': 'Flat', 'description': 'A Flatpak'},
+    'k4': <String, dynamic>{'key': 'k4', 'name': 'Old Tool', 'description': 'Hidden', 'hidden': true},
   };
   final opened = <String>[];
   AppActions actions() => (
@@ -51,6 +56,7 @@ void main() {
     updateSystem: () async {},
     details: (app) async {},
     updateKind: (app) => null,
+    setHidden: (app, hidden) async {},
   );
 
   testWidgets('no helper or AI disabled: shows Install apps with a hint why Ask AI is not available', (tester) async {
@@ -113,6 +119,7 @@ void main() {
       },
       updateSystem: () async => done.add('system'),
       details: (Map app) async {},
+      setHidden: (Map app, bool hidden) async {},
       updateKind: (Map app) => switch (app['key']) {
         'k2' => 'package',
         'k3' => 'flatpak',
@@ -138,5 +145,30 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.widgetWithText(TextButton, 'Update'), findsOneWidget);
+  });
+
+  testWidgets('hidden apps: listed with Unhide; a click unhides, then the button offers Hide', (tester) async {
+    final changed = <String>[];
+    final base = actions();
+    final AppActions withHide = (
+      open: base.open,
+      uninstall: base.uninstall,
+      update: base.update,
+      updateSystem: base.updateSystem,
+      details: base.details,
+      updateKind: base.updateKind,
+      setHidden: (Map app, bool hidden) async => changed.add('${app['key']} $hidden'),
+    );
+    await tester.pumpWidget(MaterialApp(home: AskPage(core: fake, apps: apps, actions: withHide)));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'list my hidden apps');
+    await tester.tap(find.byTooltip('Ask'));
+    await tester.pumpAndSettle();
+    expect(find.text('1 hidden app'), findsOneWidget);
+    expect(find.text('Old Tool'), findsOneWidget);
+    await tester.tap(find.text('Unhide'));
+    await tester.pumpAndSettle();
+    expect(changed, ['k4 false']);
+    expect(find.text('Hide'), findsOneWidget);
   });
 }

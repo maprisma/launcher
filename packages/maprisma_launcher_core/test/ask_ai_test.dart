@@ -64,7 +64,14 @@ void main() {
 printf '%s\\n' "\$@" > "\$HOME/argv.txt"
 cat > "\$HOME/prompt-\$(date +%s%N).txt"
 last=\$(ls -t "\$HOME"/prompt-*.txt | head -1)
-if grep -q 'Packages found' "\$last"; then
+writer=\$(grep -o '"id":"a[0-9]*","name":"Writer"' "\$last" | head -1 | cut -d'"' -f4)
+if grep -q '<request>which apps are hidden' "\$last"; then
+  echo '{"action": "list_hidden"}'
+elif grep -q '<request>hide writer' "\$last"; then
+  echo "{\\"action\\": \\"hide\\", \\"apps\\": [\\"\$writer\\", \\"a999\\"]}"
+elif grep -q '<request>show writer again' "\$last"; then
+  echo "{\\"action\\": \\"unhide\\", \\"apps\\": [\\"\$writer\\"]}"
+elif grep -q 'Packages found' "\$last"; then
   echo 'Here you go: {"summary": "GIMP edits photos.", "picks": [{"manager": "pacman", "package": "gimp", "reason": "Edits photos"}, {"manager": "pacman", "package": "invented-app", "reason": "x"}], "installed": []}'
 else
   echo '{"action": "search", "queries": ["gimp"], "installed": []}'
@@ -127,6 +134,34 @@ fi
         ['maprisma-launcher', 'ask-ai', 'claude', true],
       ]);
       expect(File(p.join(home.path, 'state/omarchy-plugin-ai/runs.json')).statSync().modeString(), 'rw-------');
+    });
+
+    test('hidden apps: listed by the core, hide only what shows, unhide only what is hidden', () async {
+      expect(checkAsk({'action': 'list_hidden'}, {'a1'}), {'action': 'list_hidden'});
+      expect(checkAsk({'action': 'hide', 'apps': ['a1', 'zz']}, {'a1'}), {'action': 'hide', 'apps': ['a1']});
+      expect(checkAsk({'action': 'unhide', 'apps': ['zz']}, {'a1'})['action'], 'redirect');
+      final list = (await call('apps.list'))['result']['apps'] as List;
+      final writer = list.firstWhere((a) => a['name'] == 'Writer')['key'];
+      Future<Map> ask(String request) async {
+        final r = await call('ask.run', {'request': request, 'helper': 'claude'});
+        expect(r['error'], isNull, reason: '$r');
+        return r['result'] as Map;
+      }
+
+      // Nothing hidden yet: an empty list; "hide writer" offers Writer (a999 is dropped).
+      expect(await ask('which apps are hidden?'), {'action': 'list_hidden', 'apps': []});
+      expect(await ask('hide writer'), {'action': 'hide', 'apps': [writer]});
+      // The helper gets nothing done by itself: only the user's click hides.
+      expect((await call('apps.hide', {'key': writer, 'hidden': true}))['result'], {'hidden': true});
+      expect(await ask('which apps are hidden?'), {'action': 'list_hidden', 'apps': [writer]});
+      expect(await ask('hide writer'), {'action': 'hide', 'apps': []}); // already hidden
+      expect(await ask('show writer again'), {'action': 'unhide', 'apps': [writer]});
+      // Hidden apps reach the prompt, marked.
+      final prompts = home.listSync().whereType<File>().where((f) => p.basename(f.path).startsWith('prompt-'));
+      final lastWriter = RegExp(r'\{[^{}]*"name":"Writer"[^{}]*\}').allMatches(
+        prompts.map((f) => f.readAsStringSync()).join('\n'),
+      ).map((m) => m[0]).toList();
+      expect(lastWriter.any((w) => w!.contains('"hidden":true')), isTrue, reason: '$lastWriter');
     });
 
     test('a helper that is not installed is refused', () async {
