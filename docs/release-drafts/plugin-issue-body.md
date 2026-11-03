@@ -27,7 +27,7 @@ The plugin itself is only `BarWidget.qml` plus `maprisma-launcher-toggle` (POSIX
 - On shell startup (`Component.onCompleted`), `BarWidget.qml` runs `maprisma-launcher-toggle --dock`, which starts `maprisma-launcher --dock` if the app is installed (exits immediately when the dock setting is off, which is the default).
 - The plugin installs nothing, starts no background service when the dock is off, makes no network requests, reads/writes no files, and takes no user input.
 
-Dependency outside the standard install (expected `manual-setup`): the `maprisma-launcher` app, installed from the AUR (`maprisma-launcher-bin`, prebuilt release tarball with SHA-256) or the AppImage from the GitHub release (plus optional `gtk-layer-shell` package if the user enables the dock). All package-manager and Hyprland shortcut features live in the external app, not in this plugin.
+Dependency outside the standard install (expected `manual-setup`): the `maprisma-launcher` app: the AppImage from the GitHub release `https://github.com/maprisma/launcher/releases`, checked with its published SHA-256 and placed on `PATH` as `~/.local/bin/maprisma-launcher` (README shows the exact commands; plus the optional `gtk-layer-shell` package if the user enables the dock). All package-manager and Hyprland shortcut features live in the external app, not in this plugin.
 
 Tests: `sh tests/test-toggle.sh` (mock app and mock notifier). `preview.png`: composite of 4 real screenshots of the app on Omarchy (Folders + window menu, Ask AI with local/cloud models, Global Shortcuts + owner-coloured key map, 3D Cube + optional dock).
 
