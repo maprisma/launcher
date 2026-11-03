@@ -35,6 +35,7 @@ void main() {
     WidgetTester tester,
     String name, {
     Layout layout = Layout.list,
+    AppView view = AppView.list,
     String query = '',
     Size size = const Size(920, 640),
   }) async {
@@ -42,7 +43,11 @@ void main() {
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
     late Map<String, dynamic> look, list;
-    final core = CoreService(environment: Platform.environment);
+    // A throwaway config folder: the first start copies the old apps' files
+    // into it (read only there), never into ~/.config/appmanager.
+    final config = Directory.systemTemp.createTempSync('am-shots-');
+    addTearDown(() => config.deleteSync(recursive: true));
+    final core = CoreService(environment: Platform.environment, configDir: config.path);
     await tester.runAsync(() async {
       await loadFont('Roboto', [fcMatch('sans-serif'), fcMatch('sans-serif:bold')]);
       await loadFont('MaterialIcons', [
@@ -50,12 +55,14 @@ void main() {
       ]);
       look = await call(core, 'desktop.look');
       list = await call(core, 'apps.list');
+      await call(core, 'settings.set', {'key': 'view', 'value': view.name});
     });
     Future<Map<String, dynamic>> fake(String method, [Map<String, dynamic> params = const {}]) async =>
         switch (method) {
           'desktop.look' => look,
           'apps.list' => list,
-          _ => throw ServiceError('not_in_shots'),
+          // The other routes only read and write files: they run here.
+          _ => await call(core, method, params),
         };
     await tester.pumpWidget(RepaintBoundary(key: key, child: AppManager(core: fake, look: look, initialLayout: layout)));
     await tester.pump();
@@ -78,9 +85,22 @@ void main() {
   testWidgets('list', (t) => shoot(t, 'list'), skip: shots == null);
   testWidgets('icons', (t) => shoot(t, 'icons', layout: Layout.icons), skip: shots == null);
   testWidgets('filter', (t) => shoot(t, 'filter', query: 'co'), skip: shots == null);
+  testWidgets('groups', (t) => shoot(t, 'groups', view: AppView.groups), skip: shots == null);
+  testWidgets(
+    'origin icons',
+    (t) => shoot(t, 'origin', view: AppView.origin, layout: Layout.icons),
+    skip: shots == null,
+  );
 }
 
-Future<Map<String, dynamic>> call(CoreService core, String method) async {
-  final reply = await core.handleAsync('{"id":1,"protocol":1,"method":"$method"}');
-  return Map<String, dynamic>.from((jsonDecode(reply) as Map)['result'] as Map);
+Future<Map<String, dynamic>> call(
+  CoreService core,
+  String method, [
+  Map<String, dynamic> params = const {},
+]) async {
+  final reply = jsonDecode(
+    await core.handleAsync(jsonEncode({'id': 1, 'protocol': 1, 'method': method, 'params': params})),
+  ) as Map;
+  if (reply['error'] case final Map error) throw ServiceError('${error['code']}');
+  return Map<String, dynamic>.from(reply['result'] as Map);
 }

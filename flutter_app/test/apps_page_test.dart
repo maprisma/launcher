@@ -1,0 +1,125 @@
+/// The apps page against the real core on a fixture home: views, folding,
+/// moving an entry to a new group, hiding.
+library;
+
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:appmanager/apps_page.dart';
+import 'package:appmanager_core/appmanager_core.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
+
+void main() {
+  late Directory home;
+  late CoreService core;
+
+  setUp(() {
+    home = Directory.systemTemp.createTempSync('am-page-');
+    final apps = p.join(home.path, 'data/applications');
+    Directory(apps).createSync(recursive: true);
+    for (final (id, name, cats) in [
+      ('writer', 'Writer', 'Office;'),
+      ('player', 'Player', 'AudioVideo;'),
+      ('misc', 'Misc', ''),
+    ]) {
+      File(p.join(apps, '$id.desktop')).writeAsStringSync(
+        '[Desktop Entry]\nType=Application\nName=$name\nExec=/bin/true\nCategories=$cats\n',
+      );
+    }
+    core = CoreService(
+      environment: {
+        'HOME': home.path,
+        // No programs: the core starts no process (gsettings) in fake time.
+        'PATH': '/nonexistent',
+        'XDG_DATA_HOME': p.join(home.path, 'data'),
+        'XDG_DATA_DIRS': p.join(home.path, 'none'),
+        'XDG_CURRENT_DESKTOP': 'GNOME',
+        'APPMANAGER_DESKTOP': 'generic',
+      },
+    );
+  });
+  tearDown(() => home.deleteSync(recursive: true));
+
+  Future<Map<String, dynamic>> call(String method, [Map<String, dynamic> params = const {}]) async {
+    final reply = jsonDecode(
+      await core.handleAsync(jsonEncode({'id': 1, 'protocol': 1, 'method': method, 'params': params})),
+    ) as Map;
+    if (reply['error'] case final Map e) throw ServiceError('${e['code']}', e['message'] as String?);
+    return Map<String, dynamic>.from(reply['result'] as Map);
+  }
+
+  /// Pump until the core's file work and the page's setState settle.
+  Future<void> settle(WidgetTester tester) async {
+    for (var i = 0; i < 6; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 30)));
+      await tester.pump();
+    }
+  }
+
+  testWidgets('groups view: fold, new group with an entry, hide', (tester) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final key = GlobalKey<AppsPageState>();
+    await tester.pumpWidget(MaterialApp(home: AppsPage(key: key, core: call, desktop: 'generic')));
+    await settle(tester);
+    expect(find.text('Writer'), findsOneWidget);
+    expect(find.text('Office'), findsNothing); // the list view has no headings
+
+    await key.currentState!.setView(AppView.groups);
+    await settle(tester);
+    expect(find.text('Office'), findsOneWidget);
+    expect(find.text('Media'), findsOneWidget);
+    expect(find.text('Other'), findsOneWidget); // Misc is in it
+    expect(find.text('Games'), findsOneWidget); // empty groups show while browsing
+
+    await tester.tap(find.text('Office'));
+    await settle(tester);
+    expect(find.text('Writer'), findsNothing);
+    expect(((await call('groups.get'))['collapsed'] as List), ['office']);
+    await tester.tap(find.text('Office'));
+    await settle(tester);
+    expect(find.text('Writer'), findsOneWidget);
+
+    // Move to group › New group…: the dialog, then the entry is in it.
+    await tester.runAsync(() async {
+      await call('apps.list');
+      await call('groups.add', {'name': 'Mine', 'key': p.join(home.path, 'data/applications/misc.desktop')});
+    });
+    await key.currentState!.setView(AppView.list);
+    await key.currentState!.setView(AppView.groups);
+    await settle(tester);
+    expect(find.text('Mine'), findsOneWidget);
+    final sections = await tester.runAsync(
+      () => call('apps.sections', {
+        'view': 'groups',
+        'keys': [p.join(home.path, 'data/applications/misc.desktop')],
+      }),
+    );
+    expect(
+      [for (final s in sections!['sections'] as List) if ((s['keys'] as List).isNotEmpty) s['id']],
+      ['g1'],
+    );
+
+    // Filtering hides empty groups.
+    await tester.enterText(find.byType(TextField), 'wri');
+    await settle(tester);
+    expect(find.text('Games'), findsNothing);
+    expect(find.text('Office'), findsOneWidget);
+    expect(find.text('1 of 3 apps'), findsOneWidget);
+
+    // Hide from list: gone until "Show hidden".
+    await tester.runAsync(
+      () => call('apps.hide', {'key': p.join(home.path, 'data/applications/writer.desktop'), 'hidden': true}),
+    );
+    await tester.tap(find.byIcon(Icons.refresh));
+    await settle(tester);
+    expect(find.text('Writer'), findsNothing);
+    expect(find.text('0 of 3 apps'), findsOneWidget);
+    await tester.tap(find.text('Show hidden (1)'));
+    await settle(tester);
+    expect(find.text('Writer'), findsOneWidget);
+  });
+}

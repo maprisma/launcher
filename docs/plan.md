@@ -99,7 +99,11 @@ No add-on runs code.
     and icon views, type-to-filter, Enter/arrows/Esc, right-click menu with the entry's actions, details.
   - Screenshots offscreen: `SHOTS=<dir> flutter test test/shots_test.dart` (no Xvfb here; Broadway has no
     GL for Flutter). Caught a tile overflow already.
-- **Next (parity with gnome-launcher, in this order):** groups + by-origin views (groups.py, details.py),
-  folders/cards/footer layouts, settings page (sizes, corners, layouts, language) + 8 languages, hidden
+- **2026-11-03 — groups and origins:** core ports groups.py (equal on an edit sequence) and the origin
+  sections of both references (Omarchy: defaults/omarchy/other; else defaults/system/flatpak/user — equal on
+  this machine); hidden entries; settings; first start copies ~/.config/applauncher or gnome-launcher
+  (originals kept). App: A–Z / Groups / By origin (Ctrl+G, saved), foldable headings with ⋮ (rename, move,
+  delete, new group), Move to group…, Hide from list, Show hidden. Widget test on a fixture home.
+- **Next (parity with gnome-launcher, in this order):** drag and drop between groups, folders/cards/footer layouts, settings page (sizes, corners, layouts, language) + 8 languages, hidden
   entries and marks (new ★, updates), running state, shortcuts + key map per desktop (shortcuts.py),
   Change icon (icons.py), updates (updates.py), admin launch.
