@@ -898,7 +898,8 @@ class _CubeOverviewState extends State<_CubeOverview> with TickerProviderStateMi
     final scheme = Theme.of(context).colorScheme;
     final radius = BorderRadius.circular(corners(context));
     return Tooltip(
-      message: widget.byOrigin ? tr('Groups (Ctrl+G)') : tr('By origin (Ctrl+G)'),
+      // Ctrl+G turns faces; the flip is Ctrl+Up/Down.
+      message: '${widget.byOrigin ? tr('Groups') : tr('By origin')} (Ctrl+↑/↓)',
       child: Material(
         color: scheme.surfaceContainerHigh.withValues(alpha: .92),
         shape: RoundedRectangleBorder(
