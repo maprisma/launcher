@@ -94,7 +94,8 @@ void main() {
       put('com.system76.CosmicTheme.Light', 'corner_radii',
           '(radius_0: (0.0, 0.0, 0.0, 0.0), radius_s: (8.0, 8.0, 8.0, 8.0))');
       put('com.system76.CosmicTk', 'icon_theme', '"Pop"');
-      final desktop = CosmicDesktop(Session(environment: {'HOME': home.path}));
+      final desktop = CosmicDesktop(Session(environment: {'HOME': home.path}),
+          systemDir: p.join(home.path, 'no-system-theme'));
       final colors = await desktop.themeColors();
       expect(colors['background'], '#1a334d');
       expect(colors['foreground'], '#e6e6e6');

@@ -384,7 +384,10 @@ String? ronColor(String? value) {
 }
 
 final class CosmicDesktop extends Desktop {
-  CosmicDesktop(super.session);
+  /// [systemDir]: the system's default theme (tests point it elsewhere so the
+  /// machine's own COSMIC theme does not leak in).
+  CosmicDesktop(super.session, {this.systemDir = '/usr/share/cosmic'});
+  final String systemDir;
   @override
   String get name => 'cosmic';
 
@@ -392,7 +395,7 @@ final class CosmicDesktop extends Desktop {
     final home = session.environment['XDG_CONFIG_HOME']?.isNotEmpty == true
         ? session.environment['XDG_CONFIG_HOME']!
         : p.join(session.home, '.config');
-    for (final base in [p.join(home, 'cosmic'), '/usr/share/cosmic']) {
+    for (final base in [p.join(home, 'cosmic'), systemDir]) {
       final bytes = Posix.instance.readRegular(
         p.join(base, component, 'v1', key),
         256 * 1024,

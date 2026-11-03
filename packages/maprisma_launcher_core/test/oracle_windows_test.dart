@@ -21,8 +21,14 @@ void main() {
       {'class': 'org.gnome.Nautilus', 'title': 'Home'},
       {'class': '', 'initialClass': '', 'title': ''},
     ];
-    final hyprctl = Process.runSync('hyprctl', ['clients', '-j']);
-    if (hyprctl.exitCode == 0) {
+    // Off Hyprland (GNOME, COSMIC) there is no hyprctl: the synthetic windows only.
+    ProcessResult? hyprctl;
+    try {
+      hyprctl = Process.runSync('hyprctl', ['clients', '-j']);
+    } on ProcessException {
+      hyprctl = null;
+    }
+    if (hyprctl != null && hyprctl.exitCode == 0) {
       for (final c in jsonDecode(hyprctl.stdout as String) as List) {
         clients.add({'class': c['class'], 'initialClass': c['initialClass'], 'title': c['title']});
       }
