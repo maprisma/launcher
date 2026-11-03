@@ -8,6 +8,7 @@ fixture's environment.
   oracle.py layout < cases    wide-window sizes (launcher.py) for each case
   oracle.py marks < spec      newapps, update parsing, process names, uninstall plans
   oracle.py facts             details.app_facts of every scanned app
+  oracle.py icons < spec      icons.py: index entries, score, search, looks_like, tint
 """
 import json
 import sys
@@ -100,6 +101,21 @@ def main(argv):
                                          list(details.uninstall_plan(a, look_up_package=False) or []) or None]
                        for a in apps}
         print(json.dumps(out))
+        return 0
+    if argv[1:] == ["icons"]:
+        use("gnome-launcher")
+        import icons
+        spec = json.load(sys.stdin)
+        entries = []
+        for key, data in spec["indexes"].items():
+            entries += icons.index_entries(key, data)
+        print(json.dumps({
+            "entries": [[c, s, u, k, n] for c, s, u, k, n in entries],
+            "search": [[list(x) for x in icons.search(q, cmd, entries)] for q, cmd in spec["queries"]],
+            "scores": [icons.score(q, names) for q, names in spec["scores"]],
+            "looks": [icons.looks_like(bytes(d, "latin-1"), k) for d, k in spec["looks"]],
+            "tint": icons.tint(b'<svg viewBox="0 0 1 1"><path/></svg>', "#aabbcc").decode(),
+        }))
         return 0
     if argv[1:] == ["facts"]:
         use("gnome-launcher")

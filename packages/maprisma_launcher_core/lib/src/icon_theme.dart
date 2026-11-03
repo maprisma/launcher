@@ -92,6 +92,9 @@ final class IconTheme {
     return found;
   });
 
+  /// Every icon name of the theme chain (for Change icon's search).
+  Set<String> names() => {for (final theme in themes) ..._themeIndex(theme).keys};
+
   /// The file for an Icon= value: an absolute path as it is, else a name.
   String? lookup(String icon) {
     if (icon.isEmpty) return null;

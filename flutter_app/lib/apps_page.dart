@@ -26,6 +26,7 @@ import 'drag_drop.dart';
 import 'i18n.dart';
 import 'ask_page.dart';
 import 'details_page.dart';
+import 'icon_page.dart';
 import 'install_page.dart';
 import 'settings_page.dart';
 import 'theme.dart';
@@ -702,6 +703,7 @@ class AppsPageState extends State<AppsPage> {
         const PopupMenuDivider(),
         PopupMenuItem(value: '\x00group', child: MenuLine(Icons.folder_outlined, tr('Move to group…'))),
         PopupMenuItem(value: '\x00details', child: MenuLine(Icons.info_outline, tr('Details…'))),
+        PopupMenuItem(value: '\x00icon', child: MenuLine(Icons.image_outlined, tr('Change icon…'))),
         const PopupMenuDivider(),
         if (app['uninstall'] != null && app['cli_command'] == null)
           PopupMenuItem(value: '\x00uninstall', child: MenuLine(Icons.delete_outline, tr('Uninstall…'))),
@@ -721,6 +723,8 @@ class AppsPageState extends State<AppsPage> {
         return _launch(app);
       case '\x00details':
         return _details(app);
+      case '\x00icon':
+        return _changeIcon(app);
       case '\x00hide':
         return _setHidden(app, !hidden);
       case '\x00group':
@@ -897,6 +901,16 @@ class AppsPageState extends State<AppsPage> {
       ),
     ),
   );
+
+  /// Change icon: the theme's text colour tints one-colour icons.
+  Future<void> _changeIcon(Map app) async {
+    final fg = Theme.of(context).colorScheme.onSurface;
+    final hex = '#${(fg.toARGB32() & 0xffffff).toRadixString(16).padLeft(6, '0')}';
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => IconPage(core: widget.core, app: app, foreground: hex)),
+    );
+    if (changed == true) await _load();
+  }
 
   Future<void> openSettings() => Navigator.of(context).push(
     MaterialPageRoute<void>(

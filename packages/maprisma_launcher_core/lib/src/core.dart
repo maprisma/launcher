@@ -17,6 +17,7 @@ import 'desktops.dart';
 import 'facts.dart';
 import 'groups.dart' as groups;
 import 'icon_theme.dart';
+import 'icons.dart';
 import 'launch.dart';
 import 'newapps.dart';
 import 'origins.dart' show defaultRoles;
@@ -61,6 +62,11 @@ final class CoreService {
   /// The last search's results: only these can be installed.
   List<Found> _found = [];
   late final _ask = AskRunner(session);
+  late final _iconChoices = IconChoices(session, store);
+
+  /// Change icon: the last search's online candidates, by url (only these
+  /// can be previewed or chosen).
+  final _iconCandidates = <String, Candidate>{};
   Map<String, dynamic> _updates = {'apps': {}, 'flatpaks': {}};
   DateTime? _updatesAt;
   Future<Map<String, dynamic>>? _checking;
@@ -173,6 +179,55 @@ final class CoreService {
     },
     // A website from Details: only http(s), no control characters, the
     // desktop's opener, never a shell.
+    'icons.search': (params) async {
+      final app = _app(params);
+      final query = '${params['query'] ?? ''}'.trim();
+      if (query.isEmpty || query.length > 100) throw ServiceError('bad_params');
+      final icons = await _iconTheme();
+      final q = fold(query).replaceAll(' ', '');
+      final theme = (icons.names().where((n) => fold(n).replaceAll(' ', '').contains(q)).toList()..sort())
+          .take(maxThemeResults)
+          .map((n) => {'name': n, 'file': icons.lookup(n)})
+          .where((t) => t['file'] != null)
+          .toList();
+      final online = await _iconChoices.online(query, app['cli_command'] as String?);
+      _iconCandidates
+        ..clear()
+        ..addEntries(online.map((c) => MapEntry(c.$3, c)));
+      return {
+        'theme': theme,
+        'online': [for (final c in online) {'collection': collectionNames[c.$1], 'slug': c.$2, 'url': c.$3}],
+      };
+    },
+    'icons.preview': (params) async {
+      final candidate = _iconCandidates[params['url']];
+      if (candidate == null) throw ServiceError('not_found');
+      return {'file': await _iconChoices.preview(candidate, _color(params))};
+    },
+    'icons.set': (params) async {
+      final app = _app(params);
+      final id = app['desktop_id'] as String;
+      final overrides = _iconChoices.load();
+      if (params['name'] case final String name) {
+        final icons = await _iconTheme();
+        if (!icons.names().contains(name) || !_iconChoices.validValue(name)) throw ServiceError('not_found');
+        overrides[id] = name;
+      } else {
+        final candidate = _iconCandidates[params['url']];
+        if (candidate == null) throw ServiceError('not_found');
+        final got = await _iconChoices.download(candidate, _color(params));
+        if (got == null) throw ServiceError('download_failed');
+        overrides[id] = _iconChoices.storeFile(id, got.$1, got.$2);
+      }
+      _iconChoices.save(overrides);
+      return {'set': true};
+    },
+    'icons.reset': (params) async {
+      final app = _app(params);
+      final overrides = _iconChoices.load()..remove(app['desktop_id']);
+      _iconChoices.save(overrides);
+      return {'reset': true};
+    },
     'open.url': (params) async {
       final url = _string(params, 'url');
       final uri = Uri.tryParse(url);
@@ -301,6 +356,7 @@ final class CoreService {
     final hidden = loadHidden(store);
     final defaults = desktop.defaultDesktops();
     final data = _loadGroups();
+    final chosen = _iconChoices.load();
     final seen = cleanSeen(store.readJson('seen.json', cap: 512 * 1024));
     final installed = {
       for (final a in apps)
@@ -318,8 +374,11 @@ final class CoreService {
       out.add({
         ...app,
         'key': key,
-        'icon_file':
-            icons.lookup(app['icon'] as String? ?? '') ?? icons.lookup('application-x-executable'),
+        // icons.apply: the icon chosen by hand, else the entry's own.
+        'icon_file': _chosenIcon(chosen[app['desktop_id']], icons) ??
+            icons.lookup(app['icon'] as String? ?? '') ??
+            icons.lookup('application-x-executable'),
+        'icon_chosen': chosen.containsKey(app['desktop_id']),
         'hidden': hidden.contains(app['desktop_id']),
         'group': groups.groupOf(app, data),
         'origin': desktop.origin(app, defaults),
@@ -461,6 +520,18 @@ final class CoreService {
       default:
         return first;
     }
+  }
+
+  /// A chosen icon's file: ours (when still there) or the theme's.
+  static String? _chosenIcon(String? chosen, IconTheme icons) {
+    if (chosen == null) return null;
+    if (chosen.startsWith('/')) return File(chosen).existsSync() ? chosen : null;
+    return icons.lookup(chosen);
+  }
+
+  static String? _color(Map<String, dynamic> params) {
+    final c = params['color'];
+    return c is String && RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(c) ? c : null;
   }
 
   List<String> _enabledManagers() =>

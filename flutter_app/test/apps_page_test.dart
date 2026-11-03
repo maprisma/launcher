@@ -452,4 +452,39 @@ void main() {
     await settle(tester);
     expect(find.text('DETAILS'), findsNothing);
   });
+
+  testWidgets('Change icon: a theme icon is used, and reset again', (tester) async {
+    tester.view.physicalSize = const Size(420, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final svg = File(p.join(home.path, 'data/icons/hicolor/scalable/apps/writer-alt.svg'))
+      ..createSync(recursive: true)
+      ..writeAsStringSync('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"/>');
+    final key = GlobalKey<AppsPageState>();
+    await tester.pumpWidget(MaterialApp(home: AppsPage(key: key, core: call, desktop: 'generic')));
+    await settle(tester);
+    await tester.tapAt(tester.getCenter(find.text('Writer')), buttons: kSecondaryButton);
+    await settle(tester);
+    await tester.tap(find.text('Change icon…'));
+    await settle(tester);
+    await settle(tester);
+    expect(find.text('Installed icons'), findsOneWidget);
+    await tester.tap(find.text('writer-alt'));
+    await settle(tester);
+    await settle(tester);
+    final writer = key.currentState!.apps.firstWhere((a) => a['name'] == 'Writer');
+    expect(writer['icon_file'], svg.path);
+    expect(writer['icon_chosen'], isTrue);
+    final saved = jsonDecode(File(p.join(home.path, '.config/maprisma-launcher/icons.json')).readAsStringSync());
+    expect(saved, {'writer': 'writer-alt'});
+
+    await tester.tapAt(tester.getCenter(find.text('Writer')), buttons: kSecondaryButton);
+    await settle(tester);
+    await tester.tap(find.text('Change icon…'));
+    await settle(tester);
+    await tester.tap(find.text('Use its own icon'));
+    await settle(tester);
+    await settle(tester);
+    expect(key.currentState!.apps.firstWhere((a) => a['name'] == 'Writer')['icon_chosen'], isFalse);
+  });
 }
