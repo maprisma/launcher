@@ -9,3 +9,7 @@ export 'src/desktop_entries.dart';
 export 'src/posix.dart';
 export 'src/protocol.dart';
 export 'src/shlex.dart';
+export 'src/core.dart';
+export 'src/desktops.dart';
+export 'src/icon_theme.dart';
+export 'src/launch.dart';
