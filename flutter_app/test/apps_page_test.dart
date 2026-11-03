@@ -10,7 +10,7 @@ import 'package:maprisma_launcher/i18n.dart';
 import 'package:maprisma_launcher/install_page.dart';
 import 'package:maprisma_launcher/terminal_page.dart';
 import 'package:flutter/gestures.dart' show PointerDeviceKind, kSecondaryButton;
-import 'package:maprisma_launcher/main.dart' show MaprismaLauncherApp;
+import 'package:maprisma_launcher/main.dart' show MaprismaLauncherApp, clickedOutside, windowChannel, windowFocused;
 import 'package:maprisma_launcher_core/maprisma_launcher_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -440,7 +440,7 @@ void main() {
     expect((await tester.runAsync(() => call('settings.get')))!['language'], 'de');
 
     // View buttons when small: on.
-    await tester.tap(find.byType(Switch).first);
+    await tester.tap(find.byKey(const ValueKey('view-buttons')));
     await settle(tester);
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await settle(tester);
@@ -802,5 +802,53 @@ void main() {
     await settle(tester);
     await settle(tester);
     expect(key.currentState!.apps.firstWhere((a) => a['name'] == 'Writer')['icon_chosen'], isFalse);
+  });
+
+  testWidgets('Close on click outside: enabled by default in popup mode, can be disabled in Settings', (tester) async {
+    tester.view.physicalSize = const Size(920, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final windowCalls = <(String, Object?)>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      windowChannel,
+      (mc) async {
+        windowCalls.add((mc.method, mc.arguments));
+        return null;
+      },
+    );
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(windowChannel, null);
+    });
+
+    final settings = (await tester.runAsync(() => call('settings.get')))!;
+    expect(settings['close_outside'], isTrue);
+    await tester.pumpWidget(MaprismaLauncherApp(core: call, look: const {'desktop': 'omarchy'}, settings: settings));
+    await settle(tester);
+    expect(windowCalls, contains(('grab', true)));
+
+    // Clicking outside (from the runner's focus grab) hides the popup.
+    windowCalls.clear();
+    clickedOutside.value++;
+    await settle(tester);
+    expect(windowCalls, contains(('hide', null)));
+
+    // Open Settings and disable "Close on click outside".
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await settle(tester);
+    final toggle = find.byKey(const ValueKey('close-outside'));
+    expect(tester.widget<Switch>(toggle).value, isTrue);
+    windowCalls.clear();
+    await tester.tap(toggle);
+    await settle(tester);
+    expect(tester.widget<Switch>(toggle).value, isFalse);
+    expect(windowCalls, contains(('grab', false)));
+
+    // With close_outside disabled, outside clicks and focus loss do not hide the popup.
+    windowCalls.clear();
+    clickedOutside.value++;
+    windowFocused.value = false;
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(windowCalls.where((c) => c.$1 == 'hide'), isEmpty);
+    windowFocused.value = true;
   });
 }

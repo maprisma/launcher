@@ -29,21 +29,33 @@ final shownAgain = ValueNotifier<int>(0);
 /// Whether the window has the focus (the runner's focus/blur).
 final windowFocused = ValueNotifier<bool>(true);
 
+/// Counts clicks outside the popup window (hyprland_focus_grab_v1 cleared).
+final clickedOutside = ValueNotifier<int>(0);
+
 /// While a dialog of another window runs (the folder chooser), the popup
 /// loses the focus on purpose and must stay open (Maprisma's PopupGuard).
 abstract final class PopupGuard {
+  static final changed = ValueNotifier<int>(0);
   static int _depth = 0;
   static bool get busy => _depth > 0;
 
   /// For as long as a page needs it (the app's terminal while it runs).
-  static void hold() => _depth++;
-  static void release() => _depth = _depth > 0 ? _depth - 1 : 0;
-  static Future<T> around<T>(Future<T> Function() open) async {
+  static void hold() {
     _depth++;
+    changed.value++;
+  }
+
+  static void release() {
+    _depth = _depth > 0 ? _depth - 1 : 0;
+    changed.value++;
+  }
+
+  static Future<T> around<T>(Future<T> Function() open) async {
+    hold();
     try {
       return await open();
     } finally {
-      _depth--;
+      release();
     }
   }
 }
@@ -63,6 +75,7 @@ Future<void> main(List<String> args) async {
     if (call.method == 'shown') shownAgain.value++;
     if (call.method == 'focus') windowFocused.value = true;
     if (call.method == 'blur') windowFocused.value = false;
+    if (call.method == 'outside') clickedOutside.value++;
   });
   runApp(MaprismaLauncherApp(core: backend.call, look: look, settings: settings));
 }
@@ -89,18 +102,33 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
     return mode == 'popup' || (mode == 'auto' && look['desktop'] == 'omarchy');
   }
 
+  /// Whether clicking outside the popup hides it (Settings › Close on click outside).
+  bool get closeOutside => settings['close_outside'] != false;
+
   Timer? _blurHide;
+
+  void _syncGrab() {
+    windowChannel.invokeMethod('grab', popup && closeOutside && !PopupGuard.busy).ignore();
+  }
+
+  void _onOutside() {
+    if (popup && closeOutside && !PopupGuard.busy) windowChannel.invokeMethod('hide').ignore();
+  }
 
   void _onFocus() {
     _blurHide?.cancel();
-    if (windowFocused.value || !popup || PopupGuard.busy) return;
+    _syncGrab();
+    if (windowFocused.value || !popup || !closeOutside || PopupGuard.busy) return;
     // A moment's grace for focus that comes straight back.
     _blurHide = Timer(const Duration(milliseconds: 250), () {
-      if (!windowFocused.value && !PopupGuard.busy) windowChannel.invokeMethod('hide').ignore();
+      if (!windowFocused.value && popup && closeOutside && !PopupGuard.busy) {
+        windowChannel.invokeMethod('hide').ignore();
+      }
     });
   }
 
   Future<void> _placePopup() async {
+    _syncGrab();
     if (!popup) return;
     windowChannel.invokeMethod('decorated', false).ignore();
     final size = settings['size'];
@@ -110,7 +138,10 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
     for (var i = 0; i < 10; i++) {
       try {
         final done = await widget.core('window.popup', {'width': width, 'height': height});
-        if (done['placed'] == true || done['reason'] != 'no window yet') return;
+        if (done['placed'] == true || done['reason'] != 'no window yet') {
+          _syncGrab();
+          return;
+        }
       } on Object {
         return;
       }
@@ -176,6 +207,7 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
         windowChannel.invokeMethod('decorated', true).ignore();
       }
     }
+    _syncGrab();
   }
 
   @override
@@ -185,6 +217,8 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
     shownAgain.addListener(_reloadLook);
     shownAgain.addListener(_placePopup);
     windowFocused.addListener(_onFocus);
+    clickedOutside.addListener(_onOutside);
+    PopupGuard.changed.addListener(_syncGrab);
     HardwareKeyboard.instance.addHandler(_shotKey);
     WidgetsBinding.instance.addPostFrameCallback((_) => _placePopup());
     _syncTitlebar();
@@ -192,9 +226,12 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
 
   @override
   void dispose() {
+    _blurHide?.cancel();
     shownAgain.removeListener(_reloadLook);
     shownAgain.removeListener(_placePopup);
     windowFocused.removeListener(_onFocus);
+    clickedOutside.removeListener(_onOutside);
+    PopupGuard.changed.removeListener(_syncGrab);
     HardwareKeyboard.instance.removeHandler(_shotKey);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();

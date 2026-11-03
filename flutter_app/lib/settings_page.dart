@@ -479,6 +479,15 @@ class _SettingsPageState extends State<SettingsPage> {
                       ('window', tr('Normal window')),
                     ], (v) => _set('window_mode', v)),
                   ),
+                  _row(
+                    tr('Close on click outside'),
+                    tr('In popup mode, clicking outside the window hides it.'),
+                    Switch(
+                      key: const ValueKey('close-outside'),
+                      value: settings['close_outside'] != false,
+                      onChanged: (v) => _set('close_outside', v),
+                    ),
+                  ),
                   _Section(tr('Layout'), Icons.dashboard_outlined),
                   _row(
                     tr('Layout when small'),
@@ -505,7 +514,11 @@ class _SettingsPageState extends State<SettingsPage> {
                     tr(
                       "Buttons in the narrow window's header to switch between groups, list and origin (Ctrl+G does the same).",
                     ),
-                    Switch(value: settings['view_buttons'] == true, onChanged: (v) => _set('view_buttons', v)),
+                    Switch(
+                      key: const ValueKey('view-buttons'),
+                      value: settings['view_buttons'] == true,
+                      onChanged: (v) => _set('view_buttons', v),
+                    ),
                   ),
                   _row(
                     tr('Corners'),

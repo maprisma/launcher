@@ -82,10 +82,13 @@ void main() {
     expect(settings.raw()['dock_pinned'], ['x']);
     expect(settings.read()['size'], [900, 700]);
     expect(settings.read()['screenshot_key'], isTrue);
+    expect(settings.read()['close_outside'], isTrue);
     expect(settings.read()['screenshot_folder'], isNull);
     settings.set('screenshot_key', false);
+    settings.set('close_outside', false);
     settings.set('screenshot_folder', '/tmp/shots');
     expect(settings.read()['screenshot_key'], isFalse);
+    expect(settings.read()['close_outside'], isFalse);
     expect(settings.read()['screenshot_folder'], '/tmp/shots');
     expect(() => settings.set('screenshot_folder', 'relative'), throwsArgumentError);
     settings.set('screenshot_folder', null);

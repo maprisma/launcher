@@ -5,6 +5,10 @@
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
+#ifdef GDK_WINDOWING_WAYLAND
+#include <gdk/gdkwayland.h>
+#include <wayland-client-protocol.h>
+#endif
 
 #include "flutter/generated_plugin_registrant.h"
 
@@ -14,6 +18,12 @@ struct _MyApplication {
   // "maprisma-launcher/window": tells the app its window is shown again (popup mode
   // places it then).
   FlMethodChannel* window_channel;
+  gboolean grab_enabled;
+  gboolean window_focused;
+#ifdef GDK_WINDOWING_WAYLAND
+  struct wl_proxy* grab_manager;
+  struct wl_proxy* active_grab;
+#endif
   // The dock (--dock): a layer-shell window, "maprisma-launcher/dock".
   gboolean dock;
   GtkWindow* dock_window;
@@ -22,6 +32,147 @@ struct _MyApplication {
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
+
+// --- Hyprland focus grab (hyprland_focus_grab_v1) -----------------------------
+//
+// On Hyprland, follow_mouse = 1 shifts focus whenever the pointer crosses the
+// popup's edge onto a tiled window behind it. Holding a focus grab on the
+// popup's wl_surface keeps focus while hovering outside and clears the grab
+// (firing "cleared") only when the user actually clicks outside.
+
+#ifdef GDK_WINDOWING_WAYLAND
+extern const struct wl_interface hyprland_focus_grab_v1_interface;
+
+static const struct wl_interface* focus_grab_types[] = {
+    &hyprland_focus_grab_v1_interface,
+    nullptr,
+    &wl_surface_interface,
+    &wl_surface_interface,
+};
+
+static const struct wl_message focus_grab_manager_requests[] = {
+    {"create_grab", "n", &focus_grab_types[0]},
+    {"destroy", "", &focus_grab_types[1]},
+};
+
+const struct wl_interface hyprland_focus_grab_manager_v1_interface = {
+    "hyprland_focus_grab_manager_v1", 1,
+    2, focus_grab_manager_requests,
+    0, nullptr,
+};
+
+static const struct wl_message focus_grab_requests[] = {
+    {"add_surface", "o", &focus_grab_types[2]},
+    {"remove_surface", "o", &focus_grab_types[3]},
+    {"commit", "", &focus_grab_types[1]},
+    {"destroy", "", &focus_grab_types[1]},
+};
+
+static const struct wl_message focus_grab_events[] = {
+    {"cleared", "", &focus_grab_types[1]},
+};
+
+const struct wl_interface hyprland_focus_grab_v1_interface = {
+    "hyprland_focus_grab_v1", 1,
+    4, focus_grab_requests,
+    1, focus_grab_events,
+};
+
+static void registry_global_cb(void* data, struct wl_registry* registry,
+                               uint32_t name, const char* interface,
+                               uint32_t version) {
+  MyApplication* self = MY_APPLICATION(data);
+  if (g_strcmp0(interface, "hyprland_focus_grab_manager_v1") == 0 &&
+      self->grab_manager == nullptr) {
+    self->grab_manager = static_cast<struct wl_proxy*>(wl_registry_bind(
+        registry, name, &hyprland_focus_grab_manager_v1_interface, 1));
+  }
+}
+
+static void registry_remove_cb(void* data, struct wl_registry* registry,
+                               uint32_t name) {}
+
+static const struct wl_registry_listener registry_listener = {
+    registry_global_cb,
+    registry_remove_cb,
+};
+
+static void ensure_grab_manager(MyApplication* self) {
+  if (self->grab_manager != nullptr) return;
+  GdkDisplay* gdk_display = gdk_display_get_default();
+  if (gdk_display == nullptr || !GDK_IS_WAYLAND_DISPLAY(gdk_display)) return;
+  struct wl_display* display = gdk_wayland_display_get_wl_display(gdk_display);
+  if (display == nullptr) return;
+  struct wl_registry* registry = wl_display_get_registry(display);
+  wl_registry_add_listener(registry, &registry_listener, self);
+  wl_display_roundtrip(display);
+  wl_registry_destroy(registry);
+}
+
+static void release_focus_grab(MyApplication* self) {
+  if (self->active_grab == nullptr) return;
+  struct wl_proxy* grab = self->active_grab;
+  self->active_grab = nullptr;
+  wl_proxy_marshal_flags(grab, 3 /* destroy */, nullptr,
+                         wl_proxy_get_version(grab), WL_MARSHAL_FLAG_DESTROY);
+  GdkDisplay* gdk_display = gdk_display_get_default();
+  if (gdk_display != nullptr && GDK_IS_WAYLAND_DISPLAY(gdk_display)) {
+    wl_display_flush(gdk_wayland_display_get_wl_display(gdk_display));
+  }
+}
+
+static void grab_cleared_cb(void* data, struct wl_proxy* proxy) {
+  MyApplication* self = MY_APPLICATION(data);
+  if (self->active_grab == proxy) {
+    self->active_grab = nullptr;
+    wl_proxy_marshal_flags(proxy, 3 /* destroy */, nullptr,
+                           wl_proxy_get_version(proxy),
+                           WL_MARSHAL_FLAG_DESTROY);
+  }
+  self->window_focused = FALSE;
+  if (self->grab_enabled && self->window_channel != nullptr) {
+    fl_method_channel_invoke_method(self->window_channel, "outside", nullptr,
+                                    nullptr, nullptr, nullptr);
+  }
+}
+
+static void (* const grab_listener[])(void) = {
+    reinterpret_cast<void (*)(void)>(grab_cleared_cb),
+};
+
+static void sync_focus_grab(MyApplication* self) {
+  GtkWindow* window =
+      gtk_application_get_active_window(GTK_APPLICATION(self));
+  if (!self->grab_enabled || !self->window_focused || window == nullptr ||
+      !gtk_widget_get_visible(GTK_WIDGET(window))) {
+    release_focus_grab(self);
+    return;
+  }
+  if (self->active_grab != nullptr) return;
+  ensure_grab_manager(self);
+  if (self->grab_manager == nullptr) return;
+  GdkWindow* gdk_window = gtk_widget_get_window(GTK_WIDGET(window));
+  if (gdk_window == nullptr || !GDK_IS_WAYLAND_WINDOW(gdk_window)) return;
+  struct wl_surface* surface = gdk_wayland_window_get_wl_surface(gdk_window);
+  if (surface == nullptr) return;
+  struct wl_proxy* grab = wl_proxy_marshal_flags(
+      self->grab_manager, 0 /* create_grab */,
+      &hyprland_focus_grab_v1_interface,
+      wl_proxy_get_version(self->grab_manager), 0, nullptr);
+  if (grab == nullptr) return;
+  self->active_grab = grab;
+  wl_proxy_add_listener(grab, const_cast<void (**)(void)>(grab_listener), self);
+  wl_proxy_marshal_flags(grab, 0 /* add_surface */, nullptr,
+                         wl_proxy_get_version(grab), 0, surface);
+  wl_proxy_marshal_flags(grab, 2 /* commit */, nullptr,
+                         wl_proxy_get_version(grab), 0);
+  wl_display_flush(
+      gdk_wayland_display_get_wl_display(gdk_display_get_default()));
+}
+#else
+static void release_focus_grab(MyApplication* self) {}
+static void sync_focus_grab(MyApplication* self) {}
+#endif
 
 static void notify_shown(MyApplication* self) {
   if (self->window_channel != nullptr) {
@@ -33,6 +184,12 @@ static void notify_shown(MyApplication* self) {
 // The window's focus, for the popup mode (a click elsewhere hides it).
 static gboolean focus_changed_cb(GtkWidget* widget, GdkEventFocus* event, gpointer user_data) {
   MyApplication* self = MY_APPLICATION(user_data);
+  self->window_focused = event->in;
+  if (event->in) {
+    sync_focus_grab(self);
+  } else {
+    release_focus_grab(self);
+  }
   if (self->window_channel != nullptr) {
     fl_method_channel_invoke_method(self->window_channel, event->in ? "focus" : "blur", nullptr,
                                     nullptr, nullptr, nullptr);
@@ -43,6 +200,7 @@ static gboolean focus_changed_cb(GtkWidget* widget, GdkEventFocus* event, gpoint
 // "titlebar": GTK draws the title bar, so it takes the app's light or dark.
 static void window_call_cb(FlMethodChannel* channel, FlMethodCall* call,
                            gpointer user_data) {
+  MyApplication* self = MY_APPLICATION(user_data);
   g_autoptr(FlMethodResponse) response = nullptr;
   if (g_strcmp0(fl_method_call_get_name(call), "titlebar") == 0) {
     FlValue* args = fl_method_call_get_args(call);
@@ -62,9 +220,18 @@ static void window_call_cb(FlMethodChannel* channel, FlMethodCall* call,
       gtk_window_set_decorated(window, fl_value_get_bool(args));
     }
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else if (g_strcmp0(fl_method_call_get_name(call), "grab") == 0) {
+    FlValue* args = fl_method_call_get_args(call);
+    if (args != nullptr && fl_value_get_type(args) == FL_VALUE_TYPE_BOOL) {
+      self->grab_enabled = fl_value_get_bool(args);
+      sync_focus_grab(self);
+    }
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
   } else if (g_strcmp0(fl_method_call_get_name(call), "hide") == 0) {
     // "hide": the window steps aside (after a start, on Esc); the process
     // stays, so the next --toggle shows it at once.
+    release_focus_grab(self);
+    self->window_focused = FALSE;
     GtkWindow* window = gtk_application_get_active_window(
         GTK_APPLICATION(g_application_get_default()));
     if (window != nullptr) gtk_widget_hide(GTK_WIDGET(window));
@@ -94,6 +261,8 @@ static void toggle_activated(GSimpleAction* action, GVariant* parameter,
   }
   if (gtk_widget_get_visible(GTK_WIDGET(window)) &&
       gtk_window_is_active(window)) {
+    release_focus_grab(self);
+    self->window_focused = FALSE;
     gtk_widget_hide(GTK_WIDGET(window));
     return;
   }
@@ -451,6 +620,15 @@ static void my_application_shutdown(GApplication* application) {
 // Implements GObject::dispose.
 static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
+  release_focus_grab(self);
+#ifdef GDK_WINDOWING_WAYLAND
+  if (self->grab_manager != nullptr) {
+    wl_proxy_marshal_flags(self->grab_manager, 1 /* destroy */, nullptr,
+                           wl_proxy_get_version(self->grab_manager),
+                           WL_MARSHAL_FLAG_DESTROY);
+    self->grab_manager = nullptr;
+  }
+#endif
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
   g_clear_object(&self->window_channel);
   g_clear_object(&self->dock_channel);
