@@ -44,7 +44,7 @@ void main() {
     tester.view.physicalSize = size * 2;
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    late Map<String, dynamic> look, list;
+    late Map<String, dynamic> look, list, facts;
     // A throwaway config folder: the first start copies the old apps' files
     // into it (read only there), never into ~/.config/appmanager.
     final config = Directory.systemTemp.createTempSync('am-shots-');
@@ -57,6 +57,7 @@ void main() {
       ]);
       look = await call(core, 'desktop.look');
       list = await call(core, 'apps.list');
+      facts = await call(core, 'apps.facts');
       await call(core, 'settings.set', {'key': 'view', 'value': view.name});
       await call(core, 'settings.set', {'key': 'wide_layout', 'value': wide.name});
       await call(core, 'settings.set', {'key': 'language', 'value': language});
@@ -68,6 +69,7 @@ void main() {
         switch (method) {
           'desktop.look' => look,
           'apps.list' => list,
+          'apps.facts' => facts,
           // Never in shots: checkupdates and flatpak fetch from the network.
           'updates.check' => <String, dynamic>{'apps': {}, 'flatpaks': {}},
           // The other routes only read and write files: they run here.

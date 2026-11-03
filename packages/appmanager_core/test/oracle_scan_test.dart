@@ -33,6 +33,7 @@ Future<List> dart(Map<String, String> env) async => jsonDecode(
       Session(environment: env),
       appIdPrefix: 'io.github.ubruckhaus.Launcher',
       cacheName: 'gnome-launcher',
+      localized: false,
     ),
   ),
 ) as List;

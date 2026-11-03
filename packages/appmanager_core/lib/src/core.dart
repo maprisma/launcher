@@ -10,6 +10,7 @@ import 'apps.dart';
 import 'config.dart';
 import 'desktop_entries.dart';
 import 'desktops.dart';
+import 'facts.dart';
 import 'groups.dart' as groups;
 import 'icon_theme.dart';
 import 'launch.dart';
@@ -48,6 +49,7 @@ final class CoreService {
   final _apps = <String, Map<String, dynamic>>{};
   List<Map<String, dynamic>> _list = [];
   Set<String> _running = {};
+  late final _facts = AppFacts(session);
   Map<String, dynamic> _updates = {'apps': {}, 'flatpaks': {}};
   DateTime? _updatesAt;
   Future<Map<String, dynamic>>? _checking;
@@ -65,6 +67,9 @@ final class CoreService {
     'apps.launch': (params) => _launch(params, null),
     'apps.action': (params) => _launch(params, _string(params, 'action')),
     'apps.sections': _sections,
+    // Package facts for cards and Details: one pacman call, the database
+    // read directly, one flatpak list; cached until a database changes.
+    'apps.facts': (_) async => {'facts': await _facts.all(_apps)},
     'apps.running': (_) async {
       final (names, exes) = processNames();
       _running = runningApps(_apps, names, exes);

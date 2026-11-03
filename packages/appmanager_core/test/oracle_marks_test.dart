@@ -46,7 +46,7 @@ void main() {
     expect(parseFlatpakLines(spec['flatpak_text'] as String), expected['flatpaks']);
 
     final session = Session(environment: Platform.environment);
-    final apps = await scanApps(session, appIdPrefix: 'io.github.ubruckhaus.Launcher', cacheName: 'gnome-launcher');
+    final apps = await scanApps(session, appIdPrefix: 'io.github.ubruckhaus.Launcher', cacheName: 'gnome-launcher', localized: false);
     expect({
       for (final a in apps)
         a['desktop_id']: [

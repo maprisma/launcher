@@ -334,8 +334,10 @@ String _stem(String name) {
 /// first id and the first name winning. [seenNames] collects the names.
 List<Map<String, dynamic>> scanDesktopEntries(
   Session session,
-  Set<String> seenNames,
-) {
+  Set<String> seenNames, {
+  bool localized = true,
+}) {
+  final langs = localized ? languageNames(session.environment) : const <String>[];
   final apps = <Map<String, dynamic>>[];
   final seenIds = <String>{};
   for (final directory in desktopDirectories(session)) {
@@ -368,7 +370,10 @@ List<Map<String, dynamic>> scanDesktopEntries(
               .substring(5);
         }
       }
-      final name = values['Name'], command = values['Exec'];
+      // Uwe, 2026-11-03: names and descriptions in the desktop's language
+      // (gnome-launcher shows the plain Name/Comment; localized: false does too).
+      final name = localized ? localeString(values, 'Name', langs) : values['Name'];
+      final command = values['Exec'];
       if (name == null || name.isEmpty || command == null || command.isEmpty) {
         continue;
       }
@@ -388,7 +393,9 @@ List<Map<String, dynamic>> scanDesktopEntries(
         'icon': values['Icon'] ?? '',
         'desktop_path': path,
         'actions': desktopActions(text, actionExecs, session),
-        'description': (values['Comment'] ?? '').trim(),
+        'description': localized
+            ? (localeString(values, 'Comment', langs) ?? localeString(values, 'GenericName', langs) ?? '').trim()
+            : (values['Comment'] ?? '').trim(),
         'terminal': _true(values['Terminal']),
         'sandboxed':
             (values['X-Flatpak'] ?? '').isNotEmpty ||

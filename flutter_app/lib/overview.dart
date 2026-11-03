@@ -257,7 +257,8 @@ extension Overview on AppsPageState {
   /// make_tile: icon, ⋮ for the actions, name, two lines of description.
   Widget _card(Map<String, dynamic> app, bool isSelected, double iconSize) {
     final scheme = Theme.of(context).colorScheme;
-    final description = tr((app['description'] as String? ?? '').trim());
+    final description = descriptionOf(app);
+    final facts = [?sizeText(app), ?sourceText(app)].join(' · ');
     final radius = BorderRadius.circular(corners(context));
     return _entry(
       app,
@@ -310,6 +311,14 @@ extension Overview on AppsPageState {
                     style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
                   ),
                 ),
+                // Size and where it comes from (Uwe: more facts on the cards).
+                if (facts.isNotEmpty)
+                  Text(
+                    facts,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
+                  ),
                 if (app['hidden'] == true)
                   Row(
                     children: [

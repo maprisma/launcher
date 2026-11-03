@@ -74,12 +74,13 @@ final class UpdateCheck {
     }.take(maxDesktopFiles).toList();
     final pacman = session.which('pacman');
     if (wanted.isEmpty || pacman == null) return {};
-    // Exit 1 when some file has no owner; the others are still listed.
+    // The exit code counts the files without owner (the reference allows only
+    // 0 and 1, so two unowned files there hid every update); the others are listed.
     return parseOwnerLines(await readBoundedText(
       [pacman, '-Qo', '--', ...wanted],
       maxBytes: 1024 * 1024,
       timeout: const Duration(seconds: 20),
-      okCodes: const {0, 1},
+      okCodes: const {},
       environment: _cEnv,
     ));
   }

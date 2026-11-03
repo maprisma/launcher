@@ -18,6 +18,7 @@ Future<void> main(List<String> args) async {
         ? 'io.github.ubruckhaus.Launcher'
         : 'io.github.ubruckhaus.AppManager',
     cacheName: launcher ? 'gnome-launcher' : 'appmanager',
+    localized: !launcher,
   );
   stdout.writeln(jsonEncode(apps));
 }

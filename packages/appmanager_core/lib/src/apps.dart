@@ -12,9 +12,10 @@ Future<List<Map<String, dynamic>>> scanApps(
   Session session, {
   String appIdPrefix = 'io.github.ubruckhaus.AppManager',
   String cacheName = 'appmanager',
+  bool localized = true,
 }) async {
   final seenNames = <String>{};
-  final apps = scanDesktopEntries(session, seenNames);
+  final apps = scanDesktopEntries(session, seenNames, localized: localized);
   // An AppImage a .desktop file already starts is that app.
   final started = <String>{};
   for (final app in apps) {

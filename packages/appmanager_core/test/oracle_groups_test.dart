@@ -154,7 +154,7 @@ void main() {
       final expected = await oracle(['origins', if (desktop == 'omarchy') 'omarchy'], env: env) as Map;
       final session = Session(environment: env);
       final adapter = desktop == 'omarchy' ? OmarchyDesktop(session) : GnomeDesktop(session);
-      final apps = await scanApps(session, appIdPrefix: 'io.github.ubruckhaus.Launcher', cacheName: 'gnome-launcher');
+      final apps = await scanApps(session, appIdPrefix: 'io.github.ubruckhaus.Launcher', cacheName: 'gnome-launcher', localized: false);
       final defaults = adapter.defaultDesktops();
       expect(defaults.toList()..sort(), expected['defaults']);
       expect({for (final a in apps) a['desktop_id']: adapter.origin(a, defaults)}, expected['origin']);

@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 /// launcher_core.read_bounded_output: a command's stdout, at most [maxBytes],
 /// within [timeout]; null when it fails, runs too long or says too much.
+/// An empty [okCodes] accepts any exit code (pacman -Qo counts its misses).
 /// Stderr is discarded; the process is killed when a bound is hit.
 Future<Uint8List?> readBoundedBytes(
   List<String> command, {
@@ -52,7 +53,7 @@ Future<Uint8List?> readBoundedBytes(
     await done.future.timeout(timeout);
     final code = await process.exitCode.timeout(timeout);
     await err.timeout(timeout, onTimeout: () {});
-    if (tooMuch || !okCodes.contains(code)) return null;
+    if (tooMuch || !(okCodes.contains(code) || okCodes.isEmpty)) return null;
     return out.takeBytes();
   } on TimeoutException {
     process.kill(ProcessSignal.sigkill);

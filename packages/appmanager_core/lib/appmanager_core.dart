@@ -19,3 +19,4 @@ export 'src/wide_layout.dart';
 export 'src/newapps.dart';
 export 'src/running.dart';
 export 'src/updates.dart';
+export 'src/facts.dart';

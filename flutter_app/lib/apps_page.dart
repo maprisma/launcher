@@ -128,6 +128,9 @@ class AppsPageState extends State<AppsPage> {
   /// Updates: {"apps": {desktop path: [package, installed, available]},
   /// "flatpaks": {key: [installed, available]}}.
   Map<String, dynamic> updates = const {};
+
+  /// apps.facts: {key: {kind, manager, package: {name, version, size, …}, file_size}}.
+  Map<String, dynamic> facts = const {};
   Timer? _poll;
   int _columns = 1;
   int _asked = 0;
@@ -205,6 +208,7 @@ class AppsPageState extends State<AppsPage> {
       });
       await _refreshRunning(always: true);
       unawaited(_checkUpdates());
+      unawaited(_loadFacts());
     } on Object catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
@@ -235,6 +239,70 @@ class AppsPageState extends State<AppsPage> {
     } on ServiceError {
       // No marks then.
     }
+  }
+
+  Future<void> _loadFacts() async {
+    try {
+      final result = await widget.core('apps.facts');
+      if (mounted) setState(() => facts = Map<String, dynamic>.from(result['facts'] as Map));
+    } on ServiceError {
+      // Cards without size then.
+    }
+  }
+
+  /// The app's own package: it installed the desktop entry, or the entry
+  /// is a plain program (a web app's program is the browser, a command-line
+  /// tool's maybe node: their packages are not the app).
+  Map? ownPackage(Map app) {
+    final f = facts[app['key']] as Map?;
+    final pkg = f?['package'] as Map?;
+    if (pkg == null) return null;
+    if (f?['manager'] == 'flatpak' || f?['desktop_package'] == pkg['name']) return pkg;
+    return f?['kind'] == 'app' ? pkg : null;
+  }
+
+  /// "142 MB" (pacman's bytes, an AppImage's file) or Flatpak's own text.
+  String? sizeText(Map app) {
+    final f = facts[app['key']] as Map?;
+    if (f?['kind'] == 'webapp' || f?['kind'] == 'cli') return null;
+    final pkg = ownPackage(app);
+    if (pkg == null && f?['package'] != null) return null;
+    if (pkg?['size_text'] case final String text when text.isNotEmpty) return text;
+    final bytes = (pkg?['size'] ?? f?['file_size']) as int?;
+    if (bytes == null) return null;
+    final mb = bytes / (1024 * 1024);
+    return mb >= 10 ? '${mb.round()} MB' : '${mb.toStringAsFixed(1)} MB';
+  }
+
+  /// Where it comes from, in a word: pacman, Flatpak, AppImage, web app, …
+  String? sourceText(Map app) {
+    final f = facts[app['key']] as Map?;
+    final kind = f?['kind'];
+    return switch (kind == 'webapp' || kind == 'cli' || ownPackage(app) == null && f?['manager'] == 'pacman'
+        ? kind
+        : f?['manager'] ?? kind) {
+      'pacman' => 'pacman',
+      'flatpak' => 'Flatpak',
+      'appimage' => 'AppImage',
+      'webapp' => tr('Web app'),
+      'cli' => tr('Command-line tool'),
+      _ => null,
+    };
+  }
+
+  /// The entry's description, else its package's (Antigravity's review, point 7).
+  String descriptionOf(Map app) {
+    final own = tr((app['description'] as String? ?? '').trim());
+    if (own.isNotEmpty) return own;
+    return ownPackage(app)?['description'] as String? ?? '';
+  }
+
+  String? _packageLine(Map app) {
+    final f = facts[app['key']] as Map?;
+    final pkg = f?['package'] as Map?;
+    if (pkg == null) return null;
+    final version = pkg['version'] as String? ?? '';
+    return '${pkg['name']}${version.isEmpty ? '' : ' $version'} (${sourceText(app) ?? f?['manager']})';
   }
 
   /// update_note: "Update available: …" for an entry with an update.
@@ -635,6 +703,12 @@ class AppsPageState extends State<AppsPage> {
               (tr('Group'), groupName('${app['group']}')),
               (tr('Origin'), originNames['o-${app['origin']}']),
               (tr('Default for'), (app['roles'] as List? ?? []).join(', ')),
+              (tr('Package'), _packageLine(app)),
+              (tr('Size'), sizeText(app)),
+              (
+                tr('Website'),
+                ((facts[app['key']] as Map?)?['package'] as Map?)?['url'] ?? (facts[app['key']] as Map?)?['website'],
+              ),
             ])
               if ('${value ?? ''}'.isNotEmpty)
                 Padding(

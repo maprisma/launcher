@@ -7,6 +7,7 @@ fixture's environment.
   oracle.py origins [omarchy] origin of every scanned app, default apps
   oracle.py layout < cases    wide-window sizes (launcher.py) for each case
   oracle.py marks < spec      newapps, update parsing, process names, uninstall plans
+  oracle.py facts             details.app_facts of every scanned app
 """
 import json
 import sys
@@ -99,6 +100,11 @@ def main(argv):
                                          list(details.uninstall_plan(a, look_up_package=False) or []) or None]
                        for a in apps}
         print(json.dumps(out))
+        return 0
+    if argv[1:] == ["facts"]:
+        use("gnome-launcher")
+        import details, launcher_core
+        print(json.dumps({a["desktop_id"]: details.app_facts(a) for a in launcher_core.parse_desktop_files()}))
         return 0
     if argv[1:] == ["layout"]:
         use("gnome-launcher")

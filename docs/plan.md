@@ -129,5 +129,13 @@ No add-on runs code.
   ~/Pictures/AppManager or the folder from Settings, then asks for an optional note (.txt next to it).
   Settings: "F12 saves a screenshot" (on by default), "Screenshots go to" (folder chooser, Default).
   Translations also come from Maprisma's tables now.
+- **2026-11-03 — Ask AI step 1 begun (docs/proposals/ask-ai.md):** names and descriptions in the desktop's
+  language (Name/Comment/GenericName; `localized: false` keeps the reference's for the oracle tests);
+  package facts (facts.dart: one `pacman -Qo` for all, pacman's local database read directly, one
+  `flatpak list`, AppImage file sizes) equal to details.app_facts for every app here; cards show size · source
+  and the package description when the entry has none, only for the app's own package (web apps and CLI tools
+  show their kind); Details lists package, size, website. Found: `pacman -Qo` exits with the number of misses,
+  so the reference's update check (ok 0/1) finds nothing once two /usr desktop files have no owner; fixed here.
+  Next in step 1: Settings › Package managers, search + install page, uninstall beyond pacman/Flatpak.
 - **Next (parity with gnome-launcher, in this order):** marks (new ★, updates), running state, shortcuts + key map per desktop (shortcuts.py),
   Change icon (icons.py), updates (updates.py), admin launch.
