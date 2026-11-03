@@ -15,3 +15,4 @@ export 'src/icon_theme.dart';
 export 'src/launch.dart';
 export 'src/config.dart';
 export 'src/origins.dart';
+export 'src/wide_layout.dart';

@@ -5,6 +5,7 @@ fixture's environment.
   oracle.py scan              the app list (gnome-launcher parse_desktop_files)
   oracle.py groups < ops.json run group operations, print each result
   oracle.py origins [omarchy] origin of every scanned app, default apps
+  oracle.py layout < cases    wide-window sizes (launcher.py) for each case
 """
 import json
 import sys
@@ -75,6 +76,17 @@ def main(argv):
             origin = {a["desktop_id"]: details.origin_section(a, defaults) for a in apps}
         roles = {a["desktop_id"]: details.default_roles(a) for a in apps}
         print(json.dumps({"defaults": sorted(defaults), "origin": origin, "roles": roles}))
+        return 0
+    if argv[1:] == ["layout"]:
+        use("gnome-launcher")
+        import launcher as L
+        out = []
+        for count, width, height, icon, percent in json.load(sys.stdin):
+            columns, fitted = L.folder_fit(count, width, height)
+            out.append([L.grid_columns(width), L.icon_columns(width, icon), L.folder_columns(width),
+                        [columns, fitted], L.folder_icons_height(count, columns, fitted, height),
+                        L.folder_app_icon(fitted, percent), list(L.folder_tile_size(fitted))])
+        print(json.dumps(out))
         return 0
     print(__doc__, file=sys.stderr)
     return 2
