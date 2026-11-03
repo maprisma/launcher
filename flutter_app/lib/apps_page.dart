@@ -718,10 +718,23 @@ class AppsPageState extends State<AppsPage> {
       }
     }
 
-    final (adminCan, quitLabel) = await (
+    Future<Object?> dockState() async {
+      try {
+        return await widget.core('dock.state');
+      } on ServiceError {
+        return null;
+      }
+    }
+
+    final (adminCan, quitLabel, dock) = await (
       ask('apps.admin_check', 'can'),
       isRunning(app) ? ask('apps.quit_check', 'label') : Future<Object?>.value(),
+      // Pin to dock: only while the dock (Omarchy) is switched on.
+      omarchy ? dockState() : Future<Object?>.value(),
     ).wait;
+    final dockSettings = dock is Map && dock['available'] == true ? dock['settings'] as Map? : null;
+    final canPin = dockSettings?['dock_enabled'] == true && app['cli_command'] == null;
+    final pinned = canPin && (dockSettings!['dock_pinned'] as List? ?? const []).contains(app['desktop_id']);
     final asAdmin = adminCan == true, canQuit = quitLabel is String;
     if (!mounted) return;
     final packageUpdate = (updates['apps'] as Map?)?.containsKey(app['desktop_path']) == true;
@@ -754,6 +767,11 @@ class AppsPageState extends State<AppsPage> {
         PopupMenuItem(value: '\x00details', child: MenuLine(Icons.info_outline, tr('Details…'))),
         PopupMenuItem(value: '\x00icon', child: MenuLine(Icons.image_outlined, tr('Change icon…'))),
         PopupMenuItem(value: '\x00shortcut', child: MenuLine(Icons.keyboard_outlined, tr('Shortcut…'))),
+        if (canPin)
+          PopupMenuItem(
+            value: '\x00dock',
+            child: MenuLine(Icons.push_pin_outlined, pinned ? tr('Unpin from dock') : tr('Pin to dock')),
+          ),
         const PopupMenuDivider(),
         if ((app['uninstall'] != null || widget.desktop == 'omarchy') && app['cli_command'] == null)
           PopupMenuItem(value: '\x00uninstall', child: MenuLine(Icons.delete_outline, tr('Uninstall…'))),
@@ -797,6 +815,13 @@ class AppsPageState extends State<AppsPage> {
         return _workspaceChoice(app, position);
       case '\x00system':
         return _updateSystem();
+      case '\x00dock':
+        try {
+          await widget.core('dock.pin', {'key': app['key'], 'pinned': !pinned});
+        } on ServiceError catch (e) {
+          _tell(trf('That did not work ({0}).', [e.code]));
+        }
+        return;
       default:
         return _launch(app, action: choice);
     }

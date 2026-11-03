@@ -39,6 +39,9 @@ class _SettingsPageState extends State<SettingsPage> {
   Map<String, dynamic> admin = const {};
   bool adminPending = false;
 
+  /// The dock (Omarchy only): dock.state.
+  Map<String, dynamic>? dock;
+
   @override
   void initState() {
     super.initState();
@@ -46,6 +49,138 @@ class _SettingsPageState extends State<SettingsPage> {
     widget.core('admin.state').then((r) {
       if (mounted) setState(() => admin = r);
     }).ignore();
+    widget.core('dock.state').then((r) {
+      if (mounted) setState(() => dock = r);
+    }).ignore();
+  }
+
+  /// A dock setting; switched on, the dock starts (a running one re-reads).
+  Future<void> _setDock(String key, Object? value) async {
+    try {
+      final fresh = await widget.core('dock.set', {'key': key, 'value': value});
+      if (mounted) setState(() => dock = fresh);
+      if (key == 'dock_enabled' && value == true) await widget.core('dock.start');
+    } on ServiceError {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Could not save the setting'))));
+      }
+    }
+  }
+
+  Future<void> _resetDock() async {
+    try {
+      final fresh = await widget.core('dock.reset');
+      if (mounted) setState(() => dock = fresh);
+    } on ServiceError {
+      // Nothing changed.
+    }
+  }
+
+  /// The DOCK group (build_dock_settings): on/off, edge, auto-hide, length,
+  /// corners, sizes, the running marks. Elsewhere: why there is none.
+  List<Widget> _dockRows() {
+    final state = dock;
+    if (state == null) return const [];
+    final heading = Padding(
+      padding: const EdgeInsets.only(top: 18, bottom: 4),
+      child: Text(
+        tr('Dock').toUpperCase(),
+        style: TextStyle(letterSpacing: 1.2, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+    );
+    if (state['available'] != true) {
+      final why = state['reason'] == 'no_layer_shell'
+          ? tr('The dock needs the gtk-layer-shell package (sudo pacman -S gtk-layer-shell).')
+          : tr('The dock is only for Omarchy (Hyprland). GNOME and COSMIC have docks of their own.');
+      return [
+        heading,
+        _row(tr('Show dock'), why, Text(tr('Not available'), key: const ValueKey('dock-unavailable'))),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Text(why, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        ),
+      ];
+    }
+    final d = Map<String, dynamic>.from(state['settings'] as Map);
+    final bar = state['bar'], edge = '${state['edge']}';
+    final names = {'bottom': tr('Bottom'), 'top': tr('Top'), 'left': tr('Left'), 'right': tr('Right')};
+    final ends = edge == 'left' || edge == 'right' ? (tr('Top'), tr('Bottom')) : (tr('Left'), tr('Right'));
+    Widget toggle(String key, String label, String tip) => _row(
+      label,
+      tip,
+      Switch(key: ValueKey(key), value: d[key] == true, onChanged: (v) => _setDock(key, v)),
+    );
+    Widget choice(String key, String label, String tip, List<(Object, String)> values) => _row(
+      label,
+      tip,
+      _dropdown<Object>(
+        values.any((v) => v.$1 == d[key]) ? d[key] as Object : values.first.$1,
+        values,
+        (v) => _setDock(key, v),
+      ),
+    );
+    List<(Object, String)> px(List<int> values) => [for (final v in values) (v, '$v px')];
+    return [
+      heading,
+      toggle(
+        'dock_enabled',
+        tr('Show dock'),
+        tr('A dock with your pinned apps and the running ones along a screen edge. Pin apps with “Pin to dock” in their menu.'),
+      ),
+      choice('dock_position', tr('Position'), tr("The screen edge the dock sits on. The bar's edge is left out: the dock never covers the bar."), [
+        for (final p in const ['bottom', 'top', 'left', 'right'])
+          if (p != bar) (p, names[p]!),
+      ]),
+      toggle(
+        'dock_autohide',
+        tr('Auto-hide'),
+        tr('Hidden until the pointer touches the screen edge. Off: the dock keeps its space and windows stay clear of it.'),
+      ),
+      toggle('dock_full_width', tr('Full length'), tr('Along the whole screen edge; off: only as long as its icons.')),
+      toggle('dock_rounded', tr('Rounded corners'), tr('Round corners, like the windows.')),
+      toggle(
+        'dock_transparent',
+        tr('Transparent'),
+        tr("No background, only the icons. Double-click the dock's background to switch, as on the bar."),
+      ),
+      choice('dock_align', tr('Icons'), tr('Where the icons sit in a full-length dock. A compact dock is always centred.'), [
+        ('start', ends.$1),
+        ('center', tr('Center')),
+        ('end', ends.$2),
+      ]),
+      choice('dock_height', tr('Dock height'), tr("How high the dock's background is."), px(const [32, 40, 48, 56, 64, 72, 80, 96])),
+      choice('dock_icon_size', tr('Icon size'), tr('Icons larger than the dock stick out of it, as on macOS.'),
+          px(const [24, 32, 40, 48, 56, 64, 72, 80, 96])),
+      choice('dock_spacing', tr('Icon spacing'), tr('The gap between two icons in the dock.'), px(const [0, 2, 4, 6, 8, 12, 16])),
+      choice('dock_magnify', tr('Grow on hover'), tr('The icon under the pointer grows, its neighbours halfway, as on macOS.'), [
+        (100, tr('Off')),
+        for (final v in const [125, 150, 175, 200]) (v, '$v %'),
+      ]),
+      toggle('dock_bounce', tr('Bounce on alerts'), tr('An app that wants attention bounces in the dock until you switch to it.')),
+      toggle('dock_indicator_shown', tr('Show indicator'), tr('Mark running apps in the dock (style and colour below).')),
+      choice(
+        'dock_indicator',
+        tr('Indicator'),
+        tr("How running apps are marked: a dot or a line next to the icon. The focused app's mark is larger."),
+        [('dot', tr('Dot')), ('line', tr('Line'))],
+      ),
+      choice('dock_indicator_color', tr('Indicator colour'), tr("The colour of the running marks; Theme uses the theme's accent colour."), [
+        ('theme', tr('Theme')),
+        ('foreground', tr('Light')),
+        ('red', tr('Red')),
+        ('yellow', tr('Yellow')),
+        ('green', tr('Green')),
+        ('orange', tr('Orange')),
+      ]),
+      Align(
+        alignment: Alignment.centerRight,
+        child: TextButton(
+          key: const ValueKey('dock-reset'),
+          onPressed: _resetDock,
+          child: Text(tr('Reset to defaults')),
+        ),
+      ),
+    ];
   }
 
   /// on_admin_action_toggled: on only after polkit confirmed the password.
@@ -352,6 +487,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         for (final size in iconSizeChoices[view]!) (size, view == 'folders' ? '$size %' : '$size px'),
                       ], (v) => _set('icon_size', {'view': view, 'size': v})),
                     ),
+                  ..._dockRows(),
                 ],
               ),
             ),

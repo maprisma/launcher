@@ -141,7 +141,11 @@
   "{0} — {2}'s “{1}”; click to rebind": "{0} — {2}-Standard „{1}“; klicken zum Neubelegen",
   "{0}'s keyboard settings were not found, so shortcuts cannot be set here.": "Die Tastatureinstellungen von {0} wurden nicht gefunden, daher lassen sich hier keine Kürzel setzen.",
   "{1}'s “{0}”. Assigning turns it off while this shortcut exists; removing the shortcut brings it back.": "{1}-Standard „{0}“. Zuweisen schaltet ihn aus, solange dieses Kürzel existiert; Entfernen des Kürzels bringt ihn zurück.",
-  "{0} could not be quit.": "{0} konnte nicht beendet werden."
+  "{0} could not be quit.": "{0} konnte nicht beendet werden.",
+  "Not available": "Nicht verfügbar",
+  "Pin apps with “Pin to dock” in Maprisma Launcher's menu": "Apps mit „An Dock anheften“ im Menü von Maprisma Launcher anheften",
+  "The dock is only for Omarchy (Hyprland). GNOME and COSMIC have docks of their own.": "Das Dock gibt es nur unter Omarchy (Hyprland). GNOME und COSMIC haben eigene Docks.",
+  "The dock needs the gtk-layer-shell package (sudo pacman -S gtk-layer-shell).": "Das Dock braucht das Paket gtk-layer-shell (sudo pacman -S gtk-layer-shell)."
  },
  "es": {
   "\u0004{0} app": [
@@ -285,7 +289,11 @@
   "{0} — {2}'s “{1}”; click to rebind": "{0} — predeterminado de {2} «{1}»; haz clic para reasignar",
   "{0}'s keyboard settings were not found, so shortcuts cannot be set here.": "No se encontró la configuración de teclado de {0}, así que aquí no se pueden definir atajos.",
   "{1}'s “{0}”. Assigning turns it off while this shortcut exists; removing the shortcut brings it back.": "Predeterminado de {1} «{0}». Al asignarla se desactiva mientras exista este atajo; quitar el atajo lo recupera.",
-  "{0} could not be quit.": "No se pudo cerrar {0}."
+  "{0} could not be quit.": "No se pudo cerrar {0}.",
+  "Not available": "No disponible",
+  "Pin apps with “Pin to dock” in Maprisma Launcher's menu": "Fija apps con «Anclar al dock» en el menú de Maprisma Launcher",
+  "The dock is only for Omarchy (Hyprland). GNOME and COSMIC have docks of their own.": "El dock es solo para Omarchy (Hyprland). GNOME y COSMIC tienen sus propios docks.",
+  "The dock needs the gtk-layer-shell package (sudo pacman -S gtk-layer-shell).": "El dock necesita el paquete gtk-layer-shell (sudo pacman -S gtk-layer-shell)."
  },
  "fr": {
   "\u0004{0} app": [
@@ -429,7 +437,11 @@
   "{0} — {2}'s “{1}”; click to rebind": "{0} — défaut {2} « {1} » ; cliquez pour réattribuer",
   "{0}'s keyboard settings were not found, so shortcuts cannot be set here.": "Les réglages clavier de {0} sont introuvables : impossible de définir des raccourcis ici.",
   "{1}'s “{0}”. Assigning turns it off while this shortcut exists; removing the shortcut brings it back.": "Défaut {1} « {0} ». L’attribution le désactive tant que ce raccourci existe ; retirer le raccourci le rétablit.",
-  "{0} could not be quit.": "Impossible de quitter {0}."
+  "{0} could not be quit.": "Impossible de quitter {0}.",
+  "Not available": "Indisponible",
+  "Pin apps with “Pin to dock” in Maprisma Launcher's menu": "Épinglez des apps avec « Épingler au dock » dans le menu de Maprisma Launcher",
+  "The dock is only for Omarchy (Hyprland). GNOME and COSMIC have docks of their own.": "Le dock est réservé à Omarchy (Hyprland). GNOME et COSMIC ont leurs propres docks.",
+  "The dock needs the gtk-layer-shell package (sudo pacman -S gtk-layer-shell).": "Le dock a besoin du paquet gtk-layer-shell (sudo pacman -S gtk-layer-shell)."
  },
  "it": {
   "\u0004{0} app": [
@@ -573,7 +585,11 @@
   "{0} — {2}'s “{1}”; click to rebind": "{0} — predefinita di {2} «{1}»; fai clic per riassegnare",
   "{0}'s keyboard settings were not found, so shortcuts cannot be set here.": "Le impostazioni della tastiera di {0} non sono state trovate, quindi qui non si possono impostare scorciatoie.",
   "{1}'s “{0}”. Assigning turns it off while this shortcut exists; removing the shortcut brings it back.": "Predefinita di {1} «{0}». Assegnando la disattivi finché esiste questa scorciatoia; rimuovendo la scorciatoia torna attiva.",
-  "{0} could not be quit.": "Impossibile chiudere {0}."
+  "{0} could not be quit.": "Impossibile chiudere {0}.",
+  "Not available": "Non disponibile",
+  "Pin apps with “Pin to dock” in Maprisma Launcher's menu": "Fissa le app con «Fissa nel dock» nel menu di Maprisma Launcher",
+  "The dock is only for Omarchy (Hyprland). GNOME and COSMIC have docks of their own.": "Il dock è solo per Omarchy (Hyprland). GNOME e COSMIC hanno dock propri.",
+  "The dock needs the gtk-layer-shell package (sudo pacman -S gtk-layer-shell).": "Il dock richiede il pacchetto gtk-layer-shell (sudo pacman -S gtk-layer-shell)."
  },
  "nl": {
   "\u0004{0} app": [
@@ -717,7 +733,11 @@
   "{0} — {2}'s “{1}”; click to rebind": "{0} — {2}-standaard ‘{1}’; klik om opnieuw toe te wijzen",
   "{0}'s keyboard settings were not found, so shortcuts cannot be set here.": "De toetsenbordinstellingen van {0} zijn niet gevonden, dus hier kunnen geen sneltoetsen worden ingesteld.",
   "{1}'s “{0}”. Assigning turns it off while this shortcut exists; removing the shortcut brings it back.": "{1}-standaard ‘{0}’. Toewijzen zet hem uit zolang deze sneltoets bestaat; de sneltoets verwijderen brengt hem terug.",
-  "{0} could not be quit.": "{0} kon niet worden afgesloten."
+  "{0} could not be quit.": "{0} kon niet worden afgesloten.",
+  "Not available": "Niet beschikbaar",
+  "Pin apps with “Pin to dock” in Maprisma Launcher's menu": "Zet apps vast met ‘Vastzetten in dock’ in het menu van Maprisma Launcher",
+  "The dock is only for Omarchy (Hyprland). GNOME and COSMIC have docks of their own.": "Het dock is alleen voor Omarchy (Hyprland). GNOME en COSMIC hebben hun eigen docks.",
+  "The dock needs the gtk-layer-shell package (sudo pacman -S gtk-layer-shell).": "Het dock heeft het pakket gtk-layer-shell nodig (sudo pacman -S gtk-layer-shell)."
  },
  "pl": {
   "\u0004{0} app": [
@@ -863,7 +883,11 @@
   "{0} — {2}'s “{1}”; click to rebind": "{0} — domyślny {2} „{1}”; kliknij, aby przypisać na nowo",
   "{0}'s keyboard settings were not found, so shortcuts cannot be set here.": "Nie znaleziono ustawień klawiatury {0}, więc nie można tu ustawić skrótów.",
   "{1}'s “{0}”. Assigning turns it off while this shortcut exists; removing the shortcut brings it back.": "Domyślny {1} „{0}”. Przypisanie wyłącza go, dopóki istnieje ten skrót; usunięcie skrótu go przywraca.",
-  "{0} could not be quit.": "Nie udało się zamknąć {0}."
+  "{0} could not be quit.": "Nie udało się zamknąć {0}.",
+  "Not available": "Niedostępne",
+  "Pin apps with “Pin to dock” in Maprisma Launcher's menu": "Przypinaj aplikacje opcją „Przypnij do doku” w menu Maprisma Launcher",
+  "The dock is only for Omarchy (Hyprland). GNOME and COSMIC have docks of their own.": "Dock jest tylko dla Omarchy (Hyprland). GNOME i COSMIC mają własne docki.",
+  "The dock needs the gtk-layer-shell package (sudo pacman -S gtk-layer-shell).": "Dock wymaga pakietu gtk-layer-shell (sudo pacman -S gtk-layer-shell)."
  },
  "pt": {
   "\u0004{0} app": [
@@ -1007,6 +1031,10 @@
   "{0} — {2}'s “{1}”; click to rebind": "{0} — padrão do {2} “{1}”; clique para reatribuir",
   "{0}'s keyboard settings were not found, so shortcuts cannot be set here.": "As configurações de teclado do {0} não foram encontradas, então não é possível definir atalhos aqui.",
   "{1}'s “{0}”. Assigning turns it off while this shortcut exists; removing the shortcut brings it back.": "Padrão do {1} “{0}”. Atribuir o desliga enquanto este atalho existir; remover o atalho o traz de volta.",
-  "{0} could not be quit.": "Não foi possível fechar {0}."
+  "{0} could not be quit.": "Não foi possível fechar {0}.",
+  "Not available": "Indisponível",
+  "Pin apps with “Pin to dock” in Maprisma Launcher's menu": "Fixe apps com “Fixar na dock” no menu do Maprisma Launcher",
+  "The dock is only for Omarchy (Hyprland). GNOME and COSMIC have docks of their own.": "A dock é só para o Omarchy (Hyprland). O GNOME e o COSMIC têm docks próprias.",
+  "The dock needs the gtk-layer-shell package (sudo pacman -S gtk-layer-shell).": "A dock precisa do pacote gtk-layer-shell (sudo pacman -S gtk-layer-shell)."
  }
 }

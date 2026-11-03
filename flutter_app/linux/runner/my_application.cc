@@ -1,5 +1,6 @@
 #include "my_application.h"
 
+#include <dlfcn.h>
 #include <flutter_linux/flutter_linux.h>
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
@@ -13,6 +14,11 @@ struct _MyApplication {
   // "maprisma-launcher/window": tells the app its window is shown again (popup mode
   // places it then).
   FlMethodChannel* window_channel;
+  // The dock (--dock): a layer-shell window, "maprisma-launcher/dock".
+  gboolean dock;
+  GtkWindow* dock_window;
+  FlMethodChannel* dock_channel;
+  int exit_code;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
@@ -96,9 +102,210 @@ static void toggle_activated(GSimpleAction* action, GVariant* parameter,
   notify_shown(self);
 }
 
+
+// --- the dock -----------------------------------------------------------------
+//
+// gtk-layer-shell (GTK3, package gtk-layer-shell) is optional: it is loaded
+// with dlopen when the dock starts, and the dock refuses to start without it.
+// gtk_layer_init_for_window must run before the window is realized.
+
+static const char* kLayerShellLibrary = "libgtk-layer-shell.so.0";
+enum { kEdgeLeft = 0, kEdgeRight = 1, kEdgeTop = 2, kEdgeBottom = 3 };
+enum { kLayerTop = 2 };
+enum { kKeyboardNone = 0 };
+
+static struct {
+  gboolean (*is_supported)();
+  void (*init_for_window)(GtkWindow*);
+  void (*set_namespace)(GtkWindow*, const char*);
+  void (*set_layer)(GtkWindow*, int);
+  void (*set_anchor)(GtkWindow*, int, gboolean);
+  void (*set_margin)(GtkWindow*, int, int);
+  void (*set_exclusive_zone)(GtkWindow*, int);
+  void (*set_keyboard_mode)(GtkWindow*, int);
+  void (*set_keyboard_interactivity)(GtkWindow*, gboolean);
+} layer;
+
+// Loads the library and its functions; FALSE (with a message) when it is missing.
+static gboolean load_layer_shell() {
+  void* lib = dlopen(kLayerShellLibrary, RTLD_NOW | RTLD_LOCAL);
+  if (lib == nullptr) {
+    g_printerr("maprisma-launcher --dock: the dock needs gtk-layer-shell (%s), which is not installed: %s\n",
+               kLayerShellLibrary, dlerror());
+    return FALSE;
+  }
+#define LAYER_FN(field, name) *reinterpret_cast<void**>(&layer.field) = dlsym(lib, name)
+  LAYER_FN(is_supported, "gtk_layer_is_supported");
+  LAYER_FN(init_for_window, "gtk_layer_init_for_window");
+  LAYER_FN(set_namespace, "gtk_layer_set_namespace");
+  LAYER_FN(set_layer, "gtk_layer_set_layer");
+  LAYER_FN(set_anchor, "gtk_layer_set_anchor");
+  LAYER_FN(set_margin, "gtk_layer_set_margin");
+  LAYER_FN(set_exclusive_zone, "gtk_layer_set_exclusive_zone");
+  LAYER_FN(set_keyboard_mode, "gtk_layer_set_keyboard_mode");
+  LAYER_FN(set_keyboard_interactivity, "gtk_layer_set_keyboard_interactivity");
+#undef LAYER_FN
+  if (layer.init_for_window == nullptr || layer.set_layer == nullptr || layer.set_anchor == nullptr ||
+      layer.set_margin == nullptr || layer.set_exclusive_zone == nullptr || layer.set_namespace == nullptr) {
+    g_printerr("maprisma-launcher --dock: %s is too old (gtk_layer_* functions missing)\n", kLayerShellLibrary);
+    return FALSE;
+  }
+  return TRUE;
+}
+
+static int edge_number(const gchar* edge) {
+  if (g_strcmp0(edge, "top") == 0) return kEdgeTop;
+  if (g_strcmp0(edge, "left") == 0) return kEdgeLeft;
+  if (g_strcmp0(edge, "right") == 0) return kEdgeRight;
+  return kEdgeBottom;
+}
+
+static int64_t map_int(FlValue* map, const char* key, int64_t fallback) {
+  FlValue* value = fl_value_lookup_string(map, key);
+  return value != nullptr && fl_value_get_type(value) == FL_VALUE_TYPE_INT ? fl_value_get_int(value) : fallback;
+}
+
+// "layout": {edge, thickness, exclusive}: anchored to the edge and along its
+// whole length; Flutter draws the band where it belongs and keeps the rest
+// of the surface out of the input region ("input").
+static void dock_layout(GtkWindow* window, FlValue* args) {
+  FlValue* edge_value = fl_value_lookup_string(args, "edge");
+  const gchar* edge =
+      edge_value != nullptr && fl_value_get_type(edge_value) == FL_VALUE_TYPE_STRING ? fl_value_get_string(edge_value) : "bottom";
+  int at = edge_number(edge);
+  int thickness = (int)CLAMP(map_int(args, "thickness", 48), 1, 2000);
+  int exclusive = (int)CLAMP(map_int(args, "exclusive", 0), 0, 1000);
+  gboolean vertical = at == kEdgeLeft || at == kEdgeRight;
+  for (int e = 0; e < 4; e++) {
+    gboolean along = vertical ? (e == kEdgeTop || e == kEdgeBottom) : (e == kEdgeLeft || e == kEdgeRight);
+    layer.set_anchor(window, e, e == at || along);
+    layer.set_margin(window, e, 0);
+  }
+  layer.set_exclusive_zone(window, exclusive);
+  if (vertical) {
+    gtk_widget_set_size_request(GTK_WIDGET(window), thickness, -1);
+  } else {
+    gtk_widget_set_size_request(GTK_WIDGET(window), -1, thickness);
+  }
+  gtk_window_resize(window, 1, 1);
+}
+
+// "input": [[x, y, w, h], …] in logical pixels; null: the whole surface.
+static void dock_input(GtkWindow* window, FlValue* args) {
+  if (args == nullptr || fl_value_get_type(args) != FL_VALUE_TYPE_LIST) {
+    gtk_widget_input_shape_combine_region(GTK_WIDGET(window), nullptr);
+    return;
+  }
+  cairo_region_t* region = cairo_region_create();
+  for (size_t i = 0; i < fl_value_get_length(args) && i < 64; i++) {
+    FlValue* rect = fl_value_get_list_value(args, i);
+    if (fl_value_get_type(rect) != FL_VALUE_TYPE_LIST || fl_value_get_length(rect) != 4) continue;
+    int v[4];
+    gboolean ok = TRUE;
+    for (int k = 0; k < 4; k++) {
+      FlValue* n = fl_value_get_list_value(rect, k);
+      if (fl_value_get_type(n) == FL_VALUE_TYPE_INT) {
+        v[k] = (int)CLAMP(fl_value_get_int(n), -100000, 100000);
+      } else if (fl_value_get_type(n) == FL_VALUE_TYPE_FLOAT) {
+        v[k] = (int)CLAMP(fl_value_get_float(n), -100000, 100000);
+      } else {
+        ok = FALSE;
+      }
+    }
+    if (!ok || v[2] <= 0 || v[3] <= 0) continue;
+    cairo_rectangle_int_t r = {v[0], v[1], v[2], v[3]};
+    cairo_region_union_rectangle(region, &r);
+  }
+  gtk_widget_input_shape_combine_region(GTK_WIDGET(window), region);
+  cairo_region_destroy(region);
+}
+
+static void dock_call_cb(FlMethodChannel* channel, FlMethodCall* call, gpointer user_data) {
+  MyApplication* self = MY_APPLICATION(user_data);
+  const gchar* name = fl_method_call_get_name(call);
+  FlValue* args = fl_method_call_get_args(call);
+  g_autoptr(FlMethodResponse) response = nullptr;
+  if (g_strcmp0(name, "layout") == 0 && self->dock_window != nullptr && args != nullptr &&
+      fl_value_get_type(args) == FL_VALUE_TYPE_MAP) {
+    dock_layout(self->dock_window, args);
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else if (g_strcmp0(name, "input") == 0 && self->dock_window != nullptr) {
+    dock_input(self->dock_window, args);
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else if (g_strcmp0(name, "quit") == 0) {
+    // Switched off (or refused): the process ends.
+    if (args != nullptr && fl_value_get_type(args) == FL_VALUE_TYPE_INT) self->exit_code = (int)fl_value_get_int(args);
+    g_application_quit(G_APPLICATION(self));
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else {
+    response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
+  }
+  fl_method_call_respond(call, response, nullptr);
+}
+
+static void dock_first_frame_cb(MyApplication* self, FlView* view) {
+  gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+}
+
+// The dock's window: a transparent layer surface on the top layer that never
+// takes the keyboard. Started again: the running dock re-reads its settings.
+static void dock_activate(MyApplication* self) {
+  if (self->dock_window != nullptr) {
+    if (self->dock_channel != nullptr) {
+      fl_method_channel_invoke_method(self->dock_channel, "reload", nullptr, nullptr, nullptr, nullptr);
+    }
+    return;
+  }
+  if (layer.is_supported != nullptr && !layer.is_supported()) {
+    g_printerr("maprisma-launcher --dock: this session has no layer shell (Wayland with wlr-layer-shell is needed)\n");
+    self->exit_code = 4;
+    return;
+  }
+  GtkWindow* window = GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(self)));
+  gtk_window_set_title(window, "Maprisma Launcher Dock");
+  gtk_window_set_decorated(window, FALSE);
+  GdkVisual* visual = gdk_screen_get_rgba_visual(gtk_widget_get_screen(GTK_WIDGET(window)));
+  if (visual != nullptr) gtk_widget_set_visual(GTK_WIDGET(window), visual);
+  gtk_widget_set_app_paintable(GTK_WIDGET(window), TRUE);
+  layer.init_for_window(window);
+  layer.set_namespace(window, "maprisma-launcher-dock");
+  layer.set_layer(window, kLayerTop);
+  if (layer.set_keyboard_mode != nullptr) {
+    layer.set_keyboard_mode(window, kKeyboardNone);
+  } else if (layer.set_keyboard_interactivity != nullptr) {
+    layer.set_keyboard_interactivity(window, FALSE);
+  }
+  g_autoptr(FlValue) start = fl_value_new_map();
+  fl_value_set_string_take(start, "edge", fl_value_new_string("bottom"));
+  fl_value_set_string_take(start, "thickness", fl_value_new_int(2));
+  fl_value_set_string_take(start, "exclusive", fl_value_new_int(0));
+  dock_layout(window, start);
+  self->dock_window = window;
+
+  g_autoptr(FlDartProject) project = fl_dart_project_new();
+  fl_dart_project_set_dart_entrypoint_arguments(project, self->dart_entrypoint_arguments);
+  FlView* view = fl_view_new(project);
+  GdkRGBA clear = {0, 0, 0, 0};
+  fl_view_set_background_color(view, &clear);
+  gtk_widget_show(GTK_WIDGET(view));
+  gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
+  g_signal_connect_swapped(view, "first-frame", G_CALLBACK(dock_first_frame_cb), self);
+  gtk_widget_realize(GTK_WIDGET(view));
+  fl_register_plugins(FL_PLUGIN_REGISTRY(view));
+
+  g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
+  self->dock_channel = fl_method_channel_new(fl_engine_get_binary_messenger(fl_view_get_engine(view)),
+                                             "maprisma-launcher/dock", FL_METHOD_CODEC(codec));
+  fl_method_channel_set_method_call_handler(self->dock_channel, dock_call_cb, self, nullptr);
+}
+
 // Implements GApplication::activate.
 static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
+  if (self->dock) {
+    dock_activate(self);
+    return;
+  }
   GtkWindow* existing = gtk_application_get_active_window(GTK_APPLICATION(application));
   if (existing != nullptr) {
     gtk_widget_show(GTK_WIDGET(existing));
@@ -182,7 +389,7 @@ static gboolean my_application_local_command_line(GApplication* application,
   gboolean toggle = FALSE;
   GPtrArray* kept = g_ptr_array_new();
   for (gchar** arg = *arguments + 1; *arg != nullptr; arg++) {
-    if (g_strcmp0(*arg, "--toggle") == 0) {
+    if (g_strcmp0(*arg, "--toggle") == 0 && !self->dock) {
       toggle = TRUE;
     } else {
       g_ptr_array_add(kept, g_strdup(*arg));
@@ -191,6 +398,13 @@ static gboolean my_application_local_command_line(GApplication* application,
   g_ptr_array_add(kept, nullptr);
   self->dart_entrypoint_arguments =
       reinterpret_cast<char**>(g_ptr_array_free(kept, FALSE));
+
+  // The dock (--dock stays among the Dart arguments: main.dart starts the
+  // dock then). Without gtk-layer-shell it refuses before anything shows.
+  if (self->dock && !load_layer_shell()) {
+    *exit_status = 3;
+    return TRUE;
+  }
 
   g_autoptr(GError) error = nullptr;
   if (!g_application_register(application, nullptr, &error)) {
@@ -239,6 +453,7 @@ static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
   g_clear_object(&self->window_channel);
+  g_clear_object(&self->dock_channel);
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }
 
@@ -253,14 +468,20 @@ static void my_application_class_init(MyApplicationClass* klass) {
 
 static void my_application_init(MyApplication* self) {}
 
-MyApplication* my_application_new() {
+int my_application_exit_code(MyApplication* self) { return self->exit_code; }
+
+MyApplication* my_application_new(gboolean dock) {
   // Set the program name to the application ID, which helps various systems
   // like GTK and desktop environments map this running application to its
   // corresponding .desktop file. This ensures better integration by allowing
   // the application to be recognized beyond its binary name.
-  g_set_prgname(APPLICATION_ID);
+  // The dock is a single instance of its own, apart from the app's window.
+  const gchar* id = dock ? APPLICATION_ID ".Dock" : APPLICATION_ID;
+  g_set_prgname(id);
 
-  return MY_APPLICATION(g_object_new(my_application_get_type(),
-                                     "application-id", APPLICATION_ID, "flags",
-                                     G_APPLICATION_DEFAULT_FLAGS, nullptr));
+  MyApplication* self = MY_APPLICATION(g_object_new(my_application_get_type(),
+                                                    "application-id", id, "flags",
+                                                    G_APPLICATION_DEFAULT_FLAGS, nullptr));
+  self->dock = dock;
+  return self;
 }
