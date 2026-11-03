@@ -143,6 +143,18 @@ final class CoreService {
       _clients = await _hyprland.clients();
       return {'windows': _hyprland.windowsOf(app, _clients)};
     },
+    // Close: Hyprland asks each of the app's windows to close (as its ✕);
+    // the app may still ask to save. Only windows Hyprland lists now.
+    'apps.close': (params) async {
+      final app = _app(params);
+      if (!_hyprland.available) throw ServiceError('not_available');
+      _clients = await _hyprland.clients();
+      var closed = 0;
+      for (final w in _hyprland.windowsOf(app, _clients)) {
+        if (Hyprland.validAddress(w['address']) && await _hyprland.closeWindow(w['address'] as String)) closed++;
+      }
+      return {'closed': closed};
+    },
     'window.focus': (params) async {
       final address = _string(params, 'address');
       // Only a window Hyprland listed just now.

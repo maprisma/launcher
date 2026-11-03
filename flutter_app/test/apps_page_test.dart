@@ -9,7 +9,7 @@ import 'package:maprisma_launcher/apps_page.dart';
 import 'package:maprisma_launcher/i18n.dart';
 import 'package:maprisma_launcher/install_page.dart';
 import 'package:maprisma_launcher/terminal_page.dart';
-import 'package:flutter/gestures.dart' show kSecondaryButton;
+import 'package:flutter/gestures.dart' show PointerDeviceKind, kSecondaryButton;
 import 'package:maprisma_launcher/main.dart' show MaprismaLauncherApp;
 import 'package:maprisma_launcher_core/maprisma_launcher_core.dart';
 import 'package:flutter/material.dart';
@@ -562,6 +562,66 @@ void main() {
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 900)));
     await settle(tester);
     expect(asked, ['check $misc', 'quit $misc']);
+  });
+
+  testWidgets('Close: for an app with windows, "Close all windows (n)" asks the core to close them', (tester) async {
+    tester.view.physicalSize = const Size(420, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final closed = <String>[];
+    String? misc;
+    Future<Map<String, dynamic>> fake(String method, [Map<String, dynamic> params = const {}]) async {
+      switch (method) {
+        case 'apps.running':
+          final apps = (await call('apps.list'))['apps'] as List;
+          misc = apps.firstWhere((a) => a['name'] == 'Misc')['key'] as String;
+          return {'running': [misc], 'states': {misc: 'active'}};
+        case 'apps.windows':
+          return {'windows': [{'address': '0x1'}, {'address': '0x2'}]};
+        case 'apps.close':
+          closed.add('${params['key']}');
+          return {'closed': 2};
+        case 'apps.quit_check':
+          return {'label': null};
+      }
+      return call(method, params);
+    }
+
+    await tester.pumpWidget(MaterialApp(home: AppsPage(core: fake, desktop: 'omarchy')));
+    await settle(tester);
+    await tester.tapAt(tester.getCenter(find.text('Misc')), buttons: kSecondaryButton);
+    await settle(tester);
+    expect(find.text('Switch to window'), findsOneWidget);
+    await tester.tap(find.text('Close all windows (2)'));
+    await settle(tester);
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 600)));
+    await settle(tester);
+    expect(closed, [misc]);
+  });
+
+  testWidgets('a click that moves a pixel on a folder icon does not move the app to the end of its group', (tester) async {
+    tester.view.physicalSize = const Size(1500, 1150);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final placed = <Map>[];
+    Future<Map<String, dynamic>> fake(String method, [Map<String, dynamic> params = const {}]) async {
+      if (method == 'groups.place') placed.add(params);
+      return call(method, params);
+    }
+
+    await tester.pumpWidget(MaterialApp(home: AppsPage(core: fake, desktop: 'generic')));
+    await settle(tester);
+    final writer = find.byWidgetPredicate((w) => w is Tooltip && w.message == 'Writer');
+    final start = tester.getCenter(writer);
+    // A mouse: a drag starts after a pixel or so (a touch needs 18).
+    final gesture = await tester.startGesture(start, kind: PointerDeviceKind.mouse);
+    for (var i = 1; i <= 4; i++) {
+      await gesture.moveTo(start + Offset(i * 3.0, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await gesture.up();
+    await settle(tester);
+    expect(placed, isEmpty);
   });
 
   testWidgets('Install apps: search, review with the command and the AUR warning', (tester) async {

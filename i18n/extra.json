@@ -162,7 +162,10 @@
   "Stopped.": "Abgebrochen.",
   "System update": "Systemaktualisierung",
   "Close": "Schließen",
-  "The terminal stopped.": "Das Terminal wurde beendet."
+  "The terminal stopped.": "Das Terminal wurde beendet.",
+  "Close window": "Fenster schließen",
+  "Close all windows ({0})": "Alle Fenster schließen ({0})",
+  "{0} could not be closed.": "{0} konnte nicht geschlossen werden."
  },
  "es": {
   "\u0004{0} app": [
@@ -327,7 +330,10 @@
   "Stopped.": "Detenido.",
   "System update": "Actualización del sistema",
   "Close": "Cerrar",
-  "The terminal stopped.": "El terminal se detuvo."
+  "The terminal stopped.": "El terminal se detuvo.",
+  "Close window": "Cerrar ventana",
+  "Close all windows ({0})": "Cerrar todas las ventanas ({0})",
+  "{0} could not be closed.": "No se pudo cerrar {0}."
  },
  "fr": {
   "\u0004{0} app": [
@@ -492,7 +498,10 @@
   "Stopped.": "Arrêté.",
   "System update": "Mise à jour du système",
   "Close": "Fermer",
-  "The terminal stopped.": "Le terminal s’est arrêté."
+  "The terminal stopped.": "Le terminal s’est arrêté.",
+  "Close window": "Fermer la fenêtre",
+  "Close all windows ({0})": "Fermer toutes les fenêtres ({0})",
+  "{0} could not be closed.": "Impossible de fermer {0}."
  },
  "it": {
   "\u0004{0} app": [
@@ -657,7 +666,10 @@
   "Stopped.": "Fermato.",
   "System update": "Aggiornamento di sistema",
   "Close": "Chiudi",
-  "The terminal stopped.": "Il terminale si è fermato."
+  "The terminal stopped.": "Il terminale si è fermato.",
+  "Close window": "Chiudi finestra",
+  "Close all windows ({0})": "Chiudi tutte le finestre ({0})",
+  "{0} could not be closed.": "Impossibile chiudere {0}."
  },
  "nl": {
   "\u0004{0} app": [
@@ -822,7 +834,10 @@
   "Stopped.": "Gestopt.",
   "System update": "Systeemupdate",
   "Close": "Sluiten",
-  "The terminal stopped.": "De terminal is gestopt."
+  "The terminal stopped.": "De terminal is gestopt.",
+  "Close window": "Venster sluiten",
+  "Close all windows ({0})": "Alle vensters sluiten ({0})",
+  "{0} could not be closed.": "{0} kon niet worden gesloten."
  },
  "pl": {
   "\u0004{0} app": [
@@ -989,7 +1004,10 @@
   "Stopped.": "Zatrzymano.",
   "System update": "Aktualizacja systemu",
   "Close": "Zamknij",
-  "The terminal stopped.": "Terminal został zatrzymany."
+  "The terminal stopped.": "Terminal został zatrzymany.",
+  "Close window": "Zamknij okno",
+  "Close all windows ({0})": "Zamknij wszystkie okna ({0})",
+  "{0} could not be closed.": "Nie udało się zamknąć {0}."
  },
  "pt": {
   "\u0004{0} app": [
@@ -1154,6 +1172,9 @@
   "Stopped.": "Parado.",
   "System update": "Atualização do sistema",
   "Close": "Fechar",
-  "The terminal stopped.": "O terminal parou."
+  "The terminal stopped.": "O terminal parou.",
+  "Close window": "Fechar janela",
+  "Close all windows ({0})": "Fechar todas as janelas ({0})",
+  "{0} could not be closed.": "Não foi possível fechar {0}."
  }
 }

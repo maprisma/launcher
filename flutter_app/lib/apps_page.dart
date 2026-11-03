@@ -652,7 +652,9 @@ class AppsPageState extends State<AppsPage> {
   }
 
   bool _acceptsOnGroup(String id, Dragged d) => switch (d) {
-    DraggedApp() => _canDropInto(id),
+    // Into its own group again: nothing to do (a click that moved a pixel
+    // starts a drag with a mouse; it must not send the app to the end).
+    DraggedApp(:final key) => _canDropInto(id) && '${byKey[key]?['group'] ?? ''}' != id,
     DraggedGroup(id: final moved) => _ownGroup(id) && moved != id,
   };
 
@@ -737,6 +739,15 @@ class AppsPageState extends State<AppsPage> {
     final flatpakUpdate = (updates['flatpaks'] as Map?)?.containsKey(app['key']) == true;
     final omarchy = widget.desktop == 'omarchy';
     final hasWindows = runStates[app['key']] == 'active';
+    // How many: "Close window" or "Close all windows (n)".
+    var windowCount = 0;
+    if (hasWindows) {
+      try {
+        windowCount = ((await widget.core('apps.windows', {'key': app['key']}))['windows'] as List).length;
+      } on ServiceError {
+        windowCount = 0;
+      }
+    }
     // Both looked up at once; the app's own tray Quit only while it runs.
     Future<Object?> ask(String route, String field) async {
       try {
@@ -787,6 +798,14 @@ class AppsPageState extends State<AppsPage> {
         if (hasWindows) ...[
           const PopupMenuDivider(),
           PopupMenuItem(value: '\x00switch', child: MenuLine(Icons.open_in_new, tr('Switch to window'))),
+          if (windowCount > 0)
+            PopupMenuItem(
+              value: '\x00close',
+              child: MenuLine(
+                Icons.close,
+                windowCount == 1 ? tr('Close window') : trf('Close all windows ({0})', [windowCount]),
+              ),
+            ),
         ],
         if (canQuit) ...[
           if (!hasWindows) const PopupMenuDivider(),
@@ -839,6 +858,8 @@ class AppsPageState extends State<AppsPage> {
         return _uninstall(app);
       case '\x00switch':
         return _switchToWindow(app, position);
+      case '\x00close':
+        return _closeWindows(app);
       case '\x00quit':
         return _quit(app);
       case '\x00admin':
@@ -1039,6 +1060,17 @@ class AppsPageState extends State<AppsPage> {
       await widget.core('window.focus', {'address': address});
     } on ServiceError {
       _tell(trf('{0} could not be started.', [app['name']]));
+    }
+  }
+
+  /// Close: the app's windows are asked to close (as with their ✕).
+  Future<void> _closeWindows(Map app) async {
+    try {
+      await widget.core('apps.close', {'key': app['key']});
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      if (mounted) await _refreshRunning(always: true);
+    } on ServiceError {
+      _tell(trf('{0} could not be closed.', [app['name']]));
     }
   }
 
