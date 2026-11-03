@@ -1,4 +1,4 @@
-/// Ask AI (docs/proposals/ask-ai.md, step 2): the agent has no tools (Claude,
+/// Ask AI (docs/proposals/ask-ai.md, step 2): the agent has no tools (Claude, pi,
 /// Codex) or is read-only (Antigravity's plan mode); it gets facts and
 /// answers with one JSON object from a fixed list. The core checks every
 /// name it returns against the installed apps and real search results; the
@@ -36,8 +36,17 @@ const helpers = <Helper>[
     name: 'Claude Code',
     // Maprisma's adapters/claude.toml [rewrite] + [closed].background.
     argv: [
-      'claude', '-p', '--tools', '', '--strict-mcp-config', '--no-session-persistence',
-      '--disable-slash-commands', '--output-format', 'text', '--settings', '{"disableAllHooks": true}',
+      'claude',
+      '-p',
+      '--tools',
+      '',
+      '--strict-mcp-config',
+      '--no-session-persistence',
+      '--disable-slash-commands',
+      '--output-format',
+      'text',
+      '--settings',
+      '{"disableAllHooks": true}',
     ],
     files: ['.claude/.credentials.json'],
     env: ['ANTHROPIC_API_KEY'],
@@ -49,8 +58,20 @@ const helpers = <Helper>[
     name: 'Codex',
     // adapters/codex.toml [rewrite] + [closed].background; the answer in {answer}.
     argv: [
-      'codex', 'exec', '--sandbox', 'read-only', '--skip-git-repo-check', '--disable', 'apps', '--disable',
-      'plugins', '--disable', 'hooks', '--output-last-message', '{answer}', '-',
+      'codex',
+      'exec',
+      '--sandbox',
+      'read-only',
+      '--skip-git-repo-check',
+      '--disable',
+      'apps',
+      '--disable',
+      'plugins',
+      '--disable',
+      'hooks',
+      '--output-last-message',
+      '{answer}',
+      '-',
     ],
     files: ['.codex/auth.json'],
     env: ['OPENAI_API_KEY'],
@@ -67,7 +88,82 @@ const helpers = <Helper>[
     login: 'agy',
     note: 'Read-only plan mode: it can read files, it cannot change any.',
   ),
+  (
+    command: 'pi',
+    name: 'pi',
+    // Maprisma's adapters/pi.toml [advise]: no tools, MCP servers, extensions
+    // or project files; the prompt on stdin. Its model: pi's default, or a
+    // local one (piLocalModels) with --provider/--model and --offline.
+    argv: [
+      'pi',
+      '-p',
+      '--no-session',
+      '--no-tools',
+      '--no-mcp',
+      '--no-extensions',
+      '--no-context-files',
+      '--no-approve',
+    ],
+    files: ['.pi/agent/auth.json'],
+    env: ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY'],
+    login: 'pi',
+    note: 'No tools, MCP servers, extensions or project files.',
+  ),
 ];
+
+/// Local LLMs pi is connected to (~/.pi/agent/models.json): providers on this
+/// PC and their chat models; each can answer Ask AI without the web.
+/// Speech, embedding and tokenizer models are left out (Maprisma's notChat).
+final _notChat = RegExp(
+  r'tts|whisper|embed|rerank|tokenizer|mmproj|clip|vae|diffusion|flux|sdxl|stable-?diffusion|speech|asr|vision-encoder',
+  caseSensitive: false,
+);
+final _piName = RegExp(r'^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,127}$');
+
+typedef LocalModel = ({String provider, String model, String host, int port});
+
+/// pi's configuration (bounded reads): its local models, and its default.
+({List<LocalModel> local, String? provider, String? model}) piModels(Session session) {
+  Map? read(String name) {
+    final bytes = Posix.instance.readRegular(p.join(session.home, '.pi/agent', name), 1024 * 1024);
+    if (bytes == null) return null;
+    try {
+      final data = jsonDecode(utf8.decode(bytes, allowMalformed: true));
+      return data is Map ? data : null;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  final local = <LocalModel>[];
+  final providers = read('models.json')?['providers'];
+  if (providers is Map) {
+    for (final e in providers.entries) {
+      final provider = '${e.key}';
+      final conf = e.value;
+      if (conf is! Map || !_piName.hasMatch(provider)) continue;
+      final url = Uri.tryParse('${conf['baseUrl'] ?? ''}');
+      if (url == null || !const {'127.0.0.1', 'localhost', '::1'}.contains(url.host)) continue;
+      final port = url.hasPort ? url.port : (url.scheme == 'https' ? 443 : 80);
+      final seen = <String>{};
+      for (final m in conf['models'] as List? ?? const []) {
+        final id = m is Map ? '${m['id'] ?? ''}' : '$m';
+        if (!_piName.hasMatch(id) || _notChat.hasMatch(id) || !seen.add(id)) continue;
+        local.add((provider: provider, model: id, host: url.host, port: port));
+      }
+    }
+  }
+  final settings = read('settings.json');
+  final provider = settings?['defaultProvider'], model = settings?['defaultModel'];
+  return (
+    local: local,
+    provider: provider is String && _piName.hasMatch(provider) ? provider : null,
+    model: model is String && _piName.hasMatch(model) ? model : null,
+  );
+}
+
+/// A local model's helper id: `pi:<provider>/<model>`.
+String localHelperId(LocalModel m) => 'pi:${m.provider}/${m.model}';
 
 const askTask = 'ask-ai';
 const maxQueries = 5, maxPicks = 3, maxSearchResults = 25;
@@ -75,18 +171,40 @@ const askTimeout = Duration(minutes: 4);
 const maxAnswerBytes = 256 * 1024;
 
 /// Which helpers are there, and whether one seems signed in (0 tokens).
-List<Map<String, dynamic>> helperStates(Session session) => [
-  for (final h in helpers)
-    {
-      'command': h.command,
-      'name': h.name,
-      'installed': session.which(h.command) != null,
-      'signed_in': h.env.any((e) => (session.environment[e] ?? '').isNotEmpty) ||
-          h.files.any((f) => FileSystemEntity.typeSync(p.join(session.home, f)) != FileSystemEntityType.notFound),
-      'login': h.login,
-      'note': h.note,
-    },
-];
+List<Map<String, dynamic>> helperStates(Session session) {
+  final pi = session.which('pi') != null ? piModels(session) : null;
+  final piLocalDefault = pi != null && pi.local.any((m) => m.provider == pi.provider && m.model == pi.model);
+  return [
+    for (final h in helpers)
+      if (h.command != 'pi' || pi != null)
+        {
+          'command': h.command,
+          // pi with its default model; a local default needs no sign-in.
+          'name': h.command == 'pi' && pi?.model != null ? 'pi · ${pi!.model}' : h.name,
+          'installed': session.which(h.command) != null,
+          'signed_in':
+              (h.command == 'pi' && piLocalDefault) ||
+              h.env.any((e) => (session.environment[e] ?? '').isNotEmpty) ||
+              h.files.any((f) => FileSystemEntity.typeSync(p.join(session.home, f)) != FileSystemEntityType.notFound),
+          if (h.command == 'pi' && piLocalDefault) 'local': true,
+          'login': h.login,
+          'note': h.note,
+        },
+    // Every local chat model pi knows, on its own: no tokens, nothing leaves the PC.
+    for (final m in pi?.local ?? const <LocalModel>[])
+      // pi's default model is the "pi" entry already.
+      if (!(m.provider == pi!.provider && m.model == pi.model))
+        {
+          'command': localHelperId(m),
+          'name': 'pi · ${m.model}',
+          'installed': true,
+          'signed_in': true,
+          'local': true,
+          'login': '',
+          'note': 'On this PC (${m.provider}): no tokens, nothing leaves the computer.',
+        },
+  ];
+}
 
 // --- prompts ------------------------------------------------------------------------
 
@@ -237,7 +355,9 @@ Map<String, dynamic> checkAsk(Map<String, dynamic>? answer, Set<String> ids) {
     case 'clarify':
       final choices = _strings(answer!['choices'], 4);
       final question = _line(answer['question']);
-      return question.isEmpty ? {'action': 'redirect', 'hint': ''} : {'action': 'clarify', 'question': question, 'choices': choices};
+      return question.isEmpty
+          ? {'action': 'redirect', 'hint': ''}
+          : {'action': 'clarify', 'question': question, 'choices': choices};
     case 'redirect':
       return {'action': 'redirect', 'hint': _line(answer!['hint'], 600)};
     default:
@@ -275,9 +395,23 @@ final class AskRunner {
   void cancel() => _running?.kill(ProcessSignal.sigterm);
 
   Future<String> run(String command, String prompt) async {
-    final helper = helpers.firstWhere((h) => h.command == command, orElse: () => throw StateError('unknown helper'));
-    final binary = session.which(command);
+    // `pi:<provider>/<model>`: one of pi's local models (only one it lists now).
+    final base = command.startsWith('pi:') ? 'pi' : command;
+    final helper = helpers.firstWhere((h) => h.command == base, orElse: () => throw StateError('unknown helper'));
+    final binary = session.which(base);
     if (binary == null) throw StateError('not installed');
+    final extra = <String>[];
+    if (base == 'pi') {
+      final pi = piModels(session);
+      final LocalModel? local = command == 'pi'
+          ? pi.local.where((m) => m.provider == pi.provider && m.model == pi.model).firstOrNull
+          : pi.local.where((m) => localHelperId(m) == command).firstOrNull;
+      if (command != 'pi' && local == null) throw StateError('unknown helper');
+      if (local != null) {
+        await ensureLocalServer(local);
+        extra.addAll(['--offline', '--provider', local.provider, '--model', local.model]);
+      }
+    }
     final work = p.join(session.home, '.cache/maprisma-launcher/ask');
     Directory(work).createSync(recursive: true);
     Process.runSync('chmod', ['700', work]);
@@ -291,7 +425,7 @@ final class AskRunner {
     }
 
     removeAnswer();
-    final argv = [binary, for (final a in helper.argv.skip(1)) a == '{answer}' ? answerFile : a];
+    final argv = [binary, for (final a in helper.argv.skip(1)) a == '{answer}' ? answerFile : a, ...extra];
     var ok = false;
     var result = '';
     try {
@@ -309,10 +443,13 @@ final class AskRunner {
         if (out.length < maxAnswerBytes) out.add(chunk);
       }).asFuture<void>();
       final errDone = process.stderr.drain<void>();
-      final code = await process.exitCode.timeout(askTimeout, onTimeout: () {
-        process.kill(ProcessSignal.sigkill);
-        throw TimeoutException('The helper took too long.');
-      });
+      final code = await process.exitCode.timeout(
+        askTimeout,
+        onTimeout: () {
+          process.kill(ProcessSignal.sigkill);
+          throw TimeoutException('The helper took too long.');
+        },
+      );
       await outDone;
       await errDone;
       if (code != 0) throw StateError('The helper stopped ($code).');
@@ -328,15 +465,48 @@ final class AskRunner {
     } finally {
       _running = null;
       removeAnswer();
-      recordRun(command, ok, result);
+      recordRun(base, ok, result);
     }
+  }
+
+  /// A local model's server answers on its port; if not, its user service
+  /// (llama-server on 8080, ollama on 11434) is started, then waited for up
+  /// to a minute. Only after the user's click on Ask.
+  Future<void> ensureLocalServer(LocalModel m) async {
+    Future<bool> open() async {
+      try {
+        final socket = await Socket.connect(m.host, m.port, timeout: const Duration(milliseconds: 500));
+        socket.destroy();
+        return true;
+      } on Object {
+        return false;
+      }
+    }
+
+    if (await open()) return;
+    final unit = switch (m.port) {
+      8080 => 'llama-server.service',
+      11434 => 'ollama.service',
+      _ => null,
+    };
+    final systemctl = session.which('systemctl');
+    if (unit == null || systemctl == null) throw StateError('The local model server (${m.provider}) is not running.');
+    final started = await Process.run(systemctl, ['--user', 'start', unit], environment: session.environment);
+    if (started.exitCode != 0) throw StateError('Could not start $unit.');
+    for (var i = 0; i < 120; i++) {
+      if (await open()) return;
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    }
+    throw StateError('$unit did not answer.');
   }
 
   /// plugin_ai.record: one line in ~/.local/state/omarchy-plugin-ai/runs.json
   /// (owner-only, under the same flock), so LLM Monitor counts App Manager's runs.
   void recordRun(String agent, bool ok, String result) {
     final env = session.environment;
-    final state = (env['XDG_STATE_HOME'] ?? '').isNotEmpty ? env['XDG_STATE_HOME']! : p.join(session.home, '.local/state');
+    final state = (env['XDG_STATE_HOME'] ?? '').isNotEmpty
+        ? env['XDG_STATE_HOME']!
+        : p.join(session.home, '.local/state');
     final path = p.join(state, 'omarchy-plugin-ai/runs.json');
     try {
       Directory(p.dirname(path)).createSync(recursive: true);
@@ -364,7 +534,10 @@ final class AskRunner {
         } on FileSystemException {
           // none
         }
-        if (Posix.instance.writeNewPrivate(tmp, utf8.encode(const JsonEncoder.withIndent(' ').convert({'api': 1, 'runs': runs})))) {
+        if (Posix.instance.writeNewPrivate(
+          tmp,
+          utf8.encode(const JsonEncoder.withIndent(' ').convert({'api': 1, 'runs': runs})),
+        )) {
           File(tmp).renameSync(path);
         }
       });

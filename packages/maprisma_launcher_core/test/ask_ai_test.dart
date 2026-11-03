@@ -164,6 +164,53 @@ fi
       expect(lastWriter.any((w) => w!.contains('"hidden":true')), isTrue, reason: '$lastWriter');
     });
 
+    test('pi: its local models are helpers; they run locked down, offline, after the server answers', () async {
+      // A local "server" (the test's own socket) and pi's configuration pointing at it.
+      final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(server.close);
+      server.listen((c) => c.destroy());
+      final agent = Directory(p.join(home.path, '.pi/agent'))..createSync(recursive: true);
+      File(p.join(agent.path, 'models.json')).writeAsStringSync(jsonEncode({
+        'providers': {
+          'llama-local': {
+            'baseUrl': 'http://127.0.0.1:${server.port}/v1',
+            'models': [
+              {'id': 'Qwen3.8-27B-Q4_K_M'},
+              {'id': 'gemma-4-12B-it-QAT-Q4_0'},
+              {'id': 'Qwen3-TTS-12Hz-1.7B-Base-Q8_0'}, // speech: not a chat model
+              {'id': '--evil'}, // never an option
+            ],
+          },
+          'cloud': {'baseUrl': 'https://api.example.com/v1', 'models': [{'id': 'big'}]}, // not local
+        },
+      }));
+      File(p.join(agent.path, 'settings.json')).writeAsStringSync(
+        jsonEncode({'defaultProvider': 'llama-local', 'defaultModel': 'Qwen3.8-27B-Q4_K_M'}),
+      );
+      final fakePi = File(p.join(bin, 'pi'))
+        ..writeAsStringSync('#!/bin/sh\nprintf \'%s\\n\' "\$@" > "\$HOME/pi-argv.txt"\ncat > /dev/null\necho \'{"action": "list_hidden"}\'\n');
+      Process.runSync('chmod', ['+x', fakePi.path]);
+
+      final helpers = (await call('ask.helpers'))['result']['helpers'] as List;
+      final pis = [for (final h in helpers) if ('${h['command']}'.startsWith('pi')) h];
+      // pi's default (Qwen, local) once, as "pi"; the other local chat model on its own.
+      expect([for (final h in pis) h['command']], ['pi', 'pi:llama-local/gemma-4-12B-it-QAT-Q4_0']);
+      expect(pis.first['name'], 'pi · Qwen3.8-27B-Q4_K_M');
+      expect(pis.every((h) => h['local'] == true && h['signed_in'] == true), isTrue);
+
+      final r = await call('ask.run', {'request': 'which apps are hidden?', 'helper': 'pi:llama-local/gemma-4-12B-it-QAT-Q4_0'});
+      expect(r['result'], {'action': 'list_hidden', 'apps': []}, reason: '$r');
+      final argv = File(p.join(home.path, 'pi-argv.txt')).readAsLinesSync();
+      expect(argv, containsAllInOrder(['-p', '--no-session', '--no-tools', '--no-mcp', '--no-extensions', '--no-context-files']));
+      expect(argv.sublist(argv.length - 5), ['--offline', '--provider', 'llama-local', '--model', 'gemma-4-12B-it-QAT-Q4_0']);
+      // "pi" itself: its local default, also offline.
+      await call('ask.run', {'request': 'which apps are hidden?', 'helper': 'pi'});
+      final argv2 = File(p.join(home.path, 'pi-argv.txt')).readAsLinesSync();
+      expect(argv2.sublist(argv2.length - 5), ['--offline', '--provider', 'llama-local', '--model', 'Qwen3.8-27B-Q4_K_M']);
+      // Only models pi lists now: a made-up one is refused.
+      expect((await call('ask.run', {'request': 'x', 'helper': 'pi:llama-local/--evil'}))['error']['code'], 'no_helper');
+    });
+
     test('a helper that is not installed is refused', () async {
       final r = await call('ask.run', {'request': 'x', 'helper': 'codex'});
       expect(r['error']['code'], 'no_helper');

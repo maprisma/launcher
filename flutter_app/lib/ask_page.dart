@@ -276,7 +276,20 @@ class _AskPageState extends State<AskPage> {
                         for (final h in helpers.where((h) => h['installed'] == true))
                           DropdownMenuItem(
                             value: h['command'] as String,
-                            child: Text('${h['name']}${h['signed_in'] == true ? '' : ' (${tr('needs sign-in')})'}'),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // On this PC: a local model, no tokens.
+                                if (h['local'] == true) ...[
+                                  Tooltip(
+                                    message: tr('On this PC'),
+                                    child: const Icon(Icons.computer, size: 16),
+                                  ),
+                                  const SizedBox(width: 6),
+                                ],
+                                Text('${h['name']}${h['signed_in'] == true ? '' : ' (${tr('needs sign-in')})'}'),
+                              ],
+                            ),
                           ),
                       ],
                       onChanged: asking ? null : (v) => setState(() => helper = v),
@@ -284,7 +297,7 @@ class _AskPageState extends State<AskPage> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '${trf('Uses your {0} plan or tokens, only when you click Ask.', [chosen?['name'] ?? ''])} '
+                        '${chosen?['local'] == true ? trf('Runs on this PC with {0}: no tokens, nothing leaves the computer.', [chosen?['name'] ?? '']) : trf('Uses your {0} plan or tokens, only when you click Ask.', [chosen?['name'] ?? ''])} '
                         '${tr('Enter asks, Ctrl+Enter: new line.')}',
                         style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
                         overflow: TextOverflow.ellipsis,
