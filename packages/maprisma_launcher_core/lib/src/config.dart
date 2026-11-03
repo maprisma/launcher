@@ -109,7 +109,7 @@ final class ConfigStore {
 
 // --- settings.json ---------------------------------------------------------------
 
-const wideLayouts = ['folders', 'cards', 'icons'];
+const wideLayouts = ['folders', 'cards', 'icons', 'cube'];
 const languageCodes = ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl'];
 const managerIds = ['pacman', 'aur', 'flatpak', 'snap', 'apt', 'dnf', 'zypper'];
 const iconSizeChoices = {

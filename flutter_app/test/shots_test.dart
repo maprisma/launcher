@@ -119,6 +119,7 @@ void main() {
   testWidgets('folders', (t) => shoot(t, 'folders'), skip: shots == null);
   testWidgets('cards', (t) => shoot(t, 'cards', wide: WideLayout.cards), skip: shots == null);
   testWidgets('icons', (t) => shoot(t, 'icons', wide: WideLayout.icons), skip: shots == null);
+  testWidgets('cube', (t) => shoot(t, 'cube', wide: WideLayout.cube, size: const Size(1300, 760)), skip: shots == null);
   testWidgets(
     'filter',
     (t) => shoot(t, 'filter', query: 'co', wide: WideLayout.icons),

@@ -210,3 +210,11 @@ No add-on runs code.
   compositor drag and drop in the Flutter app; "Pin to dock" in its menu instead), no "popup-open" message
   (the app is a normal floating window, the pointer reaches the edge), no hang watchdog, names and menus
   drawn by Flutter inside the surface (it grows while a menu is open).
+- **2026-11-03 — fourth wide layout "Cube" (`cube`):** one face per group (the folder layout's groups) on a
+  regular prism, faces 360°/N apart (60° at most). The front face is flat, the others turned away and pushed back
+  so their edges meet it: nothing comes nearer than the front, so perspective never blows up. (The proposed
+  formula moved side faces toward the viewer at 82° and made them 2,800 px wide.) Turned by a drag (snaps to
+  the nearest face), the wheel where no grid inside scrolls, a click on a side face, the footer chips (All = the
+  first face; the front face's chip is marked), Left/Right and Ctrl+G (no stop on All). Faces: name, count,
+  ⋮ group menu, icon tiles (start, menu, drag), a drop target for apps. Filtering shows the normal grid.
+  Widget test + offscreen shot (`SHOTS=… flutter test test/shots_test.dart --plain-name cube`).

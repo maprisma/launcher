@@ -30,7 +30,7 @@ extension Overview on AppsPageState {
 
   List<Map<String, dynamic>> get overviewMembers {
     if (showingFolders) return const [];
-    final wanted = wantedFilter;
+    final wanted = showingCube ? (cubeFront ?? 'all') : wantedFilter;
     final keys = overviewSections.firstWhere((s) => s.$1 == wanted).$2;
     return [for (final k in keys) ?byKey[k]];
   }
@@ -45,6 +45,7 @@ extension Overview on AppsPageState {
   });
 
   void nextOverviewFilter(int step) {
+    if (showingCube) return turnCube(step);
     final ids = [for (final s in overviewSections) s.$1];
     final position = ids.indexOf(wantedFilter);
     setOverviewFilter(ids[((position < 0 ? 0 : position) + step) % ids.length]);
@@ -56,6 +57,7 @@ extension Overview on AppsPageState {
       final cardWidth = constraints.maxWidth.floor();
       final height = constraints.maxHeight.floor();
       if (showingFolders) return _folders(cardWidth, height);
+      if (showingCube) return _cube(cardWidth, height);
       final members = overviewMembers;
       final open = !filtering && wantedFilter != 'all';
       return Column(
@@ -91,11 +93,14 @@ extension Overview on AppsPageState {
 
   // --- folders -----------------------------------------------------------------
 
+  /// The groups the folders (and the cube's faces) show.
+  List<(String, List<String>)> get folderSections => [
+    for (final (id, keys) in overviewSections)
+      if (id != 'all' && (keys.isNotEmpty || (id != '_running' && id != 'other'))) (id, keys),
+  ];
+
   Widget _folders(int cardWidth, int height) {
-    final folders = [
-      for (final (id, keys) in overviewSections)
-        if (id != 'all' && (keys.isNotEmpty || (id != '_running' && id != 'other'))) (id, keys),
-    ];
+    final folders = folderSections;
     if (folders.isEmpty) return _empty();
     final (columns, icon) = sizes.folderFit(folders.length, cardWidth, height);
     final iconsHeight = sizes.folderIconsHeight(folders.length, columns, icon, height);
@@ -377,13 +382,134 @@ extension Overview on AppsPageState {
     );
   }
 
+  // --- the cube ----------------------------------------------------------------
+
+  /// The cube: one face per group, not while filtering (then the grid).
+  bool get showingCube => wideLayout == WideLayout.cube && !filtering;
+
+  /// The front face's group: the chosen group, else the first ("All").
+  String? get cubeFront {
+    final faces = folderSections;
+    if (faces.isEmpty) return null;
+    final wanted = wantedFilter;
+    return faces.any((f) => f.$1 == wanted) ? wanted : faces.first.$1;
+  }
+
+  /// Left/Right, Ctrl+G, the wheel: the next face round the cube.
+  void turnCube(int step) {
+    final ids = [for (final f in folderSections) f.$1];
+    if (ids.isEmpty) return;
+    final at = ids.indexOf(cubeFront ?? ids.first);
+    setOverviewFilter(ids[((at < 0 ? 0 : at) + step) % ids.length]);
+  }
+
+  Widget _cube(int cardWidth, int height) {
+    final faces = folderSections;
+    if (faces.isEmpty) return _empty();
+    final front = faces.indexWhere((f) => f.$1 == cubeFront);
+    return _CubeOverview(
+      faces: [for (final f in faces) f.$1],
+      front: front < 0 ? 0 : front,
+      onFront: (i) => setOverviewFilter(faces[i].$1),
+      face: (i, width, isFront) => _cubeFace(faces[i].$1, faces[i].$2, width, isFront),
+    );
+  }
+
+  /// A face: the group's name, count and menu over its apps (icons with
+  /// names); apps start, open their menu and drag as everywhere.
+  Widget _cubeFace(String gid, List<String> keys, double width, bool isFront) {
+    final scheme = Theme.of(context).colorScheme;
+    final radius = corners(context);
+    final members = [for (final k in keys) ?byKey[k]];
+    final iconSize = (iconSizes['icons'] ?? 72).toDouble().clamp(32.0, 96.0);
+    final columns = math.max(1, ((width - 24) / (iconSize + 40)).floor());
+    if (isFront) _columns = columns;
+    final selected = isFront ? selectedKey : null;
+    final header = Padding(
+      padding: const EdgeInsets.fromLTRB(14, 8, 4, 6),
+      child: Row(
+        children: [
+          if (isNewGroup(gid))
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Icon(Icons.star_rounded, size: 16, color: markColors(context).fresh),
+            ),
+          Flexible(
+            child: Text(
+              groupName(gid),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+            decoration: BoxDecoration(color: scheme.secondaryContainer, borderRadius: BorderRadius.circular(10)),
+            child: Text('${members.length}', style: TextStyle(fontSize: 11.5, color: scheme.onSecondaryContainer)),
+          ),
+          const Spacer(),
+          if (_ownGroup(gid))
+            Builder(
+              builder: (context) => IconButton(
+                tooltip: tr('Group actions'),
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.more_vert, size: 18),
+                onPressed: () {
+                  final box = context.findRenderObject()! as RenderBox;
+                  _groupMenu(gid, box.localToGlobal(box.size.bottomLeft(Offset.zero)));
+                },
+              ),
+            )
+          else
+            const SizedBox(height: 40),
+        ],
+      ),
+    );
+    final grid = members.isEmpty
+        ? Center(
+            child: Text(tr('Drag apps here'), style: TextStyle(color: scheme.onSurfaceVariant)),
+          )
+        : GridView.builder(
+            controller: isFront ? scroll : null,
+            primary: false,
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              mainAxisExtent: iconSize + 8 + 36 + 24,
+              crossAxisSpacing: sizes.tileSpacing.toDouble(),
+              mainAxisSpacing: sizes.tileSpacing.toDouble(),
+            ),
+            itemCount: members.length,
+            itemBuilder: (context, i) => _iconTile(members[i], members[i]['key'] == selected, iconSize),
+          );
+    Widget card = Container(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: isFront ? scheme.primary.withValues(alpha: .6) : scheme.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(children: [header, Divider(height: 1, color: scheme.outlineVariant), Expanded(child: grid)]),
+    );
+    if (_canDropInto(gid)) {
+      card = DropSlot(
+        accepts: (d) => d is! DraggedGroup && _acceptsOnGroup(gid, d),
+        onDrop: (d, after) => _dropOnGroup(gid, d, after),
+        child: card,
+      );
+    }
+    return card;
+  }
+
   // --- the footer --------------------------------------------------------------
 
   /// fill_filter_bar: All and the groups (each a place to drop an entry or
   /// a group), New group last; the layouts on the right.
   Widget _footerBar() {
     final scheme = Theme.of(context).colorScheme;
-    final wanted = wantedFilter;
+    // The cube has no "All" page: its front face is the chosen one.
+    final wanted = showingCube ? (cubeFront ?? wantedFilter) : wantedFilter;
     final strip = ScrollController();
     return Container(
       decoration: BoxDecoration(
@@ -431,11 +557,13 @@ extension Overview on AppsPageState {
                       WideLayout.folders => tr('Folders'),
                       WideLayout.cards => tr('Cards'),
                       WideLayout.icons => tr('Icons'),
+                      WideLayout.cube => tr('Cube'),
                     },
                     icon: Icon(switch (layout) {
                       WideLayout.folders => Icons.folder_copy_outlined,
                       WideLayout.cards => Icons.view_agenda_outlined,
                       WideLayout.icons => Icons.apps,
+                      WideLayout.cube => Icons.view_in_ar_outlined,
                     }),
                   ),
               ],
@@ -543,6 +671,172 @@ class FooterItem extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The cube (a prism for N groups): the front face and its neighbours,
+/// turned in 3D around a vertical axis. A drag turns it continuously and
+/// snaps to the nearest face; the wheel (where nothing inside scrolls), a
+/// click on a side face, the footer, Left/Right and Ctrl+G turn it a face.
+class _CubeOverview extends StatefulWidget {
+  const _CubeOverview({required this.faces, required this.front, required this.onFront, required this.face});
+  final List<String> faces;
+  final int front;
+  final void Function(int index) onFront;
+  final Widget Function(int index, double width, bool isFront) face;
+
+  @override
+  State<_CubeOverview> createState() => _CubeOverviewState();
+}
+
+class _CubeOverviewState extends State<_CubeOverview> with SingleTickerProviderStateMixin {
+  /// The turn, in faces: 0 shows face 0, 1.5 halfway between 1 and 2.
+  late final AnimationController page = AnimationController.unbounded(vsync: this, value: widget.front.toDouble());
+  DateTime _lastWheel = DateTime(0);
+  double _faceWidth = 1;
+
+  int get count => widget.faces.length;
+
+  @override
+  void didUpdateWidget(_CubeOverview old) {
+    super.didUpdateWidget(old);
+    final front = _wrap(page.value.round());
+    if (widget.front != front || count != old.faces.length) _turnTo(widget.front);
+  }
+
+  @override
+  void dispose() {
+    page.dispose();
+    super.dispose();
+  }
+
+  int _wrap(int i) => count == 0 ? 0 : ((i % count) + count) % count;
+
+  /// The face index, reached the short way round from where it stands now.
+  void _turnTo(int index) {
+    if (count == 0) return;
+    var diff = (index - page.value) % count;
+    if (diff > count / 2) diff -= count;
+    if (diff < -count / 2) diff += count;
+    page.animateTo(page.value + diff, duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic);
+  }
+
+  void _settle() {
+    final target = page.value.roundToDouble();
+    page.animateTo(target, duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic);
+    final index = _wrap(target.toInt());
+    if (index != widget.front) widget.onFront(index);
+  }
+
+  void _step(int step) {
+    final index = _wrap(page.value.round() + step);
+    _turnTo(index);
+    widget.onFront(index);
+  }
+
+  /// diff of face i from the front, wrapped to [-N/2, N/2].
+  double _diff(int i) {
+    var d = (i - page.value) % count;
+    if (d > count / 2) d -= count;
+    return d;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, box) {
+        final width = box.maxWidth, height = box.maxHeight;
+        _faceWidth = math.min(width * 0.62, 760.0).clamp(160.0, double.infinity);
+        final faceHeight = math.max(80.0, height - 16);
+        return Listener(
+          // Only what no grid inside scrolls reaches here (the resolver).
+          onPointerSignal: (event) {
+            if (event is! PointerScrollEvent) return;
+            GestureBinding.instance.pointerSignalResolver.register(event, (event) {
+              final e = event as PointerScrollEvent;
+              final delta = e.scrollDelta.dx.abs() > e.scrollDelta.dy.abs() ? e.scrollDelta.dx : e.scrollDelta.dy;
+              final now = DateTime.now();
+              if (delta == 0 || now.difference(_lastWheel) < const Duration(milliseconds: 250)) return;
+              _lastWheel = now;
+              _step(delta > 0 ? 1 : -1);
+            });
+          },
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onHorizontalDragStart: (_) => page.stop(),
+            onHorizontalDragUpdate: (d) => page.value -= d.delta.dx / (_faceWidth * 0.65),
+            onHorizontalDragEnd: (_) => _settle(),
+            onHorizontalDragCancel: _settle,
+            child: AnimatedBuilder(
+              animation: page,
+              builder: (context, _) {
+                final shown = <(int, double)>[
+                  for (var i = 0; i < count; i++)
+                    if (_diff(i).abs() <= 1.25 && (count > 1 || i == 0)) (i, _diff(i)),
+                ]..sort((a, b) => b.$2.abs().compareTo(a.$2.abs())); // back to front
+                // Two faces: the one behind would show on both sides.
+                if (count == 2) shown.removeWhere((f) => f.$2.abs() > 1);
+                // A regular prism: faces 360°/N apart (60° at most, so a
+                // few groups still show their neighbours at a slant).
+                final step = 2 * math.pi / math.max(count, 6);
+                final radius = (_faceWidth / 2) / math.tan(step / 2);
+                return Stack(
+                  clipBehavior: Clip.hardEdge,
+                  children: [
+                    for (final (i, diff) in shown)
+                      Positioned(
+                        left: (width - _faceWidth) / 2,
+                        top: 8,
+                        width: _faceWidth,
+                        height: faceHeight,
+                        child: _placed(i, diff, radius, step),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Face i on the prism: [radius] is the apothem, the front face flat at
+  /// depth 0, the others turned away and pushed back so their edges meet it
+  /// (nothing comes nearer than the front, so perspective never blows up).
+  Widget _placed(int i, double diff, double radius, double step) {
+    final theta = diff * step;
+    final matrix = Matrix4.identity()
+      ..setEntry(3, 2, 0.0012) // perspective: farther is smaller
+      ..translateByDouble(radius * math.sin(theta), 0, radius * (1 - math.cos(theta)), 1)
+      ..rotateY(-theta);
+    final isFront = diff.abs() < 0.15;
+    Widget face = widget.face(i, _faceWidth, isFront);
+    if (!isFront) {
+      // A side face: a click turns it to the front; its inside does nothing.
+      face = Stack(
+        fit: StackFit.expand,
+        children: [
+          IgnorePointer(child: face),
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              key: ValueKey('cube-side-$i'),
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                _turnTo(i);
+                widget.onFront(i);
+              },
+            ),
+          ),
+        ],
+      );
+    }
+    return Transform(
+      alignment: Alignment.center,
+      transform: matrix,
+      child: Opacity(opacity: (1.0 - diff.abs() * 0.45).clamp(0.25, 1.0), child: face),
     );
   }
 }

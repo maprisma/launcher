@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:maprisma_launcher_core/maprisma_launcher_core.dart'
     as sizes
@@ -40,7 +41,7 @@ part 'overview.dart';
 enum AppView { list, groups, origin }
 
 /// The wide window's layouts (launcher_core.WIDE_LAYOUTS).
-enum WideLayout { folders, cards, icons }
+enum WideLayout { folders, cards, icons, cube }
 
 const builtinGroupNames = {
   'office': 'Office',
@@ -1184,6 +1185,11 @@ class AppsPageState extends State<AppsPage> {
     var index = list.indexWhere((a) => a['key'] == selectedKey);
     if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
       if (list.isNotEmpty) _launch(list[index < 0 ? 0 : index]);
+      return KeyEventResult.handled;
+    }
+    // The cube: Left/Right turn it a face.
+    if (wide && showingCube && (key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.arrowRight)) {
+      turnCube(key == LogicalKeyboardKey.arrowRight ? 1 : -1);
       return KeyEventResult.handled;
     }
     final grid = wide && !showingFolders;

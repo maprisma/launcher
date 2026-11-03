@@ -273,7 +273,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final scheme = Theme.of(context).colorScheme;
     final sizes = Map<String, dynamic>.from(settings['icon_sizes'] as Map? ?? const {});
     final shown = List<String>.from(settings['shown_layouts'] as List? ?? const ['folders', 'cards', 'icons']);
-    final layouts = [('folders', tr('Folders')), ('cards', tr('Cards')), ('icons', tr('Icons'))];
+    final layouts = [('folders', tr('Folders')), ('cards', tr('Cards')), ('icons', tr('Icons')), ('cube', tr('Cube'))];
     final rounding = widget.windowRounding;
     return Scaffold(
       body: Focus(

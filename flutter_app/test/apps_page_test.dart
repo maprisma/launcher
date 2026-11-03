@@ -260,6 +260,75 @@ void main() {
     expect((await tester.runAsync(() => call('settings.get')))!['wide_layout'], 'cards');
   });
 
+  testWidgets('wide window, Cube: a face per group, turned by the footer, keys, a side face and a drag', (tester) async {
+    tester.view.physicalSize = const Size(1500, 1150);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final launched = <String>[];
+    Future<Map<String, dynamic>> fake(String method, [Map<String, dynamic> params = const {}]) async {
+      if (method == 'apps.launch') {
+        launched.add('${params['key']}');
+        return {'started': true};
+      }
+      return call(method, params);
+    }
+
+    final key = GlobalKey<AppsPageState>();
+    await tester.pumpWidget(MaterialApp(home: AppsPage(key: key, core: fake, desktop: 'generic')));
+    await settle(tester);
+    final state = key.currentState!;
+    await tester.tap(find.byTooltip('Cube'));
+    await settle(tester);
+    expect(state.wideLayout, WideLayout.cube);
+    expect(state.showingCube, isTrue);
+    expect((await tester.runAsync(() => call('settings.get')))!['wide_layout'], 'cube');
+    final faces = [for (final (id, _) in state.folderSections) id];
+    expect(faces.length, greaterThanOrEqualTo(3));
+    // "All": the first group's face is in front, and its footer chip is marked.
+    expect(state.cubeFront, faces.first);
+
+    // A footer chip turns the cube to that group; its app starts with a click.
+    await tester.tap(find.text('Office').last);
+    await settle(tester);
+    expect(state.cubeFront, 'office');
+    expect(state.visibleApps.map((a) => a['name']), ['Writer']);
+    await tester.tap(find.text('Writer'));
+    await settle(tester);
+    expect(launched, [state.byKey.keys.firstWhere((k) => k.endsWith('writer.desktop'))]);
+
+    // Right and Left turn it a face, Ctrl+G too (no stop on "All").
+    final at = faces.indexOf('office');
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await settle(tester);
+    expect(state.cubeFront, faces[(at + 1) % faces.length]);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await settle(tester);
+    expect(state.cubeFront, 'office');
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyG);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await settle(tester);
+    expect(state.cubeFront, faces[(at + 1) % faces.length]);
+
+    // A click on a side face brings it to the front.
+    final side = (at + 2) % faces.length;
+    await tester.tap(find.byKey(ValueKey('cube-side-$side')));
+    await settle(tester);
+    expect(state.cubeFront, faces[side]);
+
+    // A drag to the left turns it on by one face.
+    final centre = tester.getCenter(find.byType(AppsPage));
+    await tester.dragFrom(Offset(centre.dx, 300), const Offset(-500, 0));
+    await settle(tester);
+    expect(state.cubeFront, faces[(side + 1) % faces.length]);
+
+    // Typing filters as a grid; the cube is back after.
+    await tester.enterText(find.byType(TextField).first, 'pla');
+    await settle(tester);
+    expect(state.showingCube, isFalse);
+    expect(find.text('Player'), findsOneWidget);
+  });
+
   testWidgets('settings: language at once, view buttons, filter field off', (tester) async {
     tester.view.physicalSize = const Size(420, 900);
     tester.view.devicePixelRatio = 1;
