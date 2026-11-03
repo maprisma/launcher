@@ -372,6 +372,45 @@ void main() {
     expect(find.text('Misc'), findsNothing);
   });
 
+  testWidgets('Quit: only for a running app with a tray Quit, and it asks the core to click it', (tester) async {
+    tester.view.physicalSize = const Size(420, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final asked = <String>[];
+    String? misc;
+    Future<Map<String, dynamic>> fake(String method, [Map<String, dynamic> params = const {}]) async {
+      switch (method) {
+        case 'apps.running':
+          final apps = (await call('apps.list'))['apps'] as List;
+          misc = apps.firstWhere((a) => a['name'] == 'Misc')['key'] as String;
+          return {'running': [misc]};
+        case 'apps.quit_check':
+          asked.add('check ${params['key']}');
+          return {'label': 'Quit Misc'};
+        case 'apps.quit':
+          asked.add('quit ${params['key']}');
+          return {'clicked': true};
+      }
+      return call(method, params);
+    }
+
+    await tester.pumpWidget(MaterialApp(home: AppsPage(core: fake, desktop: 'generic')));
+    await settle(tester);
+    // Not running: no Quit, not even asked.
+    await tester.tapAt(tester.getCenter(find.text('Writer')), buttons: kSecondaryButton);
+    await settle(tester);
+    expect(find.text('Quit'), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(tester);
+    await tester.tapAt(tester.getCenter(find.text('Misc')), buttons: kSecondaryButton);
+    await settle(tester);
+    await tester.tap(find.text('Quit'));
+    await settle(tester);
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 900)));
+    await settle(tester);
+    expect(asked, ['check $misc', 'quit $misc']);
+  });
+
   testWidgets('Install apps: search, review with the command and the AUR warning', (tester) async {
     tester.view.physicalSize = const Size(700, 700);
     tester.view.devicePixelRatio = 1;

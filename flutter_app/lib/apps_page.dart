@@ -709,12 +709,20 @@ class AppsPageState extends State<AppsPage> {
     final flatpakUpdate = (updates['flatpaks'] as Map?)?.containsKey(app['key']) == true;
     final omarchy = widget.desktop == 'omarchy';
     final hasWindows = runStates[app['key']] == 'active';
-    var asAdmin = false;
-    try {
-      asAdmin = (await widget.core('apps.admin_check', {'key': app['key']}))['can'] == true;
-    } on ServiceError {
-      asAdmin = false;
+    // Both looked up at once; the app's own tray Quit only while it runs.
+    Future<Object?> ask(String route, String field) async {
+      try {
+        return (await widget.core(route, {'key': app['key']}))[field];
+      } on ServiceError {
+        return null;
+      }
     }
+
+    final (adminCan, quitLabel) = await (
+      ask('apps.admin_check', 'can'),
+      isRunning(app) ? ask('apps.quit_check', 'label') : Future<Object?>.value(),
+    ).wait;
+    final asAdmin = adminCan == true, canQuit = quitLabel is String;
     if (!mounted) return;
     final packageUpdate = (updates['apps'] as Map?)?.containsKey(app['desktop_path']) == true;
     final choice = await showMenu<String>(
@@ -732,6 +740,10 @@ class AppsPageState extends State<AppsPage> {
         if (hasWindows) ...[
           const PopupMenuDivider(),
           PopupMenuItem(value: '\x00switch', child: MenuLine(Icons.open_in_new, tr('Switch to window'))),
+        ],
+        if (canQuit) ...[
+          if (!hasWindows) const PopupMenuDivider(),
+          PopupMenuItem(value: '\x00quit', child: MenuLine(Icons.power_settings_new, tr('Quit'))),
         ],
         if (flatpakUpdate)
           PopupMenuItem(value: '\x00update', child: MenuLine(Icons.system_update_alt, tr('Update')))
@@ -775,6 +787,8 @@ class AppsPageState extends State<AppsPage> {
         return _uninstall(app);
       case '\x00switch':
         return _switchToWindow(app, position);
+      case '\x00quit':
+        return _quit(app);
       case '\x00admin':
         return _openSpecial(app, 'apps.admin_launch', const {});
       case '\x00float':
@@ -941,6 +955,18 @@ class AppsPageState extends State<AppsPage> {
       await widget.core('window.focus', {'address': address});
     } on ServiceError {
       _tell(trf('{0} could not be started.', [app['name']]));
+    }
+  }
+
+  /// Quit: the app's own tray Quit entry (a clean exit); App Manager never
+  /// ends processes itself.
+  Future<void> _quit(Map app) async {
+    try {
+      await widget.core('apps.quit', {'key': app['key']});
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+      if (mounted) await _refreshRunning(always: true);
+    } on ServiceError {
+      _tell(trf('{0} could not be quit.', [app['name']]));
     }
   }
 

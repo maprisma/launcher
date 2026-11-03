@@ -26,6 +26,7 @@ export 'src/icons.dart' hide aliases, host;
 export 'src/hyprland.dart';
 export 'src/plugins.dart';
 export 'src/admin.dart';
+export 'src/tray.dart';
 export 'src/shortcuts.dart';
 export 'src/shortcuts_hypr.dart';
 export 'src/shortcut_service.dart';

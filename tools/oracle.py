@@ -13,6 +13,7 @@ fixture's environment.
   oracle.py plugins           the Omarchy plugin's parse_plugins on this machine (reads only)
   oracle.py admin             gnome-launcher's admin_command for every scanned app
   oracle.py shortcuts < spec  both shortcuts.py: combos, states, COSMIC file, GNOME and Hyprland bindings
+  oracle.py tray < spec       the Omarchy plugin's tray.py: menu nodes, find_quit, item_key, titles, labels
 """
 import json
 import sys
@@ -313,6 +314,19 @@ def main(argv):
             "scores": [icons.score(q, names) for q, names in spec["scores"]],
             "looks": [icons.looks_like(bytes(d, "latin-1"), k) for d, k in spec["looks"]],
             "tint": icons.tint(b'<svg viewBox="0 0 1 1"><path/></svg>', "#aabbcc").decode(),
+        }))
+        return 0
+    if argv[1:] == ["tray"]:
+        sys.path.insert(0, str(REF / "omarchy-plugin"))
+        import tray
+        spec = json.load(sys.stdin)
+        menus = [tray._menu_nodes(children) for children in spec["layouts"]]
+        print(json.dumps({
+            "menus": menus,
+            "quit": [(tray.find_quit(m) or {}).get("id") for m in menus],
+            "keys": [tray.item_key(raw, title, set(taken)) for raw, title, taken in spec["keys"]],
+            "titles": [tray._title(props) for props in spec["titles"]],
+            "labels": [tray.clean_label(x) for x in spec["labels"]],
         }))
         return 0
     if argv[1:] == ["shortcuts"]:

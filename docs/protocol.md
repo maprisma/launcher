@@ -13,6 +13,38 @@ A request is `{"id", "protocol": 1, "method", "params"}`, the answer `{"id", "re
 | `apps.action` | `key`, `action` | as apps.launch, for one of the entry's own actions |
 | `apps.sections` | `view` (groups, origin), `keys` (the shown entries, in order) | `sections` [{`id`, `keys`}], plus the groups |
 | `apps.hide` | `key`, `hidden` | `hidden` |
+| `apps.facts` | — | `facts`: {app key: size, package, version, … (details.app_facts)} |
+| `apps.running` | — | `running` (app keys); on Omarchy also `states` {key: `active` (open windows) or `background`} |
+| `apps.windows` | `key` | `windows` (Hyprland clients of the app; empty off Hyprland) |
+| `window.focus` | `address` (one `apps.windows` just listed) | `focused`; `not_found`, `focus_failed` |
+| `apps.open_floating` | `key` | `started` (Hyprland exec with float); `launch_failed` |
+| `apps.open_on_workspace` | `key`, `workspace` (int) | `started`; `bad_params`, `launch_failed` |
+| `workspaces.list` | — | `workspaces` (in use, with their apps), `free` (the next empty one) |
+| `window.popup` | `width`, `height` | Omarchy: the popup floated and centred (`placed`); elsewhere `placed` false |
+| `apps.quit_check` | `key` | `label`: the app's own tray Quit entry (StatusNotifierItem menu), or null |
+| `apps.quit` | `key` | `clicked` (that entry, looked up again; we never end processes); `no_quit`, `quit_failed` |
+| `admin.state` | — | `enabled` (this login session), `available` (pkexec and a session to tie it to) |
+| `admin.enable` | `on` | `enabled`; turning it on asks polkit for the password first (`not_confirmed`) |
+| `apps.admin_check` / `apps.admin_launch` | `key` | `can` / `started`; `not_enabled`, `launch_failed` |
+| `apps.uninstall_plan` | `key` | `kind` (null, `flatpak`, `package` + `manager`, `webapp`, `omarchy` + `how`, `trash`), `what`, `warnings` |
+| `apps.uninstall` | `key` | what the plan said: started in a terminal, or done |
+| `updates.check` | `force`? | `apps` {desktop path: [old, new]}, `flatpaks` {key: …}, `checked` |
+| `updates.flatpak` | `key` | the updates; `bad_params`, `update_failed` |
+| `updates.system` | — | `started` (the desktop's own updater); `no_updater` |
+| `packages.managers` | — | `managers` [{`id`, `label`, `program`, `enabled`}] |
+| `packages.search` | `query` | `results` of the enabled managers |
+| `packages.install_plan` / `packages.install` | `manager`, `package` (from the last search) | `argv`, `command` (shown), `aur` / `started`; `not_found`, `no_terminal` |
+| `ask.helpers` | — | `helpers` (installed, signed in), `chosen` |
+| `ask.run` | `helper`, `request`, `answer`?, `language`? | the checked answer (search results, picks, a question); `no_helper`, `helper_failed` |
+| `ask.cancel` / `ask.signin` | — / `command` | `cancelled` / `started` (the helper's login in a terminal) |
+| `icons.search` | `key`, `query` | `theme` [{`name`, `file`}], `online` [{`collection`, `slug`, `url`}] |
+| `icons.preview` | `url` (one just found), `color`? | `file` |
+| `icons.set` / `icons.reset` | `key`, `name` or `url`, `color`? / `key` | `set` / `reset`; `not_found`, `download_failed` |
+| `open.url` | `url` (http/https only) | `started`; `bad_params`, `no_opener` |
+| `plugins.list` | — | Omarchy shell plugins: `plugins` [{`plugin_id`, `name`, `description`, `version`, `bar_widget`, `in_bar`, `openable`, `removable`, `plugin_dir`, `behind`?}] |
+| `plugins.open` / `plugins.bar` | `plugin_id` / + `placed`, `section`? | `opened` / `done`; `open_failed`, `bar_failed` |
+| `plugins.remove_plan` / `plugins.remove` | `plugin_id` | `note` (link, backup, deleted, loses), `loses_work`, counts / `removed` |
+| `plugins.updates` / `plugins.update` | `force`? / `plugin_id` | `behind` {id: commits} / `updated`; `update_failed` |
 | `groups.get` | — | `groups` [{`id`, `name`, `builtin`, `new`}], `collapsed`, `origins` |
 | `groups.place` | `key`, `group`, `target`?, `after`? | the groups; refusals as `refused` with the reason |
 | `groups.add` | `name`, `key`? | the groups, `result` = new id |
@@ -22,7 +54,7 @@ A request is `{"id", "protocol": 1, "method", "params"}`, the answer `{"id", "re
 | `shortcuts.remove` / `shortcuts.disable` / `shortcuts.restore` | `key`, `combo` {`mods`, `key`, `then`?} | `saved`; `not_found` |
 | `shortcuts.labels` | — | `labels`: {app key: [combo labels]} of the launcher's shortcuts |
 | `shortcuts.default_mods` | `mods` (empty: back to Super + Shift) | `default_mods` |
-| `settings.get` / `settings.set` | — / `key`, `value` | the checked settings; `bad_params` when a value does not fit |
+| `settings.get` / `settings.set` / `settings.reset` | — / `key`, `value` / — | the checked settings; `bad_params` when a value does not fit |
 
 Errors: `bad_request`, `unknown_route`, `bad_params`, `unknown_app`, `refused` (with `message`), `internal`.
 

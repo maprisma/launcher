@@ -27,6 +27,7 @@ import 'origins.dart' show defaultRoles;
 import 'packages.dart';
 import 'running.dart';
 import 'shortcut_service.dart';
+import 'tray.dart';
 import 'updates.dart';
 import 'protocol.dart';
 import 'shortcuts.dart' show defaultMods;
@@ -74,6 +75,7 @@ final class CoreService {
   late final _hyprland = Hyprland(session);
   late final _plugins = ShellPlugins(session);
   late final _admin = Admin(session);
+  late final _tray = Tray(session);
 
   /// The last plugin list: only these ids are opened, moved, updated, removed.
   Map<String, Map<String, dynamic>> _pluginList = {};
@@ -162,6 +164,18 @@ final class CoreService {
       return {'enabled': true};
     },
     'apps.admin_check': (params) async => {'can': _admin.enabled() && await _admin.command(_app(params)) != null},
+    // The app's own tray Quit (never a signal from us): its label, or null.
+    'apps.quit_check': (params) async {
+      final found = await _tray.quitFor(_app(params));
+      return {'label': found?.$2['label']};
+    },
+    'apps.quit': (params) async {
+      // Looked up again: tray menus and their ids change at any time.
+      final found = await _tray.quitFor(_app(params));
+      if (found == null) throw ServiceError('no_quit');
+      if (!await _tray.click(found.$1, found.$2['id'] as int)) throw ServiceError('quit_failed');
+      return {'clicked': true};
+    },
     'apps.admin_launch': (params) async {
       if (!_admin.enabled()) throw ServiceError('not_enabled');
       if (!await _admin.launch(_app(params))) throw ServiceError('launch_failed');

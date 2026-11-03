@@ -140,7 +140,8 @@
   "{0} — your custom shortcut “{1}”; click to rebind": "{0} — dein eigenes Kürzel „{1}“; klicken zum Neubelegen",
   "{0} — {2}'s “{1}”; click to rebind": "{0} — {2}-Standard „{1}“; klicken zum Neubelegen",
   "{0}'s keyboard settings were not found, so shortcuts cannot be set here.": "Die Tastatureinstellungen von {0} wurden nicht gefunden, daher lassen sich hier keine Kürzel setzen.",
-  "{1}'s “{0}”. Assigning turns it off while this shortcut exists; removing the shortcut brings it back.": "{1}-Standard „{0}“. Zuweisen schaltet ihn aus, solange dieses Kürzel existiert; Entfernen des Kürzels bringt ihn zurück."
+  "{1}'s “{0}”. Assigning turns it off while this shortcut exists; removing the shortcut brings it back.": "{1}-Standard „{0}“. Zuweisen schaltet ihn aus, solange dieses Kürzel existiert; Entfernen des Kürzels bringt ihn zurück.",
+  "{0} could not be quit.": "{0} konnte nicht beendet werden."
  },
  "es": {
   "\u0004{0} app": [
@@ -283,7 +284,8 @@
   "{0} — your custom shortcut “{1}”; click to rebind": "{0} — tu atajo personalizado «{1}»; haz clic para reasignar",
   "{0} — {2}'s “{1}”; click to rebind": "{0} — predeterminado de {2} «{1}»; haz clic para reasignar",
   "{0}'s keyboard settings were not found, so shortcuts cannot be set here.": "No se encontró la configuración de teclado de {0}, así que aquí no se pueden definir atajos.",
-  "{1}'s “{0}”. Assigning turns it off while this shortcut exists; removing the shortcut brings it back.": "Predeterminado de {1} «{0}». Al asignarla se desactiva mientras exista este atajo; quitar el atajo lo recupera."
+  "{1}'s “{0}”. Assigning turns it off while this shortcut exists; removing the shortcut brings it back.": "Predeterminado de {1} «{0}». Al asignarla se desactiva mientras exista este atajo; quitar el atajo lo recupera.",
+  "{0} could not be quit.": "No se pudo cerrar {0}."
  },
  "fr": {
   "\u0004{0} app": [
@@ -426,7 +428,8 @@
   "{0} — your custom shortcut “{1}”; click to rebind": "{0} — votre raccourci personnalisé « {1} » ; cliquez pour réattribuer",
   "{0} — {2}'s “{1}”; click to rebind": "{0} — défaut {2} « {1} » ; cliquez pour réattribuer",
   "{0}'s keyboard settings were not found, so shortcuts cannot be set here.": "Les réglages clavier de {0} sont introuvables : impossible de définir des raccourcis ici.",
-  "{1}'s “{0}”. Assigning turns it off while this shortcut exists; removing the shortcut brings it back.": "Défaut {1} « {0} ». L’attribution le désactive tant que ce raccourci existe ; retirer le raccourci le rétablit."
+  "{1}'s “{0}”. Assigning turns it off while this shortcut exists; removing the shortcut brings it back.": "Défaut {1} « {0} ». L’attribution le désactive tant que ce raccourci existe ; retirer le raccourci le rétablit.",
+  "{0} could not be quit.": "Impossible de quitter {0}."
  },
  "it": {
   "\u0004{0} app": [
@@ -569,7 +572,8 @@
   "{0} — your custom shortcut “{1}”; click to rebind": "{0} — la tua scorciatoia personalizzata «{1}»; fai clic per riassegnare",
   "{0} — {2}'s “{1}”; click to rebind": "{0} — predefinita di {2} «{1}»; fai clic per riassegnare",
   "{0}'s keyboard settings were not found, so shortcuts cannot be set here.": "Le impostazioni della tastiera di {0} non sono state trovate, quindi qui non si possono impostare scorciatoie.",
-  "{1}'s “{0}”. Assigning turns it off while this shortcut exists; removing the shortcut brings it back.": "Predefinita di {1} «{0}». Assegnando la disattivi finché esiste questa scorciatoia; rimuovendo la scorciatoia torna attiva."
+  "{1}'s “{0}”. Assigning turns it off while this shortcut exists; removing the shortcut brings it back.": "Predefinita di {1} «{0}». Assegnando la disattivi finché esiste questa scorciatoia; rimuovendo la scorciatoia torna attiva.",
+  "{0} could not be quit.": "Impossibile chiudere {0}."
  },
  "nl": {
   "\u0004{0} app": [
@@ -712,7 +716,8 @@
   "{0} — your custom shortcut “{1}”; click to rebind": "{0} — je eigen sneltoets ‘{1}’; klik om opnieuw toe te wijzen",
   "{0} — {2}'s “{1}”; click to rebind": "{0} — {2}-standaard ‘{1}’; klik om opnieuw toe te wijzen",
   "{0}'s keyboard settings were not found, so shortcuts cannot be set here.": "De toetsenbordinstellingen van {0} zijn niet gevonden, dus hier kunnen geen sneltoetsen worden ingesteld.",
-  "{1}'s “{0}”. Assigning turns it off while this shortcut exists; removing the shortcut brings it back.": "{1}-standaard ‘{0}’. Toewijzen zet hem uit zolang deze sneltoets bestaat; de sneltoets verwijderen brengt hem terug."
+  "{1}'s “{0}”. Assigning turns it off while this shortcut exists; removing the shortcut brings it back.": "{1}-standaard ‘{0}’. Toewijzen zet hem uit zolang deze sneltoets bestaat; de sneltoets verwijderen brengt hem terug.",
+  "{0} could not be quit.": "{0} kon niet worden afgesloten."
  },
  "pl": {
   "\u0004{0} app": [
@@ -857,7 +862,8 @@
   "{0} — your custom shortcut “{1}”; click to rebind": "{0} — twój własny skrót „{1}”; kliknij, aby przypisać na nowo",
   "{0} — {2}'s “{1}”; click to rebind": "{0} — domyślny {2} „{1}”; kliknij, aby przypisać na nowo",
   "{0}'s keyboard settings were not found, so shortcuts cannot be set here.": "Nie znaleziono ustawień klawiatury {0}, więc nie można tu ustawić skrótów.",
-  "{1}'s “{0}”. Assigning turns it off while this shortcut exists; removing the shortcut brings it back.": "Domyślny {1} „{0}”. Przypisanie wyłącza go, dopóki istnieje ten skrót; usunięcie skrótu go przywraca."
+  "{1}'s “{0}”. Assigning turns it off while this shortcut exists; removing the shortcut brings it back.": "Domyślny {1} „{0}”. Przypisanie wyłącza go, dopóki istnieje ten skrót; usunięcie skrótu go przywraca.",
+  "{0} could not be quit.": "Nie udało się zamknąć {0}."
  },
  "pt": {
   "\u0004{0} app": [
@@ -1000,6 +1006,7 @@
   "{0} — your custom shortcut “{1}”; click to rebind": "{0} — seu atalho personalizado “{1}”; clique para reatribuir",
   "{0} — {2}'s “{1}”; click to rebind": "{0} — padrão do {2} “{1}”; clique para reatribuir",
   "{0}'s keyboard settings were not found, so shortcuts cannot be set here.": "As configurações de teclado do {0} não foram encontradas, então não é possível definir atalhos aqui.",
-  "{1}'s “{0}”. Assigning turns it off while this shortcut exists; removing the shortcut brings it back.": "Padrão do {1} “{0}”. Atribuir o desliga enquanto este atalho existir; remover o atalho o traz de volta."
+  "{1}'s “{0}”. Assigning turns it off while this shortcut exists; removing the shortcut brings it back.": "Padrão do {1} “{0}”. Atribuir o desliga enquanto este atalho existir; remover o atalho o traz de volta.",
+  "{0} could not be quit.": "Não foi possível fechar {0}."
  }
 }
