@@ -162,3 +162,20 @@ No add-on runs code.
   `maprisma-launcher`, env `MAPRISMA_LAUNCHER_DESKTOP`, repo folder `/mnt/Data/Projects/maprisma-launcher`.
   The first start still copies the old App Manager's files (~/.config/applauncher or gnome-launcher).
   Marketplace: a new plugin, see docs/publishing.md.
+- **2026-11-03 — global shortcuts + key map (milestone 4, first part):** shortcuts.dart / shortcuts_hypr.dart /
+  shortcut_service.dart port both references' shortcuts.py. GNOME: custom keybindings through the `gsettings`
+  program (argv, bounded) at `…/custom-keybindings/maprisma-launcher-N/`, GNOME keys taken and given back
+  ("applied"), the Dash's Super + 1…9. COSMIC: its `custom` shortcut file, entries tagged " (Maprisma Launcher)",
+  every other entry kept as written, one atomic write, never a file that cannot be read back. Omarchy: the Lua
+  module `~/.config/hypr/maprisma-launcher-shortcuts.lua`, required last from hyprland.lua (backup once),
+  `hyprctl reload`, files restored on a new configuration error. Generic: read-only. App: Shortcut… in the menu,
+  a page with the current shortcuts (change, remove, turn off/on), Opens (app or one of its actions), modifier
+  chips, the default modifiers, a key map coloured free / yours / desktop default, Assign / Move here / Rebind,
+  keys pressed with modifiers; Esc, Enter. Oracle (`oracle.py shortcuts`) equal on combos, states, COSMIC's file
+  over three saves, GNOME's bindings and saves on a fake GSettings, Hyprland's binds, files, bindings and
+  module; the routes tested with a fake gsettings, a COSMIC folder and a fake hyprctl in a temporary HOME.
+  Not copied at first start: the old apps' shortcuts.json (their keys live in their own Lua module, custom
+  paths or "(Launcher)" entries, which keep working and show on the key map as the user's own; copying would
+  bind each key twice). Not yet: two-step shortcuts in the UI (kept and rendered when in the state), key
+  capture while the page is open (Hyprland submap / GNOME inhibit), list chips, removing dead hand-written
+  binds, the key colours' hue fix (key_colors.py). Not run on a live desktop yet.

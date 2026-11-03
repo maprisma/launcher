@@ -453,6 +453,23 @@ void main() {
     expect(find.text('DETAILS'), findsNothing);
   });
 
+  testWidgets('Shortcut… opens its page; a generic desktop has nowhere to write', (tester) async {
+    tester.view.physicalSize = const Size(420, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(home: AppsPage(core: call, desktop: 'generic')));
+    await settle(tester);
+    await tester.tapAt(tester.getCenter(find.text('Writer')), buttons: kSecondaryButton);
+    await settle(tester);
+    await tester.tap(find.text('Shortcut…'));
+    await settle(tester);
+    expect(find.text('Shortcuts for Writer'), findsOneWidget);
+    expect(find.textContaining('Global shortcuts need GNOME, COSMIC or Omarchy'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(tester);
+    expect(find.text('Shortcuts for Writer'), findsNothing);
+  });
+
   testWidgets('Change icon: a theme icon is used, and reset again', (tester) async {
     tester.view.physicalSize = const Size(420, 700);
     tester.view.devicePixelRatio = 1;
