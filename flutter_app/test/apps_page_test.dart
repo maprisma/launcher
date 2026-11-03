@@ -340,6 +340,39 @@ void main() {
     expect(find.text('Player'), findsOneWidget);
   });
 
+  testWidgets('header: the buttons in a card, Settings dragged before Reload with a line where it lands', (tester) async {
+    tester.view.physicalSize = const Size(420, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(home: AppsPage(core: call, desktop: 'generic')));
+    await settle(tester);
+    double x(String tooltip) => tester.getCenter(find.byTooltip(tooltip)).dx;
+    expect(x('Reload') < x('Settings'), isTrue);
+    expect(find.byKey(const ValueKey('header-drop-line')), findsNothing);
+
+    final gesture = await tester.startGesture(tester.getCenter(find.byTooltip('Settings')));
+    final target = tester.getCenter(find.byTooltip('Reload')) - const Offset(8, 0);
+    for (var i = 1; i <= 10; i++) {
+      await gesture.moveTo(Offset.lerp(tester.getCenter(find.byTooltip('Settings')), target, i / 10)!);
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    // The preview: a line before Reload.
+    final line = find.byKey(const ValueKey('header-drop-line'));
+    expect(line, findsOneWidget);
+    expect(tester.getCenter(line).dx < x('Reload'), isTrue);
+    await gesture.up();
+    await settle(tester);
+    expect(find.byKey(const ValueKey('header-drop-line')), findsNothing);
+    expect(x('Settings') < x('Reload'), isTrue);
+    final saved = (await tester.runAsync(() => call('settings.get')))!['header_order'] as List;
+    expect(saved.indexOf('settings') < saved.indexOf('reload'), isTrue);
+
+    // A click is still a click: Settings opens.
+    await tester.tap(find.byTooltip('Settings'));
+    await settle(tester);
+    expect(find.text('SETTINGS'), findsOneWidget);
+  });
+
   testWidgets('settings: language at once, view buttons, filter field off', (tester) async {
     tester.view.physicalSize = const Size(420, 900);
     tester.view.devicePixelRatio = 1;

@@ -118,6 +118,21 @@ const iconSizeChoices = {
   'folders': [50, 60, 70, 80, 90, 100],
   'icons': [48, 56, 64, 72, 88, 96, 112, 128],
 };
+/// The header's buttons, in their default order (the user can drag them).
+const headerButtons = ['running', 'marks', 'hidden', 'reload', 'ask', 'plugins', 'install', 'settings'];
+
+/// A saved order: the known buttons once each, the missing ones after them
+/// in their default order (a new button appears at its default place last).
+List<String> headerOrder(Object? value) {
+  final order = <String>[];
+  if (value is List) {
+    for (final id in value) {
+      if (id is String && headerButtons.contains(id) && !order.contains(id)) order.add(id);
+    }
+  }
+  return [...order, for (final id in headerButtons) if (!order.contains(id)) id];
+}
+
 const defaultIconSizes = {'list': 32, 'cards': 44, 'folders': 100, 'icons': 72};
 
 /// The settings the app uses, each checked as launcher_core reads it.
@@ -163,6 +178,7 @@ final class Settings {
           ? [for (final m in data['package_managers'] as List) if (managerIds.contains(m)) m]
           : null,
       'screenshot_folder': _folder(data['screenshot_folder']),
+      'header_order': headerOrder(data['header_order']),
     };
   }
 
@@ -202,7 +218,7 @@ final class Settings {
     final data = raw();
     for (final key in const [
       'view', 'wide_layout', 'shown_layouts', 'corners', 'icon_sizes', 'app_icon_size',
-      'view_buttons', 'filter_field', 'running_first', 'language', 'screenshot_key', 'screenshot_folder', 'package_managers', 'window_mode',
+      'view_buttons', 'filter_field', 'running_first', 'language', 'screenshot_key', 'screenshot_folder', 'package_managers', 'window_mode', 'header_order',
     ]) {
       data.remove(key);
     }
@@ -230,6 +246,11 @@ final class Settings {
       case 'window_mode':
         if (!const ['auto', 'popup', 'window'].contains(value)) throw ArgumentError(key);
         stored = value;
+      case 'header_order':
+        if (value is! List || value.length > 32 || value.any((id) => !headerButtons.contains(id))) {
+          throw ArgumentError(key);
+        }
+        stored = headerOrder(value);
       case 'package_managers':
         if (value is! List || value.any((m) => !managerIds.contains(m))) throw ArgumentError(key);
         stored = [for (final id in managerIds) if (value.contains(id)) id];

@@ -151,7 +151,8 @@
   "Group actions": "Gruppenaktionen",
   "Drag apps here": "Apps hierher ziehen",
   "Update the system?": "System aktualisieren?",
-  "The terminal asks for your password and shows the progress.": "Das Terminal fragt nach deinem Passwort und zeigt den Fortschritt."
+  "The terminal asks for your password and shows the progress.": "Das Terminal fragt nach deinem Passwort und zeigt den Fortschritt.",
+  "Drag a button to move it": "Einen Knopf ziehen, um ihn zu verschieben"
  },
  "es": {
   "\u0004{0} app": [
@@ -305,7 +306,8 @@
   "Group actions": "Acciones del grupo",
   "Drag apps here": "Arrastra aplicaciones aquí",
   "Update the system?": "¿Actualizar el sistema?",
-  "The terminal asks for your password and shows the progress.": "El terminal pide tu contraseña y muestra el progreso."
+  "The terminal asks for your password and shows the progress.": "El terminal pide tu contraseña y muestra el progreso.",
+  "Drag a button to move it": "Arrastra un botón para moverlo"
  },
  "fr": {
   "\u0004{0} app": [
@@ -459,7 +461,8 @@
   "Group actions": "Actions du groupe",
   "Drag apps here": "Glissez des applications ici",
   "Update the system?": "Mettre à jour le système ?",
-  "The terminal asks for your password and shows the progress.": "Le terminal demande votre mot de passe et affiche la progression."
+  "The terminal asks for your password and shows the progress.": "Le terminal demande votre mot de passe et affiche la progression.",
+  "Drag a button to move it": "Faites glisser un bouton pour le déplacer"
  },
  "it": {
   "\u0004{0} app": [
@@ -613,7 +616,8 @@
   "Group actions": "Azioni del gruppo",
   "Drag apps here": "Trascina qui le app",
   "Update the system?": "Aggiornare il sistema?",
-  "The terminal asks for your password and shows the progress.": "Il terminale chiede la password e mostra l’avanzamento."
+  "The terminal asks for your password and shows the progress.": "Il terminale chiede la password e mostra l’avanzamento.",
+  "Drag a button to move it": "Trascina un pulsante per spostarlo"
  },
  "nl": {
   "\u0004{0} app": [
@@ -767,7 +771,8 @@
   "Group actions": "Groepsacties",
   "Drag apps here": "Sleep apps hierheen",
   "Update the system?": "Systeem bijwerken?",
-  "The terminal asks for your password and shows the progress.": "De terminal vraagt om je wachtwoord en toont de voortgang."
+  "The terminal asks for your password and shows the progress.": "De terminal vraagt om je wachtwoord en toont de voortgang.",
+  "Drag a button to move it": "Sleep een knop om hem te verplaatsen"
  },
  "pl": {
   "\u0004{0} app": [
@@ -923,7 +928,8 @@
   "Group actions": "Działania grupy",
   "Drag apps here": "Przeciągnij tutaj aplikacje",
   "Update the system?": "Zaktualizować system?",
-  "The terminal asks for your password and shows the progress.": "Terminal poprosi o hasło i pokaże postęp."
+  "The terminal asks for your password and shows the progress.": "Terminal poprosi o hasło i pokaże postęp.",
+  "Drag a button to move it": "Przeciągnij przycisk, aby go przenieść"
  },
  "pt": {
   "\u0004{0} app": [
@@ -1077,6 +1083,7 @@
   "Group actions": "Ações do grupo",
   "Drag apps here": "Arraste aplicações para aqui",
   "Update the system?": "Atualizar o sistema?",
-  "The terminal asks for your password and shows the progress.": "O terminal pede a sua palavra-passe e mostra o progresso."
+  "The terminal asks for your password and shows the progress.": "O terminal pede a sua palavra-passe e mostra o progresso.",
+  "Drag a button to move it": "Arraste um botão para o mover"
  }
 }

@@ -6,6 +6,7 @@ import 'package:maprisma_launcher_core/maprisma_launcher_core.dart'
     show
         cardPadding,
         defaultIconSizes,
+        headerOrder,
         folderAppIcon,
         folderColumns,
         folderFit,
@@ -36,6 +37,7 @@ import 'settings_page.dart';
 import 'theme.dart';
 
 part 'overview.dart';
+part 'header_bar.dart';
 
 /// The narrow window's views (launcher_core.saved_view).
 enum AppView { list, groups, origin }
@@ -133,6 +135,10 @@ class AppsPageState extends State<AppsPage> {
 
   /// The cube's last turn by key (+1/-1).
   int cubeDirection = 1;
+
+  /// The header card while a button is dragged: where it would land.
+  int? headerDropAt;
+  final Map<String, GlobalKey> headerKeys = {};
   String? searchFilter;
   bool wide = false;
   String? selectedKey;
@@ -385,7 +391,11 @@ class AppsPageState extends State<AppsPage> {
   /// only those entries.
   Future<void> _legend(Offset at) async {
     final marks = markColors(context);
-    Widget dot(Color c) => Container(width: 10, height: 10, decoration: BoxDecoration(color: c, shape: BoxShape.circle));
+    Widget dot(Color c) => Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+    );
     final rows = [
       ('running', dot(marks.running), tr('Running')),
       ('update', dot(marks.update), tr('Update available: Update in its menu')),
@@ -752,9 +762,15 @@ class AppsPageState extends State<AppsPage> {
       items: [
         PopupMenuItem(value: '\x00open', child: MenuLine(Icons.play_arrow, tr('Open'))),
         if (asAdmin)
-          PopupMenuItem(value: '\x00admin', child: MenuLine(Icons.admin_panel_settings_outlined, tr('Open as administrator'))),
+          PopupMenuItem(
+            value: '\x00admin',
+            child: MenuLine(Icons.admin_panel_settings_outlined, tr('Open as administrator')),
+          ),
         if (omarchy) ...[
-          PopupMenuItem(value: '\x00float', child: MenuLine(Icons.picture_in_picture_alt, tr('Open in floating window'))),
+          PopupMenuItem(
+            value: '\x00float',
+            child: MenuLine(Icons.picture_in_picture_alt, tr('Open in floating window')),
+          ),
           PopupMenuItem(value: '\x00workspace', child: MenuLine(Icons.view_carousel_outlined, tr('Open on workspace'))),
         ],
         for (final a in actions) PopupMenuItem(value: a['id'] as String, child: MenuLine(Icons.launch, '${a['name']}')),
@@ -950,9 +966,10 @@ class AppsPageState extends State<AppsPage> {
     }
   }
 
-  Future<void> openInstall() => Navigator.of(context).push(
-    MaterialPageRoute<void>(builder: (_) => InstallPage(core: widget.core)),
-  ).then((_) => _load());
+  Future<void> openInstall() =>
+      Navigator.of(context)
+          .push(MaterialPageRoute<void>(builder: (_) => InstallPage(core: widget.core)))
+          .then((_) => _load());
 
   /// switch_to_window: one window straight away; several: a list by title
   /// with its workspace.
@@ -1119,7 +1136,9 @@ class AppsPageState extends State<AppsPage> {
 
   /// Shortcut…: global keys that open the app (shortcut_page.dart).
   Future<void> _shortcut(Map app) => Navigator.of(context).push(
-    MaterialPageRoute(builder: (_) => ShortcutPage(core: widget.core, app: app)),
+    MaterialPageRoute(
+      builder: (_) => ShortcutPage(core: widget.core, app: app),
+    ),
   );
 
   /// Change icon: the theme's text colour tints one-colour icons.
@@ -1127,7 +1146,9 @@ class AppsPageState extends State<AppsPage> {
     final fg = Theme.of(context).colorScheme.onSurface;
     final hex = '#${(fg.toARGB32() & 0xffffff).toRadixString(16).padLeft(6, '0')}';
     final changed = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => IconPage(core: widget.core, app: app, foreground: hex)),
+      MaterialPageRoute(
+        builder: (_) => IconPage(core: widget.core, app: app, foreground: hex),
+      ),
     );
     if (changed == true) await _load();
   }
@@ -1280,7 +1301,15 @@ class AppsPageState extends State<AppsPage> {
 
   Widget _header() => Padding(
     padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-    child: Row(
+    child: LayoutBuilder(builder: (context, box) => _headerRow(box.maxWidth)),
+  );
+
+  /// The field (at least 130 px), the view buttons, the button card (the
+  /// rest; it scrolls sideways when even that is too little).
+  Widget _headerRow(double width) {
+    final viewButtonsShown = !wide && viewButtons;
+    final cardMax = math.max(48.0, width - 130 - 14 - (viewButtonsShown ? 150 : 0));
+    return Row(
       children: [
         if (!filterFieldShown)
           Expanded(
@@ -1309,7 +1338,7 @@ class AppsPageState extends State<AppsPage> {
               },
             ),
           ),
-        if (!wide && viewButtons) ...[
+        if (viewButtonsShown) ...[
           const SizedBox(width: 8),
           SegmentedButton<AppView>(
             showSelectedIcon: false,
@@ -1327,73 +1356,21 @@ class AppsPageState extends State<AppsPage> {
             onSelectionChanged: (s) => setView(s.first),
           ),
         ],
-        _runningToggle(),
-        Builder(
-          builder: (context) => IconButton(
-            visualDensity: wide ? null : VisualDensity.compact,
-            tooltip: tr('What the marks mean'),
-            isSelected: markFilter != null,
-            onPressed: () {
-              final box = context.findRenderObject()! as RenderBox;
-              _legend(box.localToGlobal(box.size.bottomLeft(Offset.zero)));
-            },
-            icon: const Icon(Icons.info_outline),
-            selectedIcon: const Icon(Icons.filter_alt),
-          ),
-        ),
-        _hiddenToggle(),
-        IconButton(
-          visualDensity: wide ? null : VisualDensity.compact,
-          tooltip: tr('Reload'),
-          onPressed: _load,
-          icon: const Icon(Icons.refresh),
-        ),
-        // Always there (Antigravity's review, point 1): a dot while no helper is ready.
-        IconButton(
-          visualDensity: wide ? null : VisualDensity.compact,
-          tooltip: askReady ? tr('Ask AI') : tr('Ask AI (set up a helper first)'),
-          onPressed: openAsk,
-          icon: Badge(
-            isLabelVisible: !askReady,
-            smallSize: 7,
-            backgroundColor: markColors(context).update,
-            child: Icon(
-              askReady ? Icons.auto_awesome : Icons.auto_awesome_outlined,
-              color: askReady ? Theme.of(context).colorScheme.primary : null,
-            ),
-          ),
-        ),
-        if (widget.desktop == 'omarchy')
-          IconButton(
-            visualDensity: wide ? null : VisualDensity.compact,
-            tooltip: tr('Omarchy plugins'),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => PluginsPage(core: widget.core, onHide: widget.onHide)),
-            ),
-            icon: const Icon(Icons.extension_outlined),
-          ),
-        IconButton(
-          visualDensity: wide ? null : VisualDensity.compact,
-          tooltip: tr('Install apps'),
-          onPressed: openInstall,
-          icon: const Icon(Icons.add_box_outlined),
-        ),
-        IconButton(
-          visualDensity: wide ? null : VisualDensity.compact,
-          tooltip: tr('Settings'),
-          onPressed: openSettings,
-          icon: const Icon(Icons.settings_outlined),
+        const SizedBox(width: 6),
+        ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: cardMax),
+          child: SingleChildScrollView(scrollDirection: Axis.horizontal, child: _headerCard()),
         ),
       ],
-    ),
-  );
+    );
+  }
 
   /// The header's ● (narrow window): running apps first, or by name.
   Widget _runningToggle() {
     if (wide) return const SizedBox.shrink();
     final marks = markColors(context);
     return IconButton(
-      visualDensity: VisualDensity.compact,
+      visualDensity: const VisualDensity(horizontal: -3, vertical: -2),
       tooltip: runningFirst ? tr('Sort apps by name') : tr('Show running apps first'),
       isSelected: runningFirst,
       onPressed: () async {
@@ -1409,7 +1386,7 @@ class AppsPageState extends State<AppsPage> {
     final count = apps.where((a) => a['hidden'] == true).length;
     if (count == 0) return const SizedBox.shrink();
     return IconButton(
-      visualDensity: wide ? null : VisualDensity.compact,
+      visualDensity: MediaQuery.sizeOf(context).width < 760 ? const VisualDensity(horizontal: -3, vertical: -2) : null,
       tooltip: showHidden ? tr('Hide hidden apps') : trf('Show hidden apps ({0})', [count]),
       isSelected: showHidden,
       onPressed: () {

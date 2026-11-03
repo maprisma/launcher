@@ -91,4 +91,19 @@ void main() {
     settings.set('screenshot_folder', null);
     expect(settings.raw().containsKey('screenshot_folder'), isFalse);
   });
+
+  test('header order: known buttons once, the missing ones appended; bad values refused', () {
+    expect(headerOrder(null), headerButtons);
+    expect(headerOrder(['settings', 'ask', 'settings', 'nope', 3]),
+        ['settings', 'ask', 'running', 'marks', 'hidden', 'reload', 'plugins', 'install']);
+    final dir = Directory.systemTemp.createTempSync('am-header-');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final settings = Settings(ConfigStore(Session(environment: {'HOME': dir.path, 'XDG_CONFIG_HOME': dir.path})));
+    expect(settings.read()['header_order'], headerButtons);
+    settings.set('header_order', ['install', 'settings']);
+    expect((settings.read()['header_order'] as List).take(3), ['install', 'settings', 'running']);
+    expect(() => settings.set('header_order', ['rm -rf']), throwsArgumentError);
+    settings.reset();
+    expect(settings.read()['header_order'], headerButtons);
+  });
 }
