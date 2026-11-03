@@ -111,10 +111,11 @@ class AppsPageState extends State<AppsPage> {
   List<Map<String, dynamic>> groups = [];
   List<String> collapsed = [];
 
-  /// The narrow view's sections (groups or origin), and the groups for the
-  /// overview's folders and footer, both for the entries shown.
+  /// The narrow view's sections (groups or origin), and the groups/origins for
+  /// the overview's folders, cube and footer, all for the entries shown.
   List<(String, List<String>)> sections = [];
   List<(String, List<String>)> groupSections = [];
+  List<(String, List<String>)> originSections = [];
   bool loading = true;
   bool showHidden = false;
 
@@ -134,8 +135,9 @@ class AppsPageState extends State<AppsPage> {
   /// picked for this search only.
   String overviewFilter = 'all';
 
-  /// The cube's last turn by key (+1/-1).
+  /// The cube's last turn by key (+1/-1), and whether it is flipped to origins.
   int cubeDirection = 1;
+  bool cubeByOrigin = false;
 
   /// The header card while a button is dragged: where it would land.
   int? headerDropAt;
@@ -500,8 +502,9 @@ class AppsPageState extends State<AppsPage> {
       // Running on top: always in the wide window's bar, in the narrow
       // views when the header's ● asks for it.
       final byGroup = await widget.core('apps.sections', {'view': 'groups', 'keys': keys, 'running': true});
+      final byOrigin = await widget.core('apps.sections', {'view': 'origin', 'keys': keys, 'running': true});
       final byView = view == AppView.origin
-          ? await widget.core('apps.sections', {'view': 'origin', 'keys': keys, 'running': runningFirst})
+          ? (runningFirst ? byOrigin : await widget.core('apps.sections', {'view': 'origin', 'keys': keys}))
           : view == AppView.groups && !runningFirst
           ? await widget.core('apps.sections', {'view': 'groups', 'keys': keys})
           : byGroup;
@@ -509,6 +512,7 @@ class AppsPageState extends State<AppsPage> {
       setState(() {
         _takeGroups(byGroup);
         groupSections = _parseSections(byGroup);
+        originSections = _parseSections(byOrigin);
         sections = view == AppView.list ? [] : _parseSections(byView);
       });
     } on ServiceError catch (e) {
@@ -1309,9 +1313,16 @@ class AppsPageState extends State<AppsPage> {
       if (list.isNotEmpty) _launch(list[index < 0 ? 0 : index]);
       return KeyEventResult.handled;
     }
-    // The cube: Left/Right turn it a face.
+    // The cube: Left/Right turn it a face; Ctrl+Up/Down flip it between groups and origins.
     if (wide && showingCube && (key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.arrowRight)) {
       turnCube(key == LogicalKeyboardKey.arrowRight ? 1 : -1);
+      return KeyEventResult.handled;
+    }
+    if (wide &&
+        showingCube &&
+        keyboard.isControlPressed &&
+        (key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.arrowDown)) {
+      flipCube();
       return KeyEventResult.handled;
     }
     final grid = wide && !showingFolders;

@@ -334,6 +334,19 @@ void main() {
     await settle(tester);
     expect(state.cubeFront, faces[(side + 1) % faces.length]);
 
+    // The bottom-right option button flips the cube vertically to By origin,
+    // and back to Groups again.
+    expect(state.cubeByOrigin, isFalse);
+    await tester.tap(find.byKey(const ValueKey('cube-axis-toggle')));
+    await settle(tester);
+    expect(state.cubeByOrigin, isTrue);
+    expect(state.cubeFront, 'o-user');
+    expect(find.text('Your own'), findsWidgets);
+    await tester.tap(find.byKey(const ValueKey('cube-axis-toggle')));
+    await settle(tester);
+    expect(state.cubeByOrigin, isFalse);
+    expect(state.cubeFront, faces.first);
+
     // Typing filters as a grid; the cube is back after.
     await tester.enterText(find.byType(TextField).first, 'pla');
     await settle(tester);

@@ -30,7 +30,12 @@ extension Overview on AppsPageState {
 
   List<Map<String, dynamic>> get overviewMembers {
     if (showingFolders) return const [];
-    final wanted = showingCube ? (cubeFront ?? 'all') : wantedFilter;
+    if (showingCube) {
+      final wanted = cubeFront;
+      final keys = cubeSections.where((s) => s.$1 == wanted).firstOrNull?.$2 ?? const [];
+      return [for (final k in keys) ?byKey[k]];
+    }
+    final wanted = wantedFilter;
     final keys = overviewSections.firstWhere((s) => s.$1 == wanted).$2;
     return [for (final k in keys) ?byKey[k]];
   }
@@ -384,35 +389,55 @@ extension Overview on AppsPageState {
 
   // --- the cube ----------------------------------------------------------------
 
-  /// The cube: one face per group, not while filtering (then the grid).
+  /// The cube: one face per group (or origin), not while filtering (then the grid).
   bool get showingCube => wideLayout == WideLayout.cube && !filtering;
 
-  /// The front face's group: the chosen group, else the first ("All").
+  /// The cube's faces: the groups, or (flipped vertically) where the apps come from.
+  List<(String, List<String>)> get cubeSections {
+    if (!cubeByOrigin) return folderSections;
+    final nonEmpty = [
+      for (final (id, keys) in originSections)
+        if (keys.isNotEmpty) (id, keys),
+    ];
+    return nonEmpty.isNotEmpty ? nonEmpty : originSections;
+  }
+
+  /// The front face's group (or origin): the chosen one, else the first.
   String? get cubeFront {
-    final faces = folderSections;
+    final faces = cubeSections;
     if (faces.isEmpty) return null;
-    final wanted = wantedFilter;
+    final wanted = filtering ? (searchFilter ?? 'all') : overviewFilter;
     return faces.any((f) => f.$1 == wanted) ? wanted : faces.first.$1;
   }
 
   /// Left/Right, Ctrl+G, the wheel: the next face round the cube.
   void turnCube(int step) {
-    final ids = [for (final f in folderSections) f.$1];
+    final ids = [for (final f in cubeSections) f.$1];
     if (ids.isEmpty) return;
     final at = ids.indexOf(cubeFront ?? ids.first);
     cubeDirection = step < 0 ? -1 : 1;
     setOverviewFilter(ids[((at < 0 ? 0 : at) + step) % ids.length]);
   }
 
+  /// Vertical flip (the bottom-right option button, Ctrl+Up/Down, or a
+  /// vertical drag): switch the cube between groups and origins.
+  void flipCube() => _update(() {
+    cubeByOrigin = !cubeByOrigin;
+    overviewFilter = 'all';
+    selectedKey = null;
+  });
+
   Widget _cube(int cardWidth, int height) {
-    final faces = folderSections;
+    final faces = cubeSections;
     if (faces.isEmpty) return _empty();
     final front = faces.indexWhere((f) => f.$1 == cubeFront);
     return _CubeOverview(
       faces: [for (final f in faces) f.$1],
       front: front < 0 ? 0 : front,
       direction: cubeDirection,
+      byOrigin: cubeByOrigin,
       onFront: (i) => setOverviewFilter(faces[i].$1),
+      onFlip: flipCube,
       face: (i, width, isFront) => _cubeFace(faces[i].$1, faces[i].$2, width, isFront),
     );
   }
@@ -512,6 +537,9 @@ extension Overview on AppsPageState {
     final scheme = Theme.of(context).colorScheme;
     // The cube has no "All" page: its front face is the chosen one.
     final wanted = showingCube ? (cubeFront ?? wantedFilter) : wantedFilter;
+    final barSections = showingCube && cubeByOrigin
+        ? [('all', [for (final a in filtered) a['key'] as String]), ...cubeSections]
+        : overviewSections;
     final strip = ScrollController();
     return Container(
       decoration: BoxDecoration(
@@ -534,8 +562,8 @@ extension Overview on AppsPageState {
                 controller: strip,
                 scrollDirection: Axis.horizontal,
                 children: [
-                  for (final (id, keys) in overviewSections) _footerChip(id, keys.length, id == wanted),
-                  _newGroupButton(compact: true),
+                  for (final (id, keys) in barSections) _footerChip(id, keys.length, id == wanted),
+                  if (!(showingCube && cubeByOrigin)) _newGroupButton(compact: true),
                 ],
               ),
             ),
@@ -587,6 +615,8 @@ extension Overview on AppsPageState {
             ? Icons.home_outlined
             : id == '_running'
             ? Icons.play_circle_outline
+            : id.startsWith('o-')
+            ? Icons.inventory_2_outlined
             : Icons.folder_outlined,
         label: groupName(id),
         star: isNewGroup(id),
@@ -677,17 +707,22 @@ class FooterItem extends StatelessWidget {
   }
 }
 
-/// The cube (a prism for N groups): the front face and its neighbours,
-/// turned in 3D around a vertical axis. A drag turns it continuously and
-/// snaps to the nearest face; the wheel (where nothing inside scrolls), a
-/// click on a side face, the footer, Left/Right and Ctrl+G turn it a face.
+/// The cube (a prism for N groups or origins): the front face and its
+/// neighbours, turned in 3D around a vertical axis and flipped vertically
+/// around a horizontal axis between groups and origins. A drag turns it
+/// continuously and snaps to the nearest face; the wheel (where nothing inside
+/// scrolls), a click on a side face, the footer, Left/Right and Ctrl+G turn it
+/// a face; the bottom-right option button, Ctrl+Up/Down or a vertical drag
+/// flip it between Groups and By origin.
 class _CubeOverview extends StatefulWidget {
   const _CubeOverview({
     required this.faces,
     required this.front,
     required this.onFront,
+    required this.onFlip,
     required this.face,
     this.direction = 1,
+    this.byOrigin = false,
   });
   final List<String> faces;
   final int front;
@@ -695,28 +730,43 @@ class _CubeOverview extends StatefulWidget {
   /// The way the last key/wheel step went (+1/-1): with two faces both ways
   /// reach the other one, so it decides.
   final int direction;
+  final bool byOrigin;
   final void Function(int index) onFront;
+  final VoidCallback onFlip;
   final Widget Function(int index, double width, bool isFront) face;
 
   @override
   State<_CubeOverview> createState() => _CubeOverviewState();
 }
 
-class _CubeOverviewState extends State<_CubeOverview> with SingleTickerProviderStateMixin {
+class _CubeOverviewState extends State<_CubeOverview> with TickerProviderStateMixin {
   /// The turn, in faces: 0 shows face 0, 1.5 halfway between 1 and 2.
   late final AnimationController page = AnimationController.unbounded(vsync: this, value: widget.front.toDouble());
+
+  /// Vertical tilt/flip around the horizontal axis, in 60° steps (0: level).
+  late final AnimationController tilt = AnimationController.unbounded(vsync: this);
 
   /// Where the turn is heading (unwrapped, like [page]): turns are counted
   /// from here, not from where the cube happens to stand mid-turn.
   late double _target = widget.front.toDouble();
   DateTime _lastWheel = DateTime(0);
   double _faceWidth = 1;
+  double _faceHeight = 1;
 
   int get count => widget.faces.length;
 
   @override
   void didUpdateWidget(_CubeOverview old) {
     super.didUpdateWidget(old);
+    if (widget.byOrigin != old.byOrigin) {
+      // Flipped between groups and origins: start on the new front face and
+      // tilt it into place around the horizontal axis.
+      _target = widget.front.toDouble();
+      page.value = _target;
+      tilt.value = widget.byOrigin ? -1.0 : 1.0;
+      tilt.animateTo(0, duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic);
+      return;
+    }
     if (count != old.faces.length) {
       // Groups came or went: stand on the front face again, no turn.
       _target = widget.front.toDouble();
@@ -729,6 +779,7 @@ class _CubeOverviewState extends State<_CubeOverview> with SingleTickerProviderS
   @override
   void dispose() {
     page.dispose();
+    tilt.dispose();
     super.dispose();
   }
 
@@ -751,6 +802,14 @@ class _CubeOverviewState extends State<_CubeOverview> with SingleTickerProviderS
     if (index != widget.front) widget.onFront(index);
   }
 
+  void _settleTilt() {
+    if (tilt.value.abs() > 0.28) {
+      widget.onFlip();
+    } else {
+      tilt.animateTo(0, duration: const Duration(milliseconds: 260), curve: Curves.easeOutCubic);
+    }
+  }
+
   void _step(int step) {
     if (count <= 1) return;
     final index = _wrap(_target.round() + step);
@@ -771,7 +830,7 @@ class _CubeOverviewState extends State<_CubeOverview> with SingleTickerProviderS
       builder: (context, box) {
         final width = box.maxWidth, height = box.maxHeight;
         _faceWidth = math.min(width * 0.62, 760.0).clamp(160.0, double.infinity);
-        final faceHeight = math.max(80.0, height - 16);
+        final faceHeight = _faceHeight = math.max(80.0, height - 16);
         return Listener(
           // Only what no grid inside scrolls reaches here (the resolver).
           onPointerSignal: (event) {
@@ -787,13 +846,17 @@ class _CubeOverviewState extends State<_CubeOverview> with SingleTickerProviderS
           },
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,
-            // One face: nothing to turn.
+            // One face: nothing to turn horizontally.
             onHorizontalDragStart: count <= 1 ? null : (_) => page.stop(),
             onHorizontalDragUpdate: count <= 1 ? null : (d) => page.value -= d.delta.dx / (_faceWidth * 0.65),
             onHorizontalDragEnd: count <= 1 ? null : (_) => _settle(),
             onHorizontalDragCancel: count <= 1 ? null : _settle,
+            onVerticalDragStart: (_) => tilt.stop(),
+            onVerticalDragUpdate: (d) => tilt.value = (tilt.value - d.delta.dy / (_faceHeight * 0.55)).clamp(-1.2, 1.2),
+            onVerticalDragEnd: (_) => _settleTilt(),
+            onVerticalDragCancel: _settleTilt,
             child: AnimatedBuilder(
-              animation: page,
+              animation: Listenable.merge([page, tilt]),
               builder: (context, _) {
                 final shown = <(int, double)>[
                   for (var i = 0; i < count; i++)
@@ -805,6 +868,8 @@ class _CubeOverviewState extends State<_CubeOverview> with SingleTickerProviderS
                 // few groups still show their neighbours at a slant).
                 final step = 2 * math.pi / math.max(count, 6);
                 final radius = (_faceWidth / 2) / math.tan(step / 2);
+                final pitch = tilt.value * (math.pi / 3);
+                final vRadius = (faceHeight / 2) / math.tan(math.pi / 6);
                 return Stack(
                   clipBehavior: Clip.hardEdge,
                   children: [
@@ -814,8 +879,9 @@ class _CubeOverviewState extends State<_CubeOverview> with SingleTickerProviderS
                         top: 8,
                         width: _faceWidth,
                         height: faceHeight,
-                        child: _placed(i, diff, radius, step),
+                        child: _placed(i, diff, radius, step, pitch, vRadius),
                       ),
+                    Positioned(right: 16, bottom: 12, child: _axisButton(context)),
                   ],
                 );
               },
@@ -826,14 +892,63 @@ class _CubeOverviewState extends State<_CubeOverview> with SingleTickerProviderS
     );
   }
 
+  /// Bottom-right option button: flips the cube vertically between Groups and
+  /// By origin.
+  Widget _axisButton(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final radius = BorderRadius.circular(corners(context));
+    return Tooltip(
+      message: widget.byOrigin ? tr('Groups (Ctrl+G)') : tr('By origin (Ctrl+G)'),
+      child: Material(
+        color: scheme.surfaceContainerHigh.withValues(alpha: .92),
+        shape: RoundedRectangleBorder(
+          borderRadius: radius,
+          side: BorderSide(color: scheme.outlineVariant),
+        ),
+        elevation: 2,
+        child: InkWell(
+          key: const ValueKey('cube-axis-toggle'),
+          borderRadius: radius,
+          onTap: widget.onFlip,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.swap_vert, size: 17, color: scheme.primary),
+                const SizedBox(width: 5),
+                Icon(
+                  widget.byOrigin ? Icons.inventory_2_outlined : Icons.folder_outlined,
+                  size: 16,
+                  color: scheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  widget.byOrigin ? tr('Origin') : tr('Groups'),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: scheme.onSurface),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Face i on the prism: [radius] is the apothem, the front face flat at
   /// depth 0, the others turned away and pushed back so their edges meet it
   /// (nothing comes nearer than the front, so perspective never blows up).
-  Widget _placed(int i, double diff, double radius, double step) {
+  Widget _placed(int i, double diff, double radius, double step, double pitch, double vRadius) {
     final theta = diff * step;
     final matrix = Matrix4.identity()
       ..setEntry(3, 2, 0.0012) // perspective: farther is smaller
-      ..translateByDouble(radius * math.sin(theta), 0, radius * (1 - math.cos(theta)), 1)
+      ..translateByDouble(
+        radius * math.sin(theta),
+        -vRadius * math.sin(pitch),
+        radius * (1 - math.cos(theta)) + vRadius * (1 - math.cos(pitch)),
+        1,
+      )
+      ..rotateX(pitch)
       ..rotateY(-theta);
     final isFront = diff.abs() < 0.15;
     Widget face = widget.face(i, _faceWidth, isFront);
@@ -860,7 +975,7 @@ class _CubeOverviewState extends State<_CubeOverview> with SingleTickerProviderS
     return Transform(
       alignment: Alignment.center,
       transform: matrix,
-      child: Opacity(opacity: (1.0 - diff.abs() * 0.45).clamp(0.25, 1.0), child: face),
+      child: Opacity(opacity: (1.0 - diff.abs() * 0.45 - tilt.value.abs() * 0.25).clamp(0.25, 1.0), child: face),
     );
   }
 }
