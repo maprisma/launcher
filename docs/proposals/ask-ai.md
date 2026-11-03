@@ -95,3 +95,12 @@ Review: `docs/reviews/ask-ai-design.md`. Checked against the code before answeri
    install page, uninstall (extended beyond pacman/Flatpak), localized names.
 2. Ask AI: agent detection (0 tokens), onboarding page, the two-call pipeline, review, action rules, shared run log.
 3. Optional: dictation (Maprisma task 024), only if Uwe wants it.
+
+## Uwe's decisions (2026-11-03)
+
+- **Order:** step 1 without AI first (card size + description, Details, Settings › Package managers, search +
+  install page, uninstall beyond pacman/Flatpak), then step 2 Ask AI on top of it.
+- **Dictation:** yes, as step 3 (Maprisma task 024: microphone in the Ask AI field, Settings section, shared
+  Whisper models).
+- **App names and descriptions:** in the desktop's language (localized Name/Comment, GenericName fallback),
+  a deliberate step away from gnome-launcher.
