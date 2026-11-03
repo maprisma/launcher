@@ -9,6 +9,7 @@ fixture's environment.
   oracle.py marks < spec      newapps, update parsing, process names, uninstall plans
   oracle.py facts             details.app_facts of every scanned app
   oracle.py icons < spec      icons.py: index entries, score, search, looks_like, tint
+  oracle.py windows < clients the Omarchy plugin: app_window_classes, client_matches_app, lua_string
 """
 import json
 import sys
@@ -101,6 +102,23 @@ def main(argv):
                                          list(details.uninstall_plan(a, look_up_package=False) or []) or None]
                        for a in apps}
         print(json.dumps(out))
+        return 0
+    if argv[1:] == ["windows"]:
+        use("gnome-launcher")
+        import launcher_core as glc
+        apps = glc.parse_desktop_files()
+        sys.path.insert(0, str(REF / "omarchy-plugin"))
+        for mod in ("launcher_core", "i18n", "cli_tools", "corners", "desktop", "shortcuts"):
+            sys.modules.pop(mod, None)
+        import desktop_omarchy
+        sys.modules["desktop_omarchy"] = desktop_omarchy
+        import launcher_core as olc
+        clients = json.load(sys.stdin)
+        print(json.dumps({
+            "classes": {a["desktop_id"]: sorted(c.casefold() for c in olc.app_window_classes(a) if c) for a in apps},
+            "matches": {a["desktop_id"]: [bool(olc.client_matches_app(c, a)) for c in clients] for a in apps},
+            "lua": [desktop_omarchy.lua_string(t) for t in ["a", "x\"); os.exit(\"", "ü\n"]],
+        }))
         return 0
     if argv[1:] == ["icons"]:
         use("gnome-launcher")

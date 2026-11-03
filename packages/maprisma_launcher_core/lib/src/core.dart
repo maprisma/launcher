@@ -18,6 +18,7 @@ import 'facts.dart';
 import 'groups.dart' as groups;
 import 'icon_theme.dart';
 import 'icons.dart';
+import 'hyprland.dart';
 import 'launch.dart';
 import 'newapps.dart';
 import 'origins.dart' show defaultRoles;
@@ -63,6 +64,10 @@ final class CoreService {
   List<Found> _found = [];
   late final _ask = AskRunner(session);
   late final _iconChoices = IconChoices(session, store);
+  late final _hyprland = Hyprland(session);
+
+  /// The last window list (Hyprland): only these addresses can be focused.
+  List<Map> _clients = const [];
 
   /// Change icon: the last search's online candidates, by url (only these
   /// can be previewed or chosen).
@@ -89,8 +94,45 @@ final class CoreService {
     'apps.facts': (_) async => {'facts': await _facts.all(_apps)},
     'apps.running': (_) async {
       final (names, exes) = processNames();
+      // Omarchy knows the windows: "active" (open windows) or "background".
+      if (desktop is OmarchyDesktop && _hyprland.available) {
+        _clients = await _hyprland.clients();
+        final states = _hyprland.states(_apps, _clients, names, exes);
+        _running = states.keys.toSet();
+        return {'running': _running.toList(), 'states': states};
+      }
       _running = runningApps(_apps, names, exes);
       return {'running': _running.toList()};
+    },
+    'apps.windows': (params) async {
+      final app = _app(params);
+      if (!_hyprland.available) return {'windows': const []};
+      _clients = await _hyprland.clients();
+      return {'windows': _hyprland.windowsOf(app, _clients)};
+    },
+    'window.focus': (params) async {
+      final address = _string(params, 'address');
+      // Only a window Hyprland listed just now.
+      if (!_clients.any((c) => c['address'] == address)) throw ServiceError('not_found');
+      if (!await _hyprland.focus(address)) throw ServiceError('focus_failed');
+      return {'focused': true};
+    },
+    'apps.open_floating': (params) async {
+      if (!await _hyprland.execFloating(_startArgv(_app(params)))) throw ServiceError('launch_failed');
+      return {'started': true};
+    },
+    'apps.open_on_workspace': (params) async {
+      final workspace = params['workspace'];
+      if (workspace is! int) throw ServiceError('bad_params');
+      if (!await _hyprland.execOnWorkspace(_startArgv(_app(params)), workspace)) throw ServiceError('launch_failed');
+      return {'started': true};
+    },
+    'workspaces.list': (_) async => await _hyprland.workspaces() ?? {'workspaces': const [], 'free': null},
+    'window.popup': (params) async {
+      final width = params['width'], height = params['height'];
+      if (width is! int || height is! int) throw ServiceError('bad_params');
+      if (!(desktop is OmarchyDesktop && _hyprland.available)) return {'placed': false, 'reason': 'not Omarchy'};
+      return _hyprland.placePopup(pid, width, height);
     },
     'updates.check': (params) => _checkUpdates(force: params['force'] == true),
     'updates.flatpak': (params) async {
@@ -532,6 +574,18 @@ final class CoreService {
   static String? _color(Map<String, dynamic> params) {
     final c = params['color'];
     return c is String && RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(c) ? c : null;
+  }
+
+  /// How a normal start runs the app (for Hyprland's exec with a rule):
+  /// uwsm-app with the desktop file on Omarchy, else the entry's own argv.
+  List<String> _startArgv(Map app) {
+    if (app['argv'] case final List argv when argv.isNotEmpty) return [for (final a in argv) '$a'];
+    final path = app['desktop_path'] as String? ?? '';
+    final uwsm = session.which('uwsm-app');
+    if (path.isNotEmpty && uwsm != null) return [uwsm, '--', path];
+    final command = path.isEmpty ? null : desktopCommand(path, session);
+    if (command == null) throw ServiceError('launch_failed');
+    return command.argv;
   }
 
   List<String> _enabledManagers() =>

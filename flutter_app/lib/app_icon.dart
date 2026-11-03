@@ -68,13 +68,14 @@ class MarkedIcon extends StatelessWidget {
     super.key,
     this.size = 32,
     this.running = false,
+    this.background = false,
     this.update = false,
     this.fresh = false,
     this.hidden = false,
   });
   final String? file;
   final double size;
-  final bool running, update, fresh, hidden;
+  final bool running, background, update, fresh, hidden;
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +97,8 @@ class MarkedIcon extends StatelessWidget {
         clipBehavior: Clip.none,
         children: [
           Positioned.fill(child: AppIcon(file, size: size)),
-          if (running) Positioned(right: -2, bottom: -2, child: mark(marks.running)),
+          // Green: open windows; yellow: running without a window (Omarchy knows windows).
+          if (running) Positioned(right: -2, bottom: -2, child: mark(background ? marks.fresh : marks.running)),
           if (update) Positioned(right: -2, top: -2, child: mark(marks.update)),
           if (fresh)
             Positioned(

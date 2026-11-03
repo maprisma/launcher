@@ -17,6 +17,7 @@ import 'package:maprisma_launcher_core/maprisma_launcher_core.dart'
         tileTextHeight;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/services.dart';
 
 import 'app_icon.dart';
@@ -133,6 +134,9 @@ class AppsPageState extends State<AppsPage> {
   /// Running entries (keys), from the core's process scan every few seconds.
   Set<String> running = {};
 
+  /// Omarchy: "active" (open windows) or "background" per running key.
+  Map<String, String> runStates = const {};
+
   /// Updates: {"apps": {desktop path: [package, installed, available]},
   /// "flatpaks": {key: [installed, available]}}.
   Map<String, dynamic> updates = const {};
@@ -234,9 +238,15 @@ class AppsPageState extends State<AppsPage> {
     try {
       final result = await widget.core('apps.running');
       final now = (result['running'] as List).cast<String>().toSet();
-      final changed = now.length != running.length || !now.containsAll(running);
+      final states = Map<String, String>.from(result['states'] as Map? ?? const {});
+      final changed = now.length != running.length || !now.containsAll(running) || !mapEquals(states, runStates);
       if (!mounted) return;
-      if (changed) setState(() => running = now);
+      if (changed) {
+        setState(() {
+          running = now;
+          runStates = states;
+        });
+      }
       if (changed || always) await _refreshSections();
     } on ServiceError {
       // The marks wait for the next scan.
@@ -416,6 +426,7 @@ class AppsPageState extends State<AppsPage> {
     app['icon_file'] as String?,
     size: size,
     running: isRunning(app),
+    background: runStates[app['key']] == 'background',
     update: updateNote(app) != null,
     fresh: app['new'] == true,
     hidden: app['hidden'] == true,
@@ -423,7 +434,12 @@ class AppsPageState extends State<AppsPage> {
 
   /// The tooltip line for an entry's marks.
   String marksNote(Map app) => [
-    if (isRunning(app)) tr('Running'),
+    if (isRunning(app))
+      switch (runStates[app['key']]) {
+        'active' => tr('Open windows'),
+        'background' => tr('Running in background'),
+        _ => tr('Running'),
+      },
     if (app['new'] == true) tr('Newly installed'),
     ?updateNote(app),
     if (app['hidden'] == true) tr('Hidden'),
@@ -689,13 +705,23 @@ class AppsPageState extends State<AppsPage> {
     final actions = [for (final a in app['actions'] as List? ?? []) Map<String, dynamic>.from(a)];
     final hidden = app['hidden'] == true;
     final flatpakUpdate = (updates['flatpaks'] as Map?)?.containsKey(app['key']) == true;
+    final omarchy = widget.desktop == 'omarchy';
+    final hasWindows = runStates[app['key']] == 'active';
     final packageUpdate = (updates['apps'] as Map?)?.containsKey(app['desktop_path']) == true;
     final choice = await showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy),
       items: [
         PopupMenuItem(value: '\x00open', child: MenuLine(Icons.play_arrow, tr('Open'))),
+        if (omarchy) ...[
+          PopupMenuItem(value: '\x00float', child: MenuLine(Icons.picture_in_picture_alt, tr('Open in floating window'))),
+          PopupMenuItem(value: '\x00workspace', child: MenuLine(Icons.view_carousel_outlined, tr('Open on workspace'))),
+        ],
         for (final a in actions) PopupMenuItem(value: a['id'] as String, child: MenuLine(Icons.launch, '${a['name']}')),
+        if (hasWindows) ...[
+          const PopupMenuDivider(),
+          PopupMenuItem(value: '\x00switch', child: MenuLine(Icons.open_in_new, tr('Switch to window'))),
+        ],
         if (flatpakUpdate)
           PopupMenuItem(value: '\x00update', child: MenuLine(Icons.system_update_alt, tr('Update')))
         else if (packageUpdate)
@@ -733,6 +759,12 @@ class AppsPageState extends State<AppsPage> {
         return _updateFlatpak(app);
       case '\x00uninstall':
         return _uninstall(app);
+      case '\x00switch':
+        return _switchToWindow(app, position);
+      case '\x00float':
+        return _openSpecial(app, 'apps.open_floating', const {});
+      case '\x00workspace':
+        return _workspaceChoice(app, position);
       case '\x00system':
         return _updateSystem();
       default:
@@ -846,6 +878,86 @@ class AppsPageState extends State<AppsPage> {
   Future<void> openInstall() => Navigator.of(context).push(
     MaterialPageRoute<void>(builder: (_) => InstallPage(core: widget.core)),
   ).then((_) => _load());
+
+  /// switch_to_window: one window straight away; several: a list by title
+  /// with its workspace.
+  Future<void> _switchToWindow(Map app, Offset at) async {
+    List windows;
+    try {
+      windows = (await widget.core('apps.windows', {'key': app['key']}))['windows'] as List;
+    } on ServiceError {
+      return;
+    }
+    if (windows.isEmpty || !mounted) return;
+    var address = windows.first['address'] as String;
+    if (windows.length > 1) {
+      final chosen = await showMenu<String>(
+        context: context,
+        position: RelativeRect.fromLTRB(at.dx, at.dy, at.dx, at.dy),
+        items: [
+          PopupMenuItem(enabled: false, child: Text(trf('Switch to a window of {0}', [app['name']]))),
+          for (final w in windows)
+            PopupMenuItem(
+              value: w['address'] as String,
+              child: Row(
+                children: [
+                  if (w['workspace'] is int) CountChip(w['workspace'] as int),
+                  const SizedBox(width: 8),
+                  Flexible(child: Text('${w['title']}', overflow: TextOverflow.ellipsis)),
+                ],
+              ),
+            ),
+        ],
+      );
+      if (chosen == null) return;
+      address = chosen;
+    }
+    widget.onHide?.call();
+    try {
+      await widget.core('window.focus', {'address': address});
+    } on ServiceError {
+      _tell(trf('{0} could not be started.', [app['name']]));
+    }
+  }
+
+  Future<void> _openSpecial(Map app, String route, Map<String, dynamic> extra) async {
+    try {
+      await widget.core(route, {'key': app['key'], ...extra});
+      _clearFilter();
+      widget.onHide?.call();
+    } on ServiceError {
+      _tell(trf('{0} could not be started.', [app['name']]));
+    }
+  }
+
+  /// Open on workspace ›: the workspaces in use (with their apps) and the next empty one.
+  Future<void> _workspaceChoice(Map app, Offset at) async {
+    Map<String, dynamic> found;
+    try {
+      found = await widget.core('workspaces.list');
+    } on ServiceError {
+      return;
+    }
+    if (!mounted) return;
+    final free = found['free'] as int?;
+    final chosen = await showMenu<int>(
+      context: context,
+      position: RelativeRect.fromLTRB(at.dx, at.dy, at.dx, at.dy),
+      items: [
+        PopupMenuItem(enabled: false, child: Text(trf('Open {0} on', [app['name']]))),
+        for (final w in found['workspaces'] as List)
+          PopupMenuItem(
+            value: w['id'] as int,
+            child: Text(
+              '${w['id']}${(w['apps'] as List).isEmpty ? '' : ' · ${(w['apps'] as List).take(3).join(', ')}'}',
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        if (free != null) PopupMenuItem(value: free, child: Text(trf('{0} (empty)', [free]))),
+      ],
+    );
+    if (chosen != null) await _openSpecial(app, 'apps.open_on_workspace', {'workspace': chosen});
+  }
 
   /// update_flatpak: this one app, in the background; says how it went.
   Future<void> _updateFlatpak(Map app) async {

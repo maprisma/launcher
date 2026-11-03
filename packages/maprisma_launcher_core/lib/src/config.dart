@@ -156,6 +156,8 @@ final class Settings {
       'size': _size(data['size']),
       // F12 saves a picture of the window (as in Maprisma); on by default.
       'screenshot_key': data['screenshot_key'] != false,
+      // auto: a popup on Omarchy (as the old App Manager), a window elsewhere.
+      'window_mode': const ['auto', 'popup', 'window'].contains(data['window_mode']) ? data['window_mode'] : 'auto',
       // The package managers the user allows (null: the defaults, see Managers).
       'package_managers': data['package_managers'] is List
           ? [for (final m in data['package_managers'] as List) if (managerIds.contains(m)) m]
@@ -200,7 +202,7 @@ final class Settings {
     final data = raw();
     for (final key in const [
       'view', 'wide_layout', 'shown_layouts', 'corners', 'icon_sizes', 'app_icon_size',
-      'view_buttons', 'filter_field', 'running_first', 'language', 'screenshot_key', 'screenshot_folder', 'package_managers',
+      'view_buttons', 'filter_field', 'running_first', 'language', 'screenshot_key', 'screenshot_folder', 'package_managers', 'window_mode',
     ]) {
       data.remove(key);
     }
@@ -224,6 +226,9 @@ final class Settings {
         stored = chosen.isEmpty ? [...wideLayouts] : chosen;
       case 'corners':
         if (!const ['windows', 'rounded', 'square'].contains(value)) throw ArgumentError(key);
+        stored = value;
+      case 'window_mode':
+        if (!const ['auto', 'popup', 'window'].contains(value)) throw ArgumentError(key);
         stored = value;
       case 'package_managers':
         if (value is! List || value.any((m) => !managerIds.contains(m))) throw ArgumentError(key);

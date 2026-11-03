@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'backend.dart';
 import 'core_call.dart';
 import 'i18n.dart';
+import 'main.dart' show PopupGuard;
 
 /// launcher_core's choices per setting.
 const iconSizeChoices = {
@@ -151,6 +152,15 @@ class _SettingsPageState extends State<SettingsPage> {
                     ], (v) => _set('language', v)),
                   ),
                   _row(
+                    tr('Window'),
+                    tr('A popup floats in the middle of the screen and closes with Esc or a click elsewhere, like the old App Manager; a normal window stays and is placed by the desktop. Auto: a popup on Omarchy, a window elsewhere.'),
+                    _dropdown<String>(settings['window_mode'] as String? ?? 'auto', [
+                      ('auto', tr('Auto')),
+                      ('popup', tr('Popup')),
+                      ('window', tr('Normal window')),
+                    ], (v) => _set('window_mode', v)),
+                  ),
+                  _row(
                     tr('Layout when small'),
                     tr('How the narrow window shows the entries: as one list (the default), in groups, or by origin.'),
                     _dropdown<String>(settings['view'] as String? ?? 'list', [
@@ -273,7 +283,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           tooltip: tr('Choose folder…'),
                           icon: const Icon(Icons.folder_open),
                           onPressed: () async {
-                            final chosen = await getDirectoryPath();
+                            final chosen = await PopupGuard.around(getDirectoryPath);
                             if (chosen != null) await _set('screenshot_folder', chosen);
                           },
                         ),

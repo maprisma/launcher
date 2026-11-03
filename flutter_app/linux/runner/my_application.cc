@@ -24,6 +24,16 @@ static void notify_shown(MyApplication* self) {
   }
 }
 
+// The window's focus, for the popup mode (a click elsewhere hides it).
+static gboolean focus_changed_cb(GtkWidget* widget, GdkEventFocus* event, gpointer user_data) {
+  MyApplication* self = MY_APPLICATION(user_data);
+  if (self->window_channel != nullptr) {
+    fl_method_channel_invoke_method(self->window_channel, event->in ? "focus" : "blur", nullptr,
+                                    nullptr, nullptr, nullptr);
+  }
+  return FALSE;
+}
+
 // "titlebar": GTK draws the title bar, so it takes the app's light or dark.
 static void window_call_cb(FlMethodChannel* channel, FlMethodCall* call,
                            gpointer user_data) {
@@ -34,6 +44,16 @@ static void window_call_cb(FlMethodChannel* channel, FlMethodCall* call,
       g_object_set(gtk_settings_get_default(),
                    "gtk-application-prefer-dark-theme", fl_value_get_bool(args),
                    nullptr);
+    }
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else if (g_strcmp0(fl_method_call_get_name(call), "decorated") == 0) {
+    // "decorated": false on Omarchy's popup (Hyprland draws the border; the
+    // app's header is enough).
+    FlValue* args = fl_method_call_get_args(call);
+    GtkWindow* window = gtk_application_get_active_window(
+        GTK_APPLICATION(g_application_get_default()));
+    if (window != nullptr && args != nullptr && fl_value_get_type(args) == FL_VALUE_TYPE_BOOL) {
+      gtk_window_set_decorated(window, fl_value_get_bool(args));
     }
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
   } else if (g_strcmp0(fl_method_call_get_name(call), "hide") == 0) {
@@ -145,6 +165,9 @@ static void my_application_activate(GApplication* application) {
       "maprisma-launcher/window", FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(self->window_channel,
                                             window_call_cb, self, nullptr);
+
+  g_signal_connect(window, "focus-in-event", G_CALLBACK(focus_changed_cb), self);
+  g_signal_connect(window, "focus-out-event", G_CALLBACK(focus_changed_cb), self);
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
