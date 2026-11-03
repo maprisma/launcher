@@ -179,3 +179,12 @@ No add-on runs code.
   bind each key twice). Not yet: two-step shortcuts in the UI (kept and rendered when in the state), key
   capture while the page is open (Hyprland submap / GNOME inhibit), list chips, removing dead hand-written
   binds, the key colours' hue fix (key_colors.py). Not run on a live desktop yet.
+- **2026-11-03 — Omarchy features (Uwe chose: plugins page, Open as administrator, dock, tray Quit):**
+  popup mode (window_mode auto|popup|window: floated, centred, no title bar, closes on Esc/blur; VM-tested),
+  windows (Switch to window, Open in floating window, Open on workspace › through Hyprland Lua dispatch,
+  running states active/background), Omarchy uninstall (omarchy-remove-launcher-entry by kind), the plugins
+  page (open, bar in/out, update, uninstall with the git-loss warning, via Omarchy's own commands; oracle
+  `plugins`), Open as administrator (opt-in per login session, polkit password, `oracle.py admin`; the X
+  access grant through libX11 not run live), Quit (the app's own tray Quit entry over busctl; `oracle.py
+  tray`, a fake busctl, read-only live probe: NordVPN and Screen Narrator found, nothing clicked).
+  docs/protocol.md lists every route. Dock: in progress (gtk-layer-shell for GTK3 via dlopen, VM only).
