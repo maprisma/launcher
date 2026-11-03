@@ -154,7 +154,7 @@ void main() {
       final gesture = await tester.startGesture(start);
       for (var i = 1; i <= 10; i++) {
         await gesture.moveTo(Offset.lerp(start, to, i / 10)!);
-        await tester.pump(const Duration(milliseconds: 16));
+        await tester.pump();
       }
       await gesture.up();
       await settle(tester);
@@ -241,7 +241,7 @@ void main() {
     final gesture = await tester.startGesture(start);
     for (var i = 1; i <= 10; i++) {
       await gesture.moveTo(Offset.lerp(start, tester.getCenter(media), i / 10)!);
-      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump();
     }
     await gesture.up();
     await settle(tester);
@@ -296,8 +296,19 @@ void main() {
     await settle(tester);
     expect(launched, [state.byKey.keys.firstWhere((k) => k.endsWith('writer.desktop'))]);
 
-    // Right and Left turn it a face, Ctrl+G too (no stop on "All").
+    // Right, then Left before the turn is half done: back on Office, and the
+    // cube shows it in front (it is no side face).
     final at = faces.indexOf('office');
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.pump(); // rebuilt while the turn has barely begun
+    await settle(tester);
+    expect(state.cubeFront, 'office');
+    expect(find.byKey(ValueKey('cube-side-$at')), findsNothing);
+    expect(find.byKey(ValueKey('cube-side-${(at + 1) % faces.length}')), findsOneWidget);
+
+    // Right and Left turn it a face, Ctrl+G too (no stop on "All").
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await settle(tester);
     expect(state.cubeFront, faces[(at + 1) % faces.length]);

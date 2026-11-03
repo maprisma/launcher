@@ -400,6 +400,7 @@ extension Overview on AppsPageState {
     final ids = [for (final f in folderSections) f.$1];
     if (ids.isEmpty) return;
     final at = ids.indexOf(cubeFront ?? ids.first);
+    cubeDirection = step < 0 ? -1 : 1;
     setOverviewFilter(ids[((at < 0 ? 0 : at) + step) % ids.length]);
   }
 
@@ -410,6 +411,7 @@ extension Overview on AppsPageState {
     return _CubeOverview(
       faces: [for (final f in faces) f.$1],
       front: front < 0 ? 0 : front,
+      direction: cubeDirection,
       onFront: (i) => setOverviewFilter(faces[i].$1),
       face: (i, width, isFront) => _cubeFace(faces[i].$1, faces[i].$2, width, isFront),
     );
@@ -680,9 +682,19 @@ class FooterItem extends StatelessWidget {
 /// snaps to the nearest face; the wheel (where nothing inside scrolls), a
 /// click on a side face, the footer, Left/Right and Ctrl+G turn it a face.
 class _CubeOverview extends StatefulWidget {
-  const _CubeOverview({required this.faces, required this.front, required this.onFront, required this.face});
+  const _CubeOverview({
+    required this.faces,
+    required this.front,
+    required this.onFront,
+    required this.face,
+    this.direction = 1,
+  });
   final List<String> faces;
   final int front;
+
+  /// The way the last key/wheel step went (+1/-1): with two faces both ways
+  /// reach the other one, so it decides.
+  final int direction;
   final void Function(int index) onFront;
   final Widget Function(int index, double width, bool isFront) face;
 
@@ -693,6 +705,10 @@ class _CubeOverview extends StatefulWidget {
 class _CubeOverviewState extends State<_CubeOverview> with SingleTickerProviderStateMixin {
   /// The turn, in faces: 0 shows face 0, 1.5 halfway between 1 and 2.
   late final AnimationController page = AnimationController.unbounded(vsync: this, value: widget.front.toDouble());
+
+  /// Where the turn is heading (unwrapped, like [page]): turns are counted
+  /// from here, not from where the cube happens to stand mid-turn.
+  late double _target = widget.front.toDouble();
   DateTime _lastWheel = DateTime(0);
   double _faceWidth = 1;
 
@@ -701,8 +717,13 @@ class _CubeOverviewState extends State<_CubeOverview> with SingleTickerProviderS
   @override
   void didUpdateWidget(_CubeOverview old) {
     super.didUpdateWidget(old);
-    final front = _wrap(page.value.round());
-    if (widget.front != front || count != old.faces.length) _turnTo(widget.front);
+    if (count != old.faces.length) {
+      // Groups came or went: stand on the front face again, no turn.
+      _target = widget.front.toDouble();
+      page.value = _target;
+      return;
+    }
+    if (widget.front != _wrap(_target.round())) _turnTo(widget.front, direction: widget.direction);
   }
 
   @override
@@ -713,25 +734,27 @@ class _CubeOverviewState extends State<_CubeOverview> with SingleTickerProviderS
 
   int _wrap(int i) => count == 0 ? 0 : ((i % count) + count) % count;
 
-  /// The face index, reached the short way round from where it stands now.
-  void _turnTo(int index) {
+  /// The face index, reached the short way round from the target; halfway
+  /// round (two faces) in the [direction] asked for.
+  void _turnTo(int index, {int direction = 1}) {
     if (count == 0) return;
-    var diff = (index - page.value) % count;
-    if (diff > count / 2) diff -= count;
-    if (diff < -count / 2) diff += count;
-    page.animateTo(page.value + diff, duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic);
+    var diff = ((index - _target) % count + count) % count; // 0 … count
+    if (diff > count / 2 || (diff == count / 2 && direction < 0)) diff -= count;
+    _target += diff;
+    page.animateTo(_target, duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic);
   }
 
   void _settle() {
-    final target = page.value.roundToDouble();
-    page.animateTo(target, duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic);
-    final index = _wrap(target.toInt());
+    _target = page.value.roundToDouble();
+    page.animateTo(_target, duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic);
+    final index = _wrap(_target.toInt());
     if (index != widget.front) widget.onFront(index);
   }
 
   void _step(int step) {
-    final index = _wrap(page.value.round() + step);
-    _turnTo(index);
+    if (count <= 1) return;
+    final index = _wrap(_target.round() + step);
+    _turnTo(index, direction: step);
     widget.onFront(index);
   }
 
@@ -764,10 +787,11 @@ class _CubeOverviewState extends State<_CubeOverview> with SingleTickerProviderS
           },
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,
-            onHorizontalDragStart: (_) => page.stop(),
-            onHorizontalDragUpdate: (d) => page.value -= d.delta.dx / (_faceWidth * 0.65),
-            onHorizontalDragEnd: (_) => _settle(),
-            onHorizontalDragCancel: _settle,
+            // One face: nothing to turn.
+            onHorizontalDragStart: count <= 1 ? null : (_) => page.stop(),
+            onHorizontalDragUpdate: count <= 1 ? null : (d) => page.value -= d.delta.dx / (_faceWidth * 0.65),
+            onHorizontalDragEnd: count <= 1 ? null : (_) => _settle(),
+            onHorizontalDragCancel: count <= 1 ? null : _settle,
             child: AnimatedBuilder(
               animation: page,
               builder: (context, _) {

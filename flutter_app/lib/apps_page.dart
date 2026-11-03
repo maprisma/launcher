@@ -130,6 +130,9 @@ class AppsPageState extends State<AppsPage> {
   /// The overview's group ("all" or a group id); during a search the one
   /// picked for this search only.
   String overviewFilter = 'all';
+
+  /// The cube's last turn by key (+1/-1).
+  int cubeDirection = 1;
   String? searchFilter;
   bool wide = false;
   String? selectedKey;

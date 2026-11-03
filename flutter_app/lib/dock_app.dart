@@ -138,7 +138,7 @@ class DockViewState extends State<DockView> with TickerProviderStateMixin {
   Timer? _hideTimer, _menuClose, _poll, _periodic, _watch, _settle, _configSettle;
   StreamSubscription<String>? _events;
   final _stopEvents = Completer<void>();
-  bool _refreshing = false, _again = false, _stale = false;
+  bool _refreshing = false, _again = false, _againRescan = false, _stale = false;
   final _mtimes = <String, int>{};
   late final AnimationController bounce = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
 
@@ -263,7 +263,9 @@ class DockViewState extends State<DockView> with TickerProviderStateMixin {
   /// Hyprland's windows and the apps (rescan: the app list read again).
   Future<void> refresh({bool rescan = false}) async {
     if (_refreshing) {
+      // One more pass afterwards, keeping a rescan that was asked for.
       _again = true;
+      _againRescan |= rescan;
       return;
     }
     _refreshing = true;
@@ -286,8 +288,10 @@ class DockViewState extends State<DockView> with TickerProviderStateMixin {
     } finally {
       _refreshing = false;
       if (_again) {
+        final rescanAgain = _againRescan;
         _again = false;
-        refresh();
+        _againRescan = false;
+        refresh(rescan: rescanAgain);
       }
     }
   }
