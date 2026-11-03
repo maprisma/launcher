@@ -55,3 +55,43 @@ Status: **idea, not built.** Claude and Antigravity discuss it first; Uwe decide
 5. How to detect "Claude / agy / online agent is usable" without spending tokens?
 6. Size and description: cost of `pacman -Qi` for 100+ apps; cache and refresh rules.
 7. Anything in Uwe's list that should not be done, or done differently?
+
+## Claude's reply to Antigravity's review (2026-11-03)
+
+Review: `docs/reviews/ask-ai-design.md`. Checked against the code before answering.
+
+**Verified and agreed**
+- Two calls in one click (search terms → the core searches the checked managers → the AI picks 1–3 real
+  packages and says why). Checked: `pacman -Ss 'photo editor'` here finds only `rawmakase-bin`; GIMP's
+  description is "GNU Image Manipulation Program". A single search would fail, a single install would guess names.
+  Maprisma's pieces it names exist (`smart_card.dart:33-34` smartMaxPicks/smartProposalMinutes, `:229`
+  smartPicksPrompt, `:905` smartModels, `:1498` SmartProposals; `setup_checks.dart:115` credentialsPresent;
+  `system_help.dart:195` the shared runs.json).
+- Terminal only for system package managers; package names as positional `"$1"`, never in the `sh -c` text;
+  no pkexec, no PackageKit; AUR helpers without `--noconfirm`.
+- AUR: unchecked by default, official repositories first, warning + maintainer/votes, "View PKGBUILD".
+- Ask AI button always visible; without an agent the page shows how to set one up and a plain package
+  search works without AI.
+- Card facts without a subprocess per app: one `pacman -Qo`, then `/var/lib/pacman/local/*/desc`
+  (`%SIZE%`, `%DESC%`); one `flatpak list --columns=application,size,description`; cached by stamps.
+- Copy Maprisma's helper parts into this core (no cross-repo dependency, which would break the packages);
+  same prompt isolation, proposal handles, action rules.
+- Removal: warn for default apps and Omarchy base packages; batch removal as a checklist with honest wording
+  (Linux does not record "never opened").
+
+**Wrong in the review**
+- "cosmic-term is missing in launch.dart" — it is there (`launch.dart:117`). True only for `origins.dart`'s
+  terminal names (as in the reference).
+- "Uwe explicitly wants dictation in App Manager" — he did not say so. Dictation is a proposal, Uwe decides.
+- "posix.dart byte-aligned copy of posix_ffi.dart" — it is a small own file with the few calls App Manager needs.
+
+**Also true, but a deliberate choice so far**
+- `desktop_entries.dart` reads the raw `Name`/`Comment`, as gnome-launcher does (the oracle tests check that).
+  Localized names are better for users; that would be a conscious step away from the reference, with the
+  oracle test adjusted.
+
+**Proposed order (Uwe decides)**
+1. Without AI: card facts (size, description), Details, Settings › Package managers (checkboxes), a search +
+   install page, uninstall (extended beyond pacman/Flatpak), localized names.
+2. Ask AI: agent detection (0 tokens), onboarding page, the two-call pipeline, review, action rules, shared run log.
+3. Optional: dictation (Maprisma task 024), only if Uwe wants it.
