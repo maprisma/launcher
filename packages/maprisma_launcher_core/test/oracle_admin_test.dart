@@ -20,7 +20,7 @@ void main() {
     final admin = Admin(session);
     expect({for (final a in apps) a['desktop_id']: await admin.command(a)}, expected);
     expect(expected.values.where((v) => v != null), isNotEmpty);
-  });
+  }, skip: Platform.environment['MAPRISMA_LIVE_TESTS'] == '1' ? null : 'requires installed apps');
 
   test('the opt-in: a private marker naming this login session', () {
     final dir = Directory.systemTemp.createTempSync('am-admin-');

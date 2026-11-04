@@ -159,6 +159,6 @@ void main() {
       expect(defaults.toList()..sort(), expected['defaults']);
       expect({for (final a in apps) a['desktop_id']: adapter.origin(a, defaults)}, expected['origin']);
       expect({for (final a in apps) a['desktop_id']: adapter.defaultRoles(a)}, expected['roles']);
-    });
+    }, skip: Platform.environment['MAPRISMA_LIVE_TESTS'] == '1' ? null : 'requires installed apps and desktop defaults');
   }
 }

@@ -116,14 +116,12 @@ const helpers = <Helper>[
     name: 'Hermes',
     // Maprisma's adapters/hermes.toml [ask]: only its in-memory task list
     // (no files, terminal, web or MCP), no project rules or memory; the
-    // prompt as -z's argument.
-    argv: ['hermes', '-t', 'todo', '--ignore-rules', '-z', '{prompt}'],
+    // The single query is read from stdin; never put private text in argv.
+    argv: ['hermes', 'chat', '--query-file', '-', '--oneshot', '-t', 'todo', '--ignore-rules'],
     files: ['.hermes/auth.json'],
     env: ['OPENROUTER_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY'],
     login: 'hermes',
-    note:
-        'Only its in-memory task list: no files, terminal, web or MCP. Its question is passed on the '
-        'command line, which other users of this PC could see while it runs.',
+    note: 'Only its in-memory task list: no files, terminal, web or MCP.',
   ),
 ];
 
@@ -558,10 +556,6 @@ final class AskRunner {
       final local = hermesModel(session).local;
       if (local != null) await ensureLocalServer(local);
     }
-    // A prompt as an argument (Hermes's -z) must fit one argv string.
-    if (helper.argv.contains('{prompt}') && utf8.encode(prompt).length > 120 * 1024) {
-      throw StateError('The question with the app list is too long for ${helper.name}.');
-    }
     final work = p.join(session.home, '.cache/maprisma-launcher/ask');
     Directory(work).createSync(recursive: true);
     Process.runSync('chmod', ['700', work]);
@@ -578,11 +572,7 @@ final class AskRunner {
     final argv = [
       binary,
       for (final a in helper.argv.skip(1))
-        a == '{answer}'
-            ? answerFile
-            : a == '{prompt}'
-            ? prompt
-            : a,
+        a == '{answer}' ? answerFile : a,
       ...extra,
     ];
     var ok = false;
@@ -596,7 +586,7 @@ final class AskRunner {
         includeParentEnvironment: false,
       );
       // Its output is read from the start (a full pipe must not stall it);
-      // the question goes to stdin only for helpers that read it there, and
+      // the question goes to stdin, and
       // a helper that exits early (a broken pipe) is not an error by itself.
       final out = BytesBuilder(copy: false);
       final outDone = process.stdout.listen((chunk) {
@@ -604,12 +594,10 @@ final class AskRunner {
       }).asFuture<void>();
       final errDone = process.stderr.drain<void>();
       process.stdin.done.ignore();
-      if (!helper.argv.contains('{prompt}')) {
-        try {
-          process.stdin.add(utf8.encode(prompt));
-        } on Object {
-          // It went away; its exit code says how.
-        }
+      try {
+        process.stdin.add(utf8.encode(prompt));
+      } on Object {
+        // It went away; its exit code says how.
       }
       unawaited(process.stdin.close().catchError((_) {}));
       final code = await process.exitCode.timeout(
@@ -622,9 +610,13 @@ final class AskRunner {
       await outDone;
       await errDone;
       if (code != 0) throw StateError('The helper stopped ($code).');
-      final text = helper.argv.contains('{answer}') && File(answerFile).existsSync()
-          ? File(answerFile).readAsStringSync()
-          : utf8.decode(out.takeBytes(), allowMalformed: true);
+      final hasAnswer = helper.argv.contains('{answer}') &&
+          FileSystemEntity.typeSync(answerFile, followLinks: false) != FileSystemEntityType.notFound;
+      final answerBytes = hasAnswer ? Posix.instance.readRegular(answerFile, maxAnswerBytes, follow: false) : null;
+      if (hasAnswer && answerBytes == null) {
+        throw StateError('The helper answer file is not a regular file within the size limit.');
+      }
+      final text = utf8.decode(answerBytes ?? out.takeBytes(), allowMalformed: true);
       ok = true;
       result = 'answered';
       return text;

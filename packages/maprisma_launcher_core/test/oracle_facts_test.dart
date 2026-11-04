@@ -40,5 +40,5 @@ void main() {
     }
     expect(compared, greaterThan(50));
     expect(withPackage, greaterThan(20));
-  });
+  }, skip: Platform.environment['MAPRISMA_LIVE_TESTS'] == '1' ? null : 'requires installed apps and package metadata');
 }

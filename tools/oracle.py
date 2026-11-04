@@ -319,7 +319,7 @@ def main(argv):
         roles = {a["desktop_id"]: details.default_roles(a) for a in apps}
         print(json.dumps({"defaults": sorted(defaults), "origin": origin, "roles": roles}))
         return 0
-    if argv[1:] == ["marks"]:
+    if argv[1:] in (["marks"], ["marks-portable"]):
         use("gnome-launcher")
         import newapps, updates, details, launcher_core
         spec = json.load(sys.stdin)
@@ -335,10 +335,11 @@ def main(argv):
         out["updates"] = {k: list(v) for k, v in updates.parse_update_lines(spec["update_text"]).items()}
         out["owners"] = updates.parse_owner_lines(spec["owner_text"])
         out["flatpaks"] = updates.parse_flatpak_lines(spec["flatpak_text"])
-        apps = launcher_core.parse_desktop_files()
-        out["apps"] = {a["desktop_id"]: [launcher_core.terminal_command(dict(a)), launcher_core.app_process_name(a),
-                                         list(details.uninstall_plan(a, look_up_package=False) or []) or None]
-                       for a in apps}
+        if argv[1:] == ["marks"]:
+            apps = launcher_core.parse_desktop_files()
+            out["apps"] = {a["desktop_id"]: [launcher_core.terminal_command(dict(a)), launcher_core.app_process_name(a),
+                                             list(details.uninstall_plan(a, look_up_package=False) or []) or None]
+                           for a in apps}
         print(json.dumps(out))
         return 0
     if argv[1:] == ["admin"]:

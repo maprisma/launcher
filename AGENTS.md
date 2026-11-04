@@ -10,6 +10,7 @@
 - Tests write no real config: use temp HOME/config folders (see the existing tests). Before a commit, the
   tests of the changed area; the full suites (`dart test` in packages/maprisma_launcher_core, `flutter test`
   in flutter_app, `python3 -I -B tools/i18n.py --check`) before publishing.
+  Live-machine oracle checks run only with `MAPRISMA_LIVE_TESTS=1`; the default suite uses synthetic data or skips them.
 - New interface texts: `tr()`, translations in `i18n/extra.json` (7 languages), then `python3 -I -B tools/i18n.py`.
 - Every core route is listed in `docs/protocol.md`; progress in `docs/plan.md`; reviews in `docs/reviews/`.
 - Nothing is pushed or published without Uwe's OK.

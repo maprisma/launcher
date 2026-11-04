@@ -46,5 +46,5 @@ void main() {
     expect({for (final a in apps) a['desktop_id']: appWindowClasses(a).toList()..sort()}, expected['classes']);
     expect({for (final a in apps) a['desktop_id']: [for (final c in clients) clientMatchesApp(c, a)]}, expected['matches']);
     expect([for (final t in ['a', 'x"); os.exit("', 'ü\n']) luaString(t)], expected['lua']);
-  });
+  }, skip: Platform.environment['MAPRISMA_LIVE_TESTS'] == '1' ? null : 'requires installed apps and live windows');
 }

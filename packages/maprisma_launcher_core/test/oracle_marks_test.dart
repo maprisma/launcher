@@ -25,7 +25,9 @@ void main() {
       'flatpak_text': 'org.gnome.Maps\t49.1\nbad\norg.x.Y\t\n',
     };
     final repo = p.normalize(p.join(Directory.current.path, '../..'));
-    final process = await Process.start('/usr/bin/python3', ['-I', '-B', p.join(repo, 'tools/oracle.py'), 'marks']);
+    final live = Platform.environment['MAPRISMA_LIVE_TESTS'] == '1';
+    final process = await Process.start('/usr/bin/python3', ['-I', '-B', p.join(repo, 'tools/oracle.py'),
+      live ? 'marks' : 'marks-portable']);
     process.stdin.write(jsonEncode(spec));
     await process.stdin.close();
     final err = process.stderr.transform(utf8.decoder).join();
@@ -44,6 +46,8 @@ void main() {
         expected['updates']);
     expect(parseOwnerLines(spec['owner_text'] as String), expected['owners']);
     expect(parseFlatpakLines(spec['flatpak_text'] as String), expected['flatpaks']);
+
+    if (!live) return;
 
     final session = Session(environment: Platform.environment);
     final apps = await scanApps(session, appIdPrefix: 'io.github.ubruckhaus.Launcher', cacheName: 'gnome-launcher', localized: false);

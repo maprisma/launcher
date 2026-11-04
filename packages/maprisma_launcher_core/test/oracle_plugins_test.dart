@@ -27,7 +27,7 @@ void main() {
     final got = [for (final pl in await ShellPlugins(session).list()) {for (final k in keys) k: pl[k]}];
     expect(got, expected);
     expect(got, isNotEmpty);
-  });
+  }, skip: Platform.environment['MAPRISMA_LIVE_TESTS'] == '1' ? null : 'requires the live Omarchy plugin tree');
 
   test('a failed plugin update says why: the last line of its output (stderr too)', () async {
     final dir = Directory.systemTemp.createTempSync('am-plugin-update-');
