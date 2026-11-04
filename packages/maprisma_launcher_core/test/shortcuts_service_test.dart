@@ -319,7 +319,10 @@ void main() {
       expect(text, isNot(contains('System(Terminal)')));
       expect(text, contains('description: Some("Term (Maprisma Launcher)")): Spawn("cosmic-term")'));
       expect(parseCosmicShortcuts(text).$2, hasLength(2));
+      // Ask AI's facts: the keys that open each app.
+      expect(await service.allLabels({'k': app}), {'k': ['Super + T']});
       await service.remove(app, {'combo': {'mods': ['SUPER'], 'key': 'T'}});
+      expect(await service.allLabels({'k': app}), isEmpty);
       expect(File(custom).readAsStringSync(), '{\n    // mine\n    (modifiers: [Super, Alt], key: "e", description: Some("Editor")): Spawn("gedit"),\n}\n');
     });
 

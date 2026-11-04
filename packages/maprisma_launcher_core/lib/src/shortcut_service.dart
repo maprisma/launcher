@@ -651,6 +651,34 @@ final class ShortcutService {
     return _commit(state);
   });
 
+  /// Every shortcut that opens each of [apps] now, of any source (the
+  /// launcher's and the desktop's or user's own, not the turned-off ones):
+  /// {app key: [label]}; for Ask AI's facts. Empty where shortcuts cannot be
+  /// read; never throws.
+  Future<Map<String, List<String>>> allLabels(Map<String, Map> apps) async {
+    try {
+      if (backend == null || !await backend!.available()) return const {};
+      final (state, bindings) = await _snapshot();
+      final owned = ownedIds(state);
+      final result = <String, List<String>>{};
+      for (final MapEntry(:key, :value) in apps.entries) {
+        if (appLaunchArgv(value) == null) continue;
+        final entry = _entry(state, shortcutAppKey(value));
+        final disabledIds = {for (final c in entry['disabled'] as List) comboId(c)};
+        final labels = <String>{
+          for (final c in entry['shortcuts'] as List) comboLabel(c),
+          for (final b in bindings.externalShortcuts(value))
+            if (!disabledIds.contains(comboId(b['combo'])) && !owned.contains(comboId(b['combo'])))
+              comboLabel(b['combo']),
+        };
+        if (labels.isNotEmpty) result[key] = labels.toList();
+      }
+      return result;
+    } on Object {
+      return const {};
+    }
+  }
+
   /// The shortcuts every app has (the list's chips): {app key: [label]}.
   Future<Map<String, dynamic>> labels() async {
     if (backend == null) return {'labels': {}};

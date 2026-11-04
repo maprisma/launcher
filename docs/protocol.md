@@ -39,7 +39,7 @@ A request is `{"id", "protocol": 1, "method", "params"}`, the answer `{"id", "re
 | `packages.search` | `query` | `results` of the enabled managers |
 | `packages.install_plan` / `packages.install` | `manager`, `package` (from the last search) | `argv`, `command` (shown), `aur` / `started`; `not_found`, `no_terminal` |
 | `ask.helpers` | — | `helpers` [{`command` (claude, codex, agy, pi, hermes, or `pi:<provider>/<model>` for pi's other models), `name`, `installed`, `signed_in`, `local`? (runs on this PC), `login`, `note`}], `chosen` |
-| `ask.run` | `helper`, `request`, `answer`?, `language`? | the checked answer: `action` install (`picks`, `installed`, `summary`), remove / update / explain / hide / unhide (`apps`), list_hidden (`apps`: the hidden ones, from the core), update_system, clarify (`question`, `choices`), redirect (`hint`); `no_helper`, `helper_failed` (with the reason) |
+| `ask.run` | `helper`, `request`, `answer`?, `language`? | the checked answer: `action` install (`picks`, `installed`, `summary`), remove / update / explain / hide / unhide (`apps`), list_hidden (`apps`: the hidden ones, from the core), shortcuts (`apps`; none named: every app with a shortcut, from the core), remove_shortcut (`apps`, `shortcut` label to mark), add_shortcut (`apps`: one, `mods`, `key`? — a proposal the shortcut card presets), update_system, clarify (`question`, `choices`), redirect (`hint`); `no_helper`, `helper_failed` (with the reason) |
 | `ask.cancel` / `ask.signin` | — / `command` | `cancelled` / `started` (the helper's login in a terminal) |
 | `icons.search` | `key`, `query` | `theme` [{`name`, `file`}], `online` [{`collection`, `slug`, `url`}] |
 | `icons.preview` | `url` (one just found), `color`? | `file` |

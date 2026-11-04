@@ -59,7 +59,6 @@
     "Launcher": "Launcher",
     "Layouts in the header": "Ansichten in der Kopfleiste",
     "Maprisma Launcher": "Maprisma Launcher",
-    "Maprisma Launcher can find, install, update, remove and explain apps.": "Maprisma Launcher kann Apps finden, installieren, aktualisieren, entfernen und erklären.",
     "Move to group…": "In Gruppe verschieben …",
     "Move {0} to": "{0} verschieben nach",
     "Moves {0} to the trash.": "Verschiebt {0} in den Papierkorb.",
@@ -185,7 +184,24 @@
     "Enter asks, Ctrl+Enter: new line.": "Enter fragt, Strg+Enter: neue Zeile.",
     "Close on click outside": "Bei Klick außerhalb schließen",
     "In popup mode, clicking outside the window hides it.": "Im Popup-Modus blendet ein Klick außerhalb das Fenster aus.",
-    "Runs on this PC with {0}: no tokens, nothing leaves the computer.": "Läuft auf diesem PC mit {0}: keine Tokens, nichts verlässt den Computer."
+    "Runs on this PC with {0}: no tokens, nothing leaves the computer.": "Läuft auf diesem PC mit {0}: keine Tokens, nichts verlässt den Computer.",
+    "\u0004Shortcuts of {0} app": [
+      "Tastenkürzel von {0} App",
+      "Tastenkürzel von {0} Apps"
+    ],
+    "Add a shortcut for ": "Füge ein Tastenkürzel hinzu für ",
+    "Add a shortcut…": "Tastenkürzel hinzufügen…",
+    "Click ✕ at a shortcut to remove it.": "Klicke ✕ bei einem Tastenkürzel, um es zu entfernen.",
+    "List all shortcuts": "Alle Tastenkürzel zeigen",
+    "List the keys that open your apps, remove one, or add a new one with the shortcut card.": "Zeigt die Tasten, die deine Apps öffnen, entfernt eine oder fügt mit der Tastenkürzel-Karte eine neue hinzu.",
+    "List the shortcuts of all apps": "Zeige die Tastenkürzel aller Apps",
+    "Manage shortcuts for an app": "Tastenkürzel einer App verwalten",
+    "Maprisma Launcher can find, install, update, remove and explain apps and manage their shortcuts.": "Maprisma Launcher kann Apps finden, installieren, aktualisieren, entfernen, erklären und ihre Tastenkürzel verwalten.",
+    "No app has a shortcut yet.": "Noch keine App hat ein Tastenkürzel.",
+    "Remove a shortcut": "Tastenkürzel entfernen",
+    "Remove a shortcut…": "Tastenkürzel entfernen…",
+    "Remove the shortcut of ": "Entferne das Tastenkürzel von ",
+    "Remove {0}": "{0} entfernen"
   },
   "es": {
     "\u0004{0} app": [
@@ -247,7 +263,6 @@
     "Launcher": "Lanzador",
     "Layouts in the header": "Diseños en la cabecera",
     "Maprisma Launcher": "Maprisma Launcher",
-    "Maprisma Launcher can find, install, update, remove and explain apps.": "Maprisma Launcher puede encontrar, instalar, actualizar, quitar y explicar apps.",
     "Move to group…": "Mover a un grupo…",
     "Move {0} to": "Mover {0} a",
     "Moves {0} to the trash.": "Mueve {0} a la papelera.",
@@ -373,7 +388,24 @@
     "Enter asks, Ctrl+Enter: new line.": "Intro pregunta, Ctrl+Intro: nueva línea.",
     "Close on click outside": "Cerrar al hacer clic fuera",
     "In popup mode, clicking outside the window hides it.": "En modo emergente, hacer clic fuera de la ventana la oculta.",
-    "Runs on this PC with {0}: no tokens, nothing leaves the computer.": "Se ejecuta en este PC con {0}: sin tokens, nada sale del ordenador."
+    "Runs on this PC with {0}: no tokens, nothing leaves the computer.": "Se ejecuta en este PC con {0}: sin tokens, nada sale del ordenador.",
+    "\u0004Shortcuts of {0} app": [
+      "Atajos de {0} app",
+      "Atajos de {0} apps"
+    ],
+    "Add a shortcut for ": "Añade un atajo para ",
+    "Add a shortcut…": "Añadir un atajo…",
+    "Click ✕ at a shortcut to remove it.": "Pulsa ✕ en un atajo para quitarlo.",
+    "List all shortcuts": "Listar todos los atajos",
+    "List the keys that open your apps, remove one, or add a new one with the shortcut card.": "Lista las teclas que abren tus apps, quita una o añade una nueva con la tarjeta de atajos.",
+    "List the shortcuts of all apps": "Lista los atajos de todas las apps",
+    "Manage shortcuts for an app": "Gestionar los atajos de una app",
+    "Maprisma Launcher can find, install, update, remove and explain apps and manage their shortcuts.": "Maprisma Launcher puede buscar, instalar, actualizar, quitar y explicar apps y gestionar sus atajos.",
+    "No app has a shortcut yet.": "Ninguna app tiene todavía un atajo.",
+    "Remove a shortcut": "Quitar un atajo",
+    "Remove a shortcut…": "Quitar un atajo…",
+    "Remove the shortcut of ": "Quita el atajo de ",
+    "Remove {0}": "Quitar {0}"
   },
   "fr": {
     "\u0004{0} app": [
@@ -435,7 +467,6 @@
     "Launcher": "Lanceur",
     "Layouts in the header": "Dispositions dans l’en-tête",
     "Maprisma Launcher": "Maprisma Launcher",
-    "Maprisma Launcher can find, install, update, remove and explain apps.": "Maprisma Launcher peut trouver, installer, mettre à jour, supprimer et expliquer des applications.",
     "Move to group…": "Déplacer vers un groupe…",
     "Move {0} to": "Déplacer {0} vers",
     "Moves {0} to the trash.": "Déplace {0} dans la corbeille.",
@@ -561,7 +592,24 @@
     "Enter asks, Ctrl+Enter: new line.": "Entrée demande, Ctrl+Entrée : nouvelle ligne.",
     "Close on click outside": "Fermer en cliquant à l’extérieur",
     "In popup mode, clicking outside the window hides it.": "En mode pop-up, cliquer en dehors de la fenêtre la masque.",
-    "Runs on this PC with {0}: no tokens, nothing leaves the computer.": "S’exécute sur ce PC avec {0} : aucun jeton, rien ne quitte l’ordinateur."
+    "Runs on this PC with {0}: no tokens, nothing leaves the computer.": "S’exécute sur ce PC avec {0} : aucun jeton, rien ne quitte l’ordinateur.",
+    "\u0004Shortcuts of {0} app": [
+      "Raccourcis de {0} app",
+      "Raccourcis de {0} apps"
+    ],
+    "Add a shortcut for ": "Ajoute un raccourci pour ",
+    "Add a shortcut…": "Ajouter un raccourci…",
+    "Click ✕ at a shortcut to remove it.": "Clique sur ✕ à côté d’un raccourci pour le retirer.",
+    "List all shortcuts": "Lister tous les raccourcis",
+    "List the keys that open your apps, remove one, or add a new one with the shortcut card.": "Liste les touches qui ouvrent tes apps, en retire une ou en ajoute une nouvelle avec la carte des raccourcis.",
+    "List the shortcuts of all apps": "Liste les raccourcis de toutes les apps",
+    "Manage shortcuts for an app": "Gérer les raccourcis d'une app",
+    "Maprisma Launcher can find, install, update, remove and explain apps and manage their shortcuts.": "Maprisma Launcher peut trouver, installer, mettre à jour, supprimer et expliquer des apps et gérer leurs raccourcis.",
+    "No app has a shortcut yet.": "Aucune app n'a encore de raccourci.",
+    "Remove a shortcut": "Retirer un raccourci",
+    "Remove a shortcut…": "Retirer un raccourci…",
+    "Remove the shortcut of ": "Retire le raccourci de ",
+    "Remove {0}": "Retirer {0}"
   },
   "it": {
     "\u0004{0} app": [
@@ -623,7 +671,6 @@
     "Launcher": "Launcher",
     "Layouts in the header": "Layout nell’intestazione",
     "Maprisma Launcher": "Maprisma Launcher",
-    "Maprisma Launcher can find, install, update, remove and explain apps.": "Maprisma Launcher può trovare, installare, aggiornare, rimuovere e spiegare app.",
     "Move to group…": "Sposta in un gruppo…",
     "Move {0} to": "Sposta {0} in",
     "Moves {0} to the trash.": "Sposta {0} nel cestino.",
@@ -749,7 +796,24 @@
     "Enter asks, Ctrl+Enter: new line.": "Invio chiede, Ctrl+Invio: nuova riga.",
     "Close on click outside": "Chiudi facendo clic all’esterno",
     "In popup mode, clicking outside the window hides it.": "In modalità popup, fare clic fuori dalla finestra la nasconde.",
-    "Runs on this PC with {0}: no tokens, nothing leaves the computer.": "Funziona su questo PC con {0}: nessun token, nulla lascia il computer."
+    "Runs on this PC with {0}: no tokens, nothing leaves the computer.": "Funziona su questo PC con {0}: nessun token, nulla lascia il computer.",
+    "\u0004Shortcuts of {0} app": [
+      "Scorciatoie di {0} app",
+      "Scorciatoie di {0} app"
+    ],
+    "Add a shortcut for ": "Aggiungi una scorciatoia per ",
+    "Add a shortcut…": "Aggiungi una scorciatoia…",
+    "Click ✕ at a shortcut to remove it.": "Fai clic su ✕ accanto a una scorciatoia per rimuoverla.",
+    "List all shortcuts": "Elenca tutte le scorciatoie",
+    "List the keys that open your apps, remove one, or add a new one with the shortcut card.": "Elenca i tasti che aprono le tue app, ne rimuove uno o ne aggiunge uno nuovo con la scheda delle scorciatoie.",
+    "List the shortcuts of all apps": "Elenca le scorciatoie di tutte le app",
+    "Manage shortcuts for an app": "Gestire le scorciatoie di un'app",
+    "Maprisma Launcher can find, install, update, remove and explain apps and manage their shortcuts.": "Maprisma Launcher può trovare, installare, aggiornare, rimuovere e spiegare app e gestirne le scorciatoie.",
+    "No app has a shortcut yet.": "Nessuna app ha ancora una scorciatoia.",
+    "Remove a shortcut": "Rimuovi una scorciatoia",
+    "Remove a shortcut…": "Rimuovi una scorciatoia…",
+    "Remove the shortcut of ": "Rimuovi la scorciatoia di ",
+    "Remove {0}": "Rimuovi {0}"
   },
   "nl": {
     "\u0004{0} app": [
@@ -811,7 +875,6 @@
     "Launcher": "Launcher",
     "Layouts in the header": "Indelingen in de kopbalk",
     "Maprisma Launcher": "Maprisma Launcher",
-    "Maprisma Launcher can find, install, update, remove and explain apps.": "Maprisma Launcher kan apps vinden, installeren, bijwerken, verwijderen en uitleggen.",
     "Move to group…": "Naar groep verplaatsen…",
     "Move {0} to": "{0} verplaatsen naar",
     "Moves {0} to the trash.": "Verplaatst {0} naar de prullenbak.",
@@ -937,7 +1000,24 @@
     "Enter asks, Ctrl+Enter: new line.": "Enter vraagt, Ctrl+Enter: nieuwe regel.",
     "Close on click outside": "Sluiten bij klik buiten",
     "In popup mode, clicking outside the window hides it.": "In pop-upmodus verbergt een klik buiten het venster het.",
-    "Runs on this PC with {0}: no tokens, nothing leaves the computer.": "Draait op deze pc met {0}: geen tokens, niets verlaat de computer."
+    "Runs on this PC with {0}: no tokens, nothing leaves the computer.": "Draait op deze pc met {0}: geen tokens, niets verlaat de computer.",
+    "\u0004Shortcuts of {0} app": [
+      "Sneltoetsen van {0} app",
+      "Sneltoetsen van {0} apps"
+    ],
+    "Add a shortcut for ": "Voeg een sneltoets toe voor ",
+    "Add a shortcut…": "Sneltoets toevoegen…",
+    "Click ✕ at a shortcut to remove it.": "Klik op ✕ bij een sneltoets om hem te verwijderen.",
+    "List all shortcuts": "Alle sneltoetsen tonen",
+    "List the keys that open your apps, remove one, or add a new one with the shortcut card.": "Toont de toetsen die je apps openen, verwijdert er een of voegt met de sneltoetskaart een nieuwe toe.",
+    "List the shortcuts of all apps": "Toon de sneltoetsen van alle apps",
+    "Manage shortcuts for an app": "Sneltoetsen van een app beheren",
+    "Maprisma Launcher can find, install, update, remove and explain apps and manage their shortcuts.": "Maprisma Launcher kan apps vinden, installeren, bijwerken, verwijderen en uitleggen en hun sneltoetsen beheren.",
+    "No app has a shortcut yet.": "Nog geen app heeft een sneltoets.",
+    "Remove a shortcut": "Sneltoets verwijderen",
+    "Remove a shortcut…": "Sneltoets verwijderen…",
+    "Remove the shortcut of ": "Verwijder de sneltoets van ",
+    "Remove {0}": "{0} verwijderen"
   },
   "pl": {
     "\u0004{0} app": [
@@ -1001,7 +1081,6 @@
     "Launcher": "Launcher",
     "Layouts in the header": "Układy w nagłówku",
     "Maprisma Launcher": "Maprisma Launcher",
-    "Maprisma Launcher can find, install, update, remove and explain apps.": "Maprisma Launcher potrafi znajdować, instalować, aktualizować, usuwać i objaśniać aplikacje.",
     "Move to group…": "Przenieś do grupy…",
     "Move {0} to": "Przenieś {0} do",
     "Moves {0} to the trash.": "Przenosi {0} do kosza.",
@@ -1128,7 +1207,25 @@
     "Enter asks, Ctrl+Enter: new line.": "Enter pyta, Ctrl+Enter: nowa linia.",
     "Close on click outside": "Zamknij po kliknięciu poza oknem",
     "In popup mode, clicking outside the window hides it.": "W trybie wyskakującego okna kliknięcie poza oknem ukrywa je.",
-    "Runs on this PC with {0}: no tokens, nothing leaves the computer.": "Działa na tym komputerze z {0}: bez tokenów, nic nie opuszcza komputera."
+    "Runs on this PC with {0}: no tokens, nothing leaves the computer.": "Działa na tym komputerze z {0}: bez tokenów, nic nie opuszcza komputera.",
+    "\u0004Shortcuts of {0} app": [
+      "Skróty {0} aplikacji",
+      "Skróty {0} aplikacji",
+      "Skróty {0} aplikacji"
+    ],
+    "Add a shortcut for ": "Dodaj skrót dla ",
+    "Add a shortcut…": "Dodaj skrót…",
+    "Click ✕ at a shortcut to remove it.": "Kliknij ✕ przy skrócie, aby go usunąć.",
+    "List all shortcuts": "Pokaż wszystkie skróty",
+    "List the keys that open your apps, remove one, or add a new one with the shortcut card.": "Wyświetla klawisze otwierające aplikacje, usuwa jeden lub dodaje nowy za pomocą karty skrótów.",
+    "List the shortcuts of all apps": "Pokaż skróty wszystkich aplikacji",
+    "Manage shortcuts for an app": "Zarządzaj skrótami aplikacji",
+    "Maprisma Launcher can find, install, update, remove and explain apps and manage their shortcuts.": "Maprisma Launcher potrafi wyszukiwać, instalować, aktualizować, usuwać i objaśniać aplikacje oraz zarządzać ich skrótami.",
+    "No app has a shortcut yet.": "Żadna aplikacja nie ma jeszcze skrótu.",
+    "Remove a shortcut": "Usuń skrót",
+    "Remove a shortcut…": "Usuń skrót…",
+    "Remove the shortcut of ": "Usuń skrót aplikacji ",
+    "Remove {0}": "Usuń {0}"
   },
   "pt": {
     "\u0004{0} app": [
@@ -1190,7 +1287,6 @@
     "Launcher": "Lançador",
     "Layouts in the header": "Esquemas no cabeçalho",
     "Maprisma Launcher": "Maprisma Launcher",
-    "Maprisma Launcher can find, install, update, remove and explain apps.": "O Maprisma Launcher pode encontrar, instalar, atualizar, remover e explicar apps.",
     "Move to group…": "Mover para um grupo…",
     "Move {0} to": "Mover {0} para",
     "Moves {0} to the trash.": "Move {0} para o lixo.",
@@ -1316,6 +1412,23 @@
     "Enter asks, Ctrl+Enter: new line.": "Enter pergunta, Ctrl+Enter: nova linha.",
     "Close on click outside": "Fechar ao clicar fora",
     "In popup mode, clicking outside the window hides it.": "No modo pop-up, clicar fora da janela oculta-a.",
-    "Runs on this PC with {0}: no tokens, nothing leaves the computer.": "Corre neste PC com {0}: sem tokens, nada sai do computador."
+    "Runs on this PC with {0}: no tokens, nothing leaves the computer.": "Corre neste PC com {0}: sem tokens, nada sai do computador.",
+    "\u0004Shortcuts of {0} app": [
+      "Atalhos de {0} app",
+      "Atalhos de {0} apps"
+    ],
+    "Add a shortcut for ": "Adiciona um atalho para ",
+    "Add a shortcut…": "Adicionar um atalho…",
+    "Click ✕ at a shortcut to remove it.": "Clica em ✕ num atalho para o remover.",
+    "List all shortcuts": "Listar todos os atalhos",
+    "List the keys that open your apps, remove one, or add a new one with the shortcut card.": "Lista as teclas que abrem as tuas apps, remove uma ou adiciona uma nova com o cartão de atalhos.",
+    "List the shortcuts of all apps": "Lista os atalhos de todas as apps",
+    "Manage shortcuts for an app": "Gerir os atalhos de uma app",
+    "Maprisma Launcher can find, install, update, remove and explain apps and manage their shortcuts.": "O Maprisma Launcher pode encontrar, instalar, atualizar, remover e explicar apps e gerir os seus atalhos.",
+    "No app has a shortcut yet.": "Nenhuma app tem ainda um atalho.",
+    "Remove a shortcut": "Remover um atalho",
+    "Remove a shortcut…": "Remover um atalho…",
+    "Remove the shortcut of ": "Remove o atalho de ",
+    "Remove {0}": "Remover {0}"
   }
 }

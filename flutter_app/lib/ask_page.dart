@@ -6,6 +6,7 @@ import 'backend.dart';
 import 'core_call.dart';
 import 'i18n.dart';
 import 'install_page.dart';
+import 'shortcut_page.dart';
 import 'theme.dart';
 
 /// What the Ask page may do with an installed app: the same flows as the
@@ -78,6 +79,7 @@ class _AskPageState extends State<AskPage> {
   @override
   void dispose() {
     request.dispose();
+    _field.dispose();
     super.dispose();
   }
 
@@ -136,6 +138,68 @@ class _AskPageState extends State<AskPage> {
   }
 
   Future<void> _stop() => widget.core('ask.cancel');
+
+  /// A started request in the field, the cursor at its end (the user names the app).
+  void _start(String text) {
+    request.value = TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
+    _field.requestFocus();
+  }
+
+  final _field = FocusNode();
+
+  /// The hint card: what Ask AI can do with keyboard shortcuts.
+  Widget _shortcutHint(ColorScheme scheme) => Container(
+    key: const ValueKey('ask-shortcut-hint'),
+    margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+    decoration: BoxDecoration(
+      color: scheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(corners(context)),
+      border: Border.all(color: scheme.outlineVariant),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.keyboard_outlined, size: 16, color: scheme.primary),
+            const SizedBox(width: 8),
+            Text(tr('Manage shortcuts for an app'), style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          tr('List the keys that open your apps, remove one, or add a new one with the shortcut card.'),
+          style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            ActionChip(
+              avatar: const Icon(Icons.list, size: 16),
+              label: Text(tr('List all shortcuts')),
+              onPressed: () {
+                request.text = tr('List the shortcuts of all apps');
+                _ask();
+              },
+            ),
+            ActionChip(
+              avatar: const Icon(Icons.remove_circle_outline, size: 16),
+              label: Text(tr('Remove a shortcut…')),
+              onPressed: () => _start(tr('Remove the shortcut of ')),
+            ),
+            ActionChip(
+              avatar: const Icon(Icons.add_circle_outline, size: 16),
+              label: Text(tr('Add a shortcut…')),
+              onPressed: () => _start(tr('Add a shortcut for ')),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
 
   /// Ctrl+Enter: a line break at the cursor (Enter alone asks).
   void _newLine() {
@@ -328,6 +392,7 @@ class _AskPageState extends State<AskPage> {
                   },
                   child: TextField(
                     controller: request,
+                    focusNode: _field,
                     autofocus: true,
                     minLines: 1,
                     maxLines: 4,
@@ -376,6 +441,7 @@ class _AskPageState extends State<AskPage> {
                     ],
                   ),
                 ),
+              if (result == null && !asking) _shortcutHint(scheme),
               if (asking) const Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator()),
               if (error != null)
                 Padding(
@@ -525,6 +591,46 @@ class _AskPageState extends State<AskPage> {
             ]),
           );
         }
+      // Shortcuts: the app's shortcut card (shortcut_page.dart); every change is a click there.
+      case 'shortcuts' || 'remove_shortcut' || 'add_shortcut':
+        final adding = r['action'] == 'add_shortcut';
+        final label = '${r['shortcut'] ?? ''}';
+        // Adding: the card's own "Add a shortcut" is the heading.
+        if (!adding) {
+          children.add(
+            _section(
+              r['action'] == 'shortcuts'
+                  ? trn('Shortcuts of {0} app', 'Shortcuts of {0} apps', apps.length)
+                  : label.isEmpty
+                  ? tr('Remove a shortcut')
+                  : trf('Remove {0}', [label]),
+            ),
+          );
+        }
+        if (apps.isEmpty) children.add(Text(tr('No app has a shortcut yet.')));
+        if (r['action'] == 'remove_shortcut' && apps.isNotEmpty) {
+          children.add(
+            Text(
+              tr('Click ✕ at a shortcut to remove it.'),
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            ),
+          );
+        }
+        for (final app in apps) {
+          children.add(
+            ShortcutPage(
+              // A new answer: new cards.
+              key: ValueKey('ask-shortcuts-${identityHashCode(r)}-${app['key']}'),
+              core: widget.core,
+              app: app,
+              embedded: true,
+              full: adding,
+              mods: adding ? (r['mods'] as List? ?? const []).cast<String>() : null,
+              comboKey: adding ? r['key'] as String? : null,
+              highlight: label.isEmpty ? null : label,
+            ),
+          );
+        }
       case 'clarify':
         children.add(Text('${r['question']}', style: const TextStyle(fontWeight: FontWeight.w600)));
         children.add(const SizedBox(height: 8));
@@ -550,7 +656,7 @@ class _AskPageState extends State<AskPage> {
       default:
         final hint = '${r['hint'] ?? ''}';
         children.add(
-          Text(hint.isNotEmpty ? hint : tr('Maprisma Launcher can find, install, update, remove and explain apps.')),
+          Text(hint.isNotEmpty ? hint : tr('Maprisma Launcher can find, install, update, remove and explain apps and manage their shortcuts.')),
         );
     }
     return ListView(

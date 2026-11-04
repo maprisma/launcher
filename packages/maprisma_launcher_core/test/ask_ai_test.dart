@@ -100,6 +100,12 @@ elif grep -q '<request>hide writer' "\$last"; then
   echo "{\\"action\\": \\"hide\\", \\"apps\\": [\\"\$writer\\", \\"a999\\"]}"
 elif grep -q '<request>show writer again' "\$last"; then
   echo "{\\"action\\": \\"unhide\\", \\"apps\\": [\\"\$writer\\"]}"
+elif grep -q '<request>list the shortcuts of all apps' "\$last"; then
+  echo '{"action": "shortcuts", "apps": []}'
+elif grep -q '<request>add a shortcut for writer' "\$last"; then
+  echo "{\\"action\\": \\"add_shortcut\\", \\"apps\\": [\\"\$writer\\", \\"a999\\"], \\"mods\\": [\\"SHIFT\\", \\"SUPER\\", \\"HYPER\\"], \\"key\\": \\"w\\"}"
+elif grep -q '<request>remove super' "\$last"; then
+  echo "{\\"action\\": \\"remove_shortcut\\", \\"apps\\": [\\"\$writer\\"], \\"shortcut\\": \\"Super + Shift + W\\"}"
 elif grep -q 'Packages found' "\$last"; then
   echo 'Here you go: {"summary": "GIMP edits photos.", "picks": [{"manager": "pacman", "package": "gimp", "reason": "Edits photos"}, {"manager": "pacman", "package": "invented-app", "reason": "x"}], "installed": []}'
 else
@@ -191,6 +197,41 @@ fi
         prompts.map((f) => f.readAsStringSync()).join('\n'),
       ).map((m) => m[0]).toList();
       expect(lastWriter.any((w) => w!.contains('"hidden":true')), isTrue, reason: '$lastWriter');
+    });
+
+    test('shortcuts: listed, removed and added only as cards; ids, modifiers and key checked', () async {
+      expect(checkAsk({'action': 'shortcuts', 'apps': ['zz']}, {'a1'}), {'action': 'shortcuts', 'apps': []});
+      expect(checkAsk({'action': 'remove_shortcut', 'apps': ['zz']}, {'a1'})['action'], 'redirect');
+      expect(
+        checkAsk({'action': 'add_shortcut', 'apps': ['a1', 'a2'], 'mods': ['ALT', 'rm'], 'key': 'Tab'}, {'a1', 'a2'}),
+        {'action': 'add_shortcut', 'apps': ['a1'], 'mods': ['ALT'], 'key': 'Tab'},
+      );
+      expect(checkAsk({'action': 'add_shortcut', 'apps': ['a1'], 'key': 'Escape; rm'}, {'a1'}), {
+        'action': 'add_shortcut',
+        'apps': ['a1'],
+        'mods': [],
+      });
+      final list = (await call('apps.list'))['result']['apps'] as List;
+      final writer = list.firstWhere((a) => a['name'] == 'Writer')['key'];
+      Future<Map> ask(String request) async {
+        final r = await call('ask.run', {'request': request, 'helper': 'claude'});
+        expect(r['error'], isNull, reason: '$r');
+        return r['result'] as Map;
+      }
+
+      // A generic desktop has no shortcuts: none listed.
+      expect(await ask('list the shortcuts of all apps'), {'action': 'shortcuts', 'apps': []});
+      expect(await ask('add a shortcut for writer'), {
+        'action': 'add_shortcut',
+        'apps': [writer],
+        'mods': ['SUPER', 'SHIFT'],
+        'key': 'W',
+      });
+      expect(await ask('remove super shift w'), {
+        'action': 'remove_shortcut',
+        'apps': [writer],
+        'shortcut': 'Super + Shift + W',
+      });
     });
 
     test('pi: its local models are helpers; they run locked down, offline, after the server answers', () async {

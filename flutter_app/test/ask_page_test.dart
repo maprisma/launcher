@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:maprisma_launcher/ask_page.dart';
 import 'package:maprisma_launcher/backend.dart';
+import 'package:maprisma_launcher/shortcut_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,6 +18,31 @@ void main() {
           {'command': 'claude', 'name': 'Claude Code', 'installed': helpersReady, 'signed_in': helpersReady},
           {'command': 'agy', 'name': 'Antigravity', 'installed': false, 'signed_in': false},
         ],
+      },
+      'ask.run' when '${params['request']}'.contains('shortcuts of all') => {
+        'action': 'shortcuts',
+        'apps': ['k1'],
+      },
+      'ask.run' when '${params['request']}'.startsWith('Add a shortcut for') => {
+        'action': 'add_shortcut',
+        'apps': ['k1'],
+        'mods': ['SUPER', 'ALT'],
+        'key': 'P',
+      },
+      'shortcuts.state' => {
+        'available': true,
+        'desktop': 'Omarchy',
+        'default_mods': ['SUPER', 'SHIFT'],
+        'actions': [],
+        'shortcuts': [
+          {'mods': ['SUPER', 'SHIFT'], 'key': 'P', 'label': 'Super + Shift + P', 'source': 'launcher', 'action': '', 'replaces': ''},
+        ],
+        'disabled': [],
+        if ((params['mods'] as List? ?? const []).isNotEmpty)
+          'keys': [
+            for (final row in keyRows)
+              for (final k in row) {'key': k, 'label': k, 'level': 'free', 'owner': ''},
+          ],
       },
       'ask.run' when '${params['request']}'.contains('local model') =>
         throw ServiceError('helper_failed', 'Bad state: llama-server.service did not answer.'),
@@ -201,5 +227,48 @@ void main() {
     await tester.tap(find.byTooltip('Ask'));
     await tester.pumpAndSettle();
     expect(find.text('The helper did not answer. llama-server.service did not answer.'), findsOneWidget);
+  });
+
+  testWidgets('shortcuts: the hint card lists them as cards; ✕ removes; Add shows the card with the proposed key', (tester) async {
+    tester.view.physicalSize = const Size(900, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    asked.clear();
+    await tester.pumpWidget(MaterialApp(home: AskPage(core: fake, apps: apps, actions: actions())));
+    await tester.pumpAndSettle();
+    expect(find.text('Manage shortcuts for an app'), findsOneWidget);
+    await tester.tap(find.text('List all shortcuts'));
+    await tester.pumpAndSettle();
+    expect(find.text('Shortcuts of 1 app'), findsOneWidget);
+    expect(find.text('Shortcuts for Pinta'), findsOneWidget);
+    expect(find.text('Super'), findsOneWidget);
+    // Only the list: no key map until "Add a shortcut…".
+    expect(find.byKey(const ValueKey('shortcut-assign')), findsNothing);
+    await tester.tap(find.byTooltip('Remove this shortcut'));
+    await tester.pumpAndSettle();
+    final removed = asked.where((a) => a['method'] == 'shortcuts.remove').single;
+    expect(removed['key'], 'k1');
+    expect(removed['combo'], {'mods': ['SUPER', 'SHIFT'], 'key': 'P'});
+
+    // "Add a shortcut…" starts the request; the app's name is the user's.
+    await tester.pumpWidget(MaterialApp(home: AskPage(key: UniqueKey(), core: fake, apps: apps, actions: actions())));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ActionChip, 'Add a shortcut…'));
+    await tester.pumpAndSettle();
+    final field = tester.widget<TextField>(find.byType(TextField)).controller!;
+    expect(field.text, 'Add a shortcut for ');
+    expect(asked.where((a) => a['method'] == 'ask.run'), hasLength(1)); // only the list above
+    await tester.enterText(find.byType(TextField), 'Add a shortcut for Pinta');
+    await tester.tap(find.byTooltip('Ask'));
+    await tester.pumpAndSettle();
+    expect(find.text('Add a shortcut'), findsWidgets);
+    // The proposal is preset; nothing is written before Assign.
+    expect(find.text('Alt'), findsWidgets);
+    expect(asked.where((a) => a['method'] == 'shortcuts.set'), isEmpty);
+    await tester.ensureVisible(find.byKey(const ValueKey('shortcut-assign')));
+    await tester.tap(find.byKey(const ValueKey('shortcut-assign')));
+    await tester.pumpAndSettle();
+    final set = asked.where((a) => a['method'] == 'shortcuts.set').single;
+    expect([set['key'], set['mods'], set['combo_key']], ['k1', ['SUPER', 'ALT'], 'P']);
   });
 }

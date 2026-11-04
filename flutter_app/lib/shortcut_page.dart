@@ -47,10 +47,30 @@ const modNames = {'SUPER': 'Super', 'SHIFT': 'Shift', 'CTRL': 'Ctrl', 'ALT': 'Al
 /// source; change, remove, turn off and on), then a new key: modifiers, a key
 /// from the map coloured by who has it, what it opens, Assign. Esc cancels a
 /// change, then goes back; Enter assigns.
+///
+/// [embedded]: a card inside another page (Ask AI) instead of a page of its
+/// own: no Back header, Esc is left to the page around it. [full] false shows
+/// only the current shortcuts (with "Add a shortcut…" to open the rest);
+/// [mods] and [comboKey] preset a proposed key (the user still assigns it);
+/// [highlight] marks the shortcut with that label.
 class ShortcutPage extends StatefulWidget {
-  const ShortcutPage({super.key, required this.core, required this.app});
+  const ShortcutPage({
+    super.key,
+    required this.core,
+    required this.app,
+    this.embedded = false,
+    this.full = true,
+    this.mods,
+    this.comboKey,
+    this.highlight,
+  });
   final CoreCall core;
   final Map app;
+  final bool embedded;
+  final bool full;
+  final List<String>? mods;
+  final String? comboKey;
+  final String? highlight;
   @override
   State<ShortcutPage> createState() => ShortcutPageState();
 }
@@ -69,6 +89,9 @@ class ShortcutPageState extends State<ShortcutPage> {
   bool busy = false;
   int _asked = 0;
   final _focus = FocusNode();
+
+  /// The Add controls and the key map are shown (always on a page of its own).
+  late bool full = widget.full || !widget.embedded;
 
   String get appName => '${widget.app['name']}';
   String get desktop => '${view['desktop'] ?? ''}';
@@ -91,8 +114,13 @@ class ShortcutPageState extends State<ShortcutPage> {
     // unless changed); the key stays open until one is pressed or picked.
     final first = await _state(fresh: true);
     if (first == null || !mounted) return;
-    mods = [...(first['default_mods'] as List? ?? const ['SUPER', 'SHIFT']).cast<String>()];
+    mods = widget.mods != null && widget.mods!.isNotEmpty
+        ? [for (final m in modOrder) if (widget.mods!.contains(m)) m]
+        : [...(first['default_mods'] as List? ?? const ['SUPER', 'SHIFT']).cast<String>()];
+    key = widget.comboKey;
     await _refresh();
+    // A proposed new key in Ask AI: key presses go to the card at once.
+    if (mounted && widget.embedded && widget.full) _focus.requestFocus();
   }
 
   Future<Map<String, dynamic>?> _state({bool fresh = false}) async {
@@ -261,6 +289,7 @@ class ShortcutPageState extends State<ShortcutPage> {
   /// start_change_shortcut: the Add controls pick a new key for it.
   Future<void> change(Map s) async {
     setState(() {
+      full = true;
       editing = {
         ..._combo(s),
         'action': s['action'] ?? '',
@@ -303,9 +332,16 @@ class ShortcutPageState extends State<ShortcutPage> {
       if (keyboard.isAltPressed) 'ALT',
     ];
     if (event.logicalKey == LogicalKeyboardKey.escape) {
-      editing != null ? cancelChange() : Navigator.maybePop(context);
+      if (editing != null) {
+        cancelChange();
+      } else if (widget.embedded) {
+        return KeyEventResult.ignored;
+      } else {
+        Navigator.maybePop(context);
+      }
       return KeyEventResult.handled;
     }
+    if (!full) return KeyEventResult.ignored;
     // Plain Enter assigns; with modifiers held it is the key being captured.
     if ((event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.numpadEnter) &&
         held.isEmpty) {
@@ -362,12 +398,21 @@ class ShortcutPageState extends State<ShortcutPage> {
   Widget _row(Map s, {required String note, required String tag, required Widget button, VoidCallback? onChange, bool dim = false}) {
     final scheme = Theme.of(context).colorScheme;
     final changing = editing != null && onChange != null && editing!['label'] == s['label'];
+    String plain(Object? label) => '$label'.toLowerCase().replaceAll(RegExp(r'\s'), '');
+    final marked = !changing && (widget.highlight ?? '').isNotEmpty && plain(s['label']) == plain(widget.highlight);
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: changing ? scheme.primary : scheme.outlineVariant.withValues(alpha: .5)),
+        color: marked ? scheme.errorContainer.withValues(alpha: .35) : null,
+        border: Border.all(
+          color: changing
+              ? scheme.primary
+              : marked
+              ? scheme.error
+              : scheme.outlineVariant.withValues(alpha: .5),
+        ),
       ),
       child: Row(
         children: [
@@ -571,20 +616,206 @@ class ShortcutPageState extends State<ShortcutPage> {
     child: Text(text, style: const TextStyle(fontWeight: FontWeight.w700)),
   );
 
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final marks = markColors(context);
-    final available = view['available'] == true;
+  /// The shortcuts, then (when [full]) the Add controls and the key map.
+  List<Widget> _body(ColorScheme scheme, MarkColors marks) {
     final (text, kind, button, enabled) = status();
     final defaults = (view['default_mods'] as List?)?.cast<String>() ?? const ['SUPER', 'SHIFT'];
-    final count = (view['shortcuts'] as List?)?.length ?? 0;
     final statusColor = switch (kind) {
       'free' => marks.running,
       'warn' => marks.fresh,
       'desktop' => marks.update,
       _ => scheme.onSurfaceVariant,
     };
+    if (!full) {
+      return [
+        ..._current(),
+        if (message.isNotEmpty) Text(message, style: TextStyle(color: messageOk ? marks.running : scheme.error)),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            key: const ValueKey('shortcut-add-open'),
+            onPressed: () {
+              setState(() => full = true);
+              _focus.requestFocus();
+            },
+            icon: const Icon(Icons.add, size: 18),
+            label: Text(tr('Add a shortcut…')),
+          ),
+        ),
+      ];
+    }
+    return [
+      ..._current(),
+      const Divider(height: 24),
+      Row(
+        children: [
+          Expanded(
+            child: Text(
+              editing != null ? trf('Change {0} to', [editing!['label']]) : tr('Add a shortcut'),
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+          if (editing != null)
+            Tooltip(
+              message: tr('Keep the current key'),
+              child: TextButton(onPressed: cancelChange, child: Text(tr('Cancel'))),
+            ),
+        ],
+      ),
+      if (actions.isNotEmpty)
+        Row(
+          children: [
+            Text(tr('Opens')),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Tooltip(
+                message: tr('Open the app, or one of its own actions such as a private window'),
+                child: DropdownButton<String>(
+                  key: const ValueKey('shortcut-action'),
+                  isExpanded: true,
+                  value: action,
+                  items: [
+                    DropdownMenuItem(value: '', child: Text(appName)),
+                    for (final a in actions)
+                      DropdownMenuItem(value: '${a['id']}', child: Text('${a['name']}')),
+                  ],
+                  onChanged: (value) async {
+                    setState(() => action = value ?? '');
+                    await _refresh();
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      const SizedBox(height: 6),
+      Wrap(
+        spacing: 6,
+        children: [
+          for (final m in modOrder)
+            FilterChip(
+              key: ValueKey('mod-$m'),
+              label: Text(modNames[m]!),
+              selected: mods.contains(m),
+              onSelected: (on) => _setMods(on ? [...mods, m] : [for (final x in mods) if (x != m) x]),
+            ),
+        ],
+      ),
+      Tooltip(
+        message: trf(
+          'Current default: {0}. Check to make the selected modifiers the default; uncheck to go back to Super + Shift.',
+          [defaults.map((m) => modNames[m]).join(' + ')],
+        ),
+        child: CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          controlAffinity: ListTileControlAffinity.leading,
+          title: Text(tr('Default for apps without a shortcut')),
+          value: mods.isNotEmpty && mods.join() == defaults.join(),
+          onChanged: mods.isEmpty ? null : (on) => _setDefault(on == true),
+        ),
+      ),
+      Row(
+        children: [
+          Expanded(
+            child: Tooltip(
+              message: tr('Press a key now. Hold modifiers while pressing, or toggle them above.'),
+              child: key != null
+                  ? caps(pickedLabel, large: true)
+                  : Row(
+                      children: [
+                        if (mods.isNotEmpty) caps(mods.map((m) => modNames[m]).join(' + '), large: true),
+                        const SizedBox(width: 6),
+                        Text(tr('select a key'), style: TextStyle(color: scheme.onSurfaceVariant)),
+                      ],
+                    ),
+            ),
+          ),
+          FilledButton(
+            key: const ValueKey('shortcut-assign'),
+            onPressed: enabled && !busy ? assign : null,
+            child: Text(button),
+          ),
+        ],
+      ),
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Text(text, style: TextStyle(color: statusColor)),
+      ),
+      if (message.isNotEmpty)
+        Text(message, style: TextStyle(color: messageOk ? marks.running : scheme.error)),
+      _section(
+        view['keys'] != null
+            ? trf('Keys with {0}', [mods.map((m) => modNames[m]).join(' + ')])
+            : tr('Free suggestions'),
+      ),
+      if (view['keys'] != null) _legend(scheme, marks),
+      const SizedBox(height: 6),
+      _keyMap(scheme, marks),
+    ];
+  }
+
+  /// [unavailable] or the body, for a page or a card.
+  Widget _unavailable() => Padding(
+    padding: const EdgeInsets.all(24),
+    child: Text(
+      view['desktop'] == null
+          ? tr('Global shortcuts need GNOME, COSMIC or Omarchy; this desktop has no place to write them to.')
+          : trf("{0}'s keyboard settings were not found, so shortcuts cannot be set here.", [desktop]),
+      textAlign: TextAlign.center,
+    ),
+  );
+
+  /// The card inside Ask AI: the app's name, then the body.
+  Widget _card(ColorScheme scheme, MarkColors marks) {
+    final count = (view['shortcuts'] as List?)?.length ?? 0;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Focus(
+        focusNode: _focus,
+        autofocus: full,
+        onKeyEvent: _onKey,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    const Icon(Icons.keyboard_outlined, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        trf('Shortcuts for {0}', [appName]) + (count > 1 ? ' ($count)' : ''),
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (loading)
+                const Padding(padding: EdgeInsets.all(8), child: LinearProgressIndicator())
+              else if (view['available'] != true)
+                _unavailable()
+              else
+                ..._body(scheme, marks),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final marks = markColors(context);
+    if (widget.embedded) return _card(scheme, marks);
+    final available = view['available'] == true;
+    final count = (view['shortcuts'] as List?)?.length ?? 0;
     return Scaffold(
       body: Focus(
         focusNode: _focus,
@@ -616,128 +847,10 @@ class ShortcutPageState extends State<ShortcutPage> {
               child: loading
                   ? const Center(child: CircularProgressIndicator())
                   : !available
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Text(
-                          view['desktop'] == null
-                              ? tr('Global shortcuts need GNOME, COSMIC or Omarchy; this desktop has no place to write them to.')
-                              : trf("{0}'s keyboard settings were not found, so shortcuts cannot be set here.", [desktop]),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    )
+                  ? Center(child: _unavailable())
                   : ListView(
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                      children: [
-                        ..._current(),
-                        const Divider(height: 24),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                editing != null ? trf('Change {0} to', [editing!['label']]) : tr('Add a shortcut'),
-                                style: const TextStyle(fontWeight: FontWeight.w700),
-                              ),
-                            ),
-                            if (editing != null)
-                              Tooltip(
-                                message: tr('Keep the current key'),
-                                child: TextButton(onPressed: cancelChange, child: Text(tr('Cancel'))),
-                              ),
-                          ],
-                        ),
-                        if (actions.isNotEmpty)
-                          Row(
-                            children: [
-                              Text(tr('Opens')),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Tooltip(
-                                  message: tr('Open the app, or one of its own actions such as a private window'),
-                                  child: DropdownButton<String>(
-                                    key: const ValueKey('shortcut-action'),
-                                    isExpanded: true,
-                                    value: action,
-                                    items: [
-                                      DropdownMenuItem(value: '', child: Text(appName)),
-                                      for (final a in actions)
-                                        DropdownMenuItem(value: '${a['id']}', child: Text('${a['name']}')),
-                                    ],
-                                    onChanged: (value) async {
-                                      setState(() => action = value ?? '');
-                                      await _refresh();
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        const SizedBox(height: 6),
-                        Wrap(
-                          spacing: 6,
-                          children: [
-                            for (final m in modOrder)
-                              FilterChip(
-                                key: ValueKey('mod-$m'),
-                                label: Text(modNames[m]!),
-                                selected: mods.contains(m),
-                                onSelected: (on) => _setMods(on ? [...mods, m] : [for (final x in mods) if (x != m) x]),
-                              ),
-                          ],
-                        ),
-                        Tooltip(
-                          message: trf(
-                            'Current default: {0}. Check to make the selected modifiers the default; uncheck to go back to Super + Shift.',
-                            [defaults.map((m) => modNames[m]).join(' + ')],
-                          ),
-                          child: CheckboxListTile(
-                            contentPadding: EdgeInsets.zero,
-                            dense: true,
-                            controlAffinity: ListTileControlAffinity.leading,
-                            title: Text(tr('Default for apps without a shortcut')),
-                            value: mods.isNotEmpty && mods.join() == defaults.join(),
-                            onChanged: mods.isEmpty ? null : (on) => _setDefault(on == true),
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Tooltip(
-                                message: tr('Press a key now. Hold modifiers while pressing, or toggle them above.'),
-                                child: key != null
-                                    ? caps(pickedLabel, large: true)
-                                    : Row(
-                                        children: [
-                                          if (mods.isNotEmpty) caps(mods.map((m) => modNames[m]).join(' + '), large: true),
-                                          const SizedBox(width: 6),
-                                          Text(tr('select a key'), style: TextStyle(color: scheme.onSurfaceVariant)),
-                                        ],
-                                      ),
-                              ),
-                            ),
-                            FilledButton(
-                              key: const ValueKey('shortcut-assign'),
-                              onPressed: enabled && !busy ? assign : null,
-                              child: Text(button),
-                            ),
-                          ],
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Text(text, style: TextStyle(color: statusColor)),
-                        ),
-                        if (message.isNotEmpty)
-                          Text(message, style: TextStyle(color: messageOk ? marks.running : scheme.error)),
-                        _section(
-                          view['keys'] != null
-                              ? trf('Keys with {0}', [mods.map((m) => modNames[m]).join(' + ')])
-                              : tr('Free suggestions'),
-                        ),
-                        if (view['keys'] != null) _legend(scheme, marks),
-                        const SizedBox(height: 6),
-                        _keyMap(scheme, marks),
-                      ],
+                      children: _body(scheme, marks),
                     ),
             ),
           ],

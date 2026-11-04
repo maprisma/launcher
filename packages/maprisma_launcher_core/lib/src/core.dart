@@ -802,6 +802,8 @@ final class CoreService {
     final ids = {for (var i = 0; i < keys.length; i++) 'a$i': keys[i]};
     final hidden = loadHidden(store);
     final defaults = desktop.defaultDesktops();
+    // The keys that open each app now (any source), so "remove Super + B" finds its app.
+    final keysNow = await shortcuts.allLabels(_apps);
     List<Map> facts(Iterable<String> only) => [
       for (final e in ids.entries)
         if (only.isEmpty || only.contains(e.key))
@@ -817,6 +819,7 @@ final class CoreService {
               if (uninstallPlan(app, session) case (final kind, _) when kind != 'webapp') 'removable': true,
               // Hidden apps too (marked), so they can be listed and unhidden.
               if (hidden.contains(app['desktop_id'])) 'hidden': true,
+              'shortcuts': ?keysNow[e.value],
             },
     ];
     final managers = _enabledManagers();
@@ -891,6 +894,14 @@ final class CoreService {
         return {...first, 'apps': [for (final k in toKeys(first['apps'])) if (!hidden.contains(_apps[k]?['desktop_id'])) k]};
       case 'unhide':
         return {...first, 'apps': [for (final k in toKeys(first['apps'])) if (hidden.contains(_apps[k]?['desktop_id'])) k]};
+      // Shortcuts: the GUI shows the shortcut card per app; every change is the user's click there.
+      case 'shortcuts':
+        final apps = toKeys(first['apps']);
+        String name(String k) => '${_apps[k]?['name']}'.toLowerCase();
+        // None named: every app with a shortcut, by name.
+        return {'action': 'shortcuts', 'apps': apps.isNotEmpty ? apps : ([...keysNow.keys]..sort((a, b) => name(a).compareTo(name(b))))};
+      case 'remove_shortcut' || 'add_shortcut':
+        return {...first, 'apps': toKeys(first['apps'])};
       case 'list_hidden':
         // The core knows: no ids from the helper needed.
         return {

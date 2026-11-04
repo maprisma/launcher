@@ -18,6 +18,7 @@ import 'package:path/path.dart' as p;
 import 'bounded.dart';
 import 'desktop_entries.dart';
 import 'posix.dart';
+import 'shortcuts.dart' show keyMapKey, modOrder;
 
 /// One helper: how it runs without tools, how its sign-in is recognised
 /// (only whether a file exists is checked, never its content), how to sign in.
@@ -340,7 +341,7 @@ String askPrompt({
 }) =>
     '$_rules\n\n'
     'Installed apps (id, name, description, origin, update available, can be removed, hidden from the '
-    'launcher\'s list): '
+    'launcher\'s list, global keyboard shortcuts that open it): '
     '${jsonEncode(installed)}\n'
     'Package managers the user allows: ${jsonEncode(managers)}\n\n'
     '${_request(request, answer)}\n'
@@ -359,13 +360,22 @@ String askPrompt({
     'when the user wants hidden apps back in the list.\n'
     '{"action": "list_hidden"}\n'
     'when the user asks which apps are hidden.\n'
+    '{"action": "shortcuts", "apps": ["<ids of installed apps>"]}\n'
+    'when the user wants to see or manage the keyboard shortcuts of apps; an empty list for every app that '
+    'has one.\n'
+    '{"action": "remove_shortcut", "apps": ["<ids of installed apps>"], "shortcut": "<the shortcut as listed, '
+    'e.g. Super + Shift + G, or empty>"}\n'
+    'when the user wants a shortcut removed or turned off.\n'
+    '{"action": "add_shortcut", "apps": ["<one id of an installed app>"], "mods": ["<of SUPER, SHIFT, CTRL, '
+    'ALT>"], "key": "<a letter, digit or F1 to F12 the user named, or empty>"}\n'
+    'when the user wants a new shortcut for an app or wants to change one.\n'
     '{"action": "explain", "apps": ["<ids of installed apps>"], "answer": "<short plain answer>"}\n'
     'when the user asks what an installed app is or which installed app to use.\n'
     '{"action": "clarify", "question": "<one short question>", "choices": ["<2 to 4 short answers>"]}\n'
     'when the request is too broad to act on.\n'
     '{"action": "redirect", "hint": "<short helpful explanation>"}\n'
     'when Maprisma Launcher cannot do it (it only finds, installs, updates, removes, hides, unhides and '
-    'explains apps).\n'
+    'explains apps and manages their keyboard shortcuts).\n'
     '${_language(language)}';
 
 /// Call 2: the best real packages among what the search found.
@@ -452,6 +462,23 @@ Map<String, dynamic> checkAsk(Map<String, dynamic>? answer, Set<String> ids) {
     case 'remove' || 'update' || 'hide' || 'unhide':
       final apps = known(answer!['apps']);
       return apps.isEmpty ? {'action': 'redirect', 'hint': ''} : {'action': action, 'apps': apps};
+    case 'shortcuts':
+      // An empty list: every app with a shortcut (the core knows them).
+      return {'action': 'shortcuts', 'apps': known(answer!['apps'])};
+    case 'remove_shortcut':
+      final apps = known(answer!['apps']);
+      return apps.isEmpty
+          ? {'action': 'redirect', 'hint': ''}
+          : {'action': 'remove_shortcut', 'apps': apps, 'shortcut': _line(answer['shortcut'], 60)};
+    case 'add_shortcut':
+      // One app; modifiers and key only from the key map's lists (a proposal:
+      // the shortcut card shows it, the user assigns it).
+      final apps = known(answer!['apps']).take(1).toList();
+      if (apps.isEmpty) return {'action': 'redirect', 'hint': ''};
+      final raw = answer['mods'];
+      final mods = [for (final m in modOrder) if (raw is List && raw.contains(m)) m];
+      final key = keyMapKey(answer['key']);
+      return {'action': 'add_shortcut', 'apps': apps, 'mods': mods, 'key': ?key};
     case 'update_system':
       return {'action': 'update_system'};
     case 'list_hidden':
