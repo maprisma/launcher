@@ -23,11 +23,11 @@ A bar icon and shell companion for **Maprisma Launcher**, a separate desktop app
 - Part of the upcoming **Maprisma** AI management suite for Omarchy.
 
 The plugin itself is only `BarWidget.qml` plus `maprisma-launcher-toggle` (POSIX `sh`, 24 lines):
-- Clicking the bar icon runs `maprisma-launcher-toggle`, which executes `maprisma-launcher --toggle` when the app is on `PATH`; otherwise a plain-text `notify-send` notification shows how to install the app.
+- Clicking the bar icon runs `maprisma-launcher-toggle --check`: with the app installed, `maprisma-launcher-toggle` executes `maprisma-launcher --toggle`; without it, the widget opens its install panel (`Panel.qml`, plain text only).
 - On shell startup (`Component.onCompleted`), `BarWidget.qml` runs `maprisma-launcher-toggle --dock`, which starts `maprisma-launcher --dock` if the app is installed (exits immediately when the dock setting is off, which is the default).
-- The plugin installs nothing, starts no background service when the dock is off, makes no network requests, reads/writes no files, and takes no user input.
+- Capability `installer` (documented in the README): only on the panel's **Install** button, `maprisma-launcher-install` downloads one fixed URL (`https://github.com/maprisma/launcher/releases/download/v0.1.1/Maprisma-Launcher-0.1.1-x86_64.AppImage`) with `curl --proto =https --proto-redir =https --max-filesize --max-time`, keeps it only if its size and SHA-256 match the values pinned in the script, and hard-links it to `~/.local/bin/maprisma-launcher`, which fails instead of replacing anything (an existing file, link or folder stops it). No arguments, no root or administrator rights, nothing left behind on failure; tests in `tests/test-install.sh`. This is the plugin's only network access. No background service when the dock is off, no text input.
 
-Dependency outside the standard install (expected `manual-setup`): the `maprisma-launcher` app: the AppImage from the GitHub release `https://github.com/maprisma/launcher/releases`, checked with its published SHA-256 and placed on `PATH` as `~/.local/bin/maprisma-launcher` (README shows the exact commands; plus the optional `gtk-layer-shell` package if the user enables the dock). All package-manager and Hyprland shortcut features live in the external app, not in this plugin.
+Dependency outside the standard install: the `maprisma-launcher` app, which the plugin's install panel downloads and checks in one click (README also shows the manual commands); plus the optional `gtk-layer-shell` package if the user enables the dock. All package-manager and Hyprland shortcut features live in the external app, not in this plugin.
 
 Tests: `sh tests/test-toggle.sh` (mock app and mock notifier). `preview.png`: composite of 4 real screenshots of the app on Omarchy (Folders + window menu, Ask AI with local/cloud models, Global Shortcuts + owner-coloured key map, 3D Cube + optional dock).
 
