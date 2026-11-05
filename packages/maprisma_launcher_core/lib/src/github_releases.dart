@@ -6,18 +6,25 @@ import 'dart:ffi';
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'desktop_entries.dart';
+import 'search_terms.dart';
 
 String? githubQuery(String request) {
   // Other actions mentioning a repository must keep their existing meaning.
-  if (RegExp(r'^\s*(?:remove|uninstall|hide|unhide|update|explain)\b', caseSensitive: false).hasMatch(request))
+  if (RegExp(r'^\s*(?:remove|uninstall|hide|unhide|update|explain)\b', caseSensitive: false).hasMatch(request)) {
     return null;
+  }
   final url = RegExp(r'https://github\.com/([\w.-]+/[\w.-]+)', caseSensitive: false).firstMatch(request);
   if (url != null) return url[1]!.replaceFirst(RegExp(r'\.git$'), '');
-  final source = RegExp(r'\b(?:from|on)\s+github\b', caseSensitive: false).firstMatch(request);
+  if (request.contains('://')) return null;
+  final source = RegExp(r'\bgithub\b', caseSensitive: false).firstMatch(request);
   if (source == null) return null;
   // Preserve the topic of a sentence such as "list the artcraft apps", rather
   // than taking only the final word before "from GitHub".
-  final words = request.substring(0, source.start).trim().split(RegExp(r'\s+'));
+  final words = request
+      .replaceRange(source.start, source.end, ' ')
+      .replaceAll(RegExp(r'[?!:,]'), ' ')
+      .trim()
+      .split(RegExp(r'\s+'));
   const grammar = {
     'can',
     'could',
@@ -47,6 +54,11 @@ String? githubQuery(String request) {
     'repository',
     'repos',
     'projects',
+    'from',
+    'on',
+    'in',
+    'at',
+    'of',
   };
   final topic = words.where((w) => !grammar.contains(w.toLowerCase())).join(' ');
   return RegExp(r'^[\w .+/-]{1,120}$').hasMatch(topic) ? topic : null;
@@ -62,8 +74,19 @@ final class GithubLookupFailure implements Exception {
 typedef GithubFetch = Future<Map<String, dynamic>> Function(String path);
 
 final class GithubReleases {
-  GithubReleases({GithubFetch? fetch}) : _fetch = fetch ?? _get;
-  final GithubFetch _fetch;
+  GithubReleases({GithubFetch? fetch, this.cacheDuration = const Duration(minutes: 5)}) : _fetchSource = fetch ?? _get;
+  final GithubFetch _fetchSource;
+  final Duration cacheDuration;
+  final _cache = <String, ({DateTime at, Map<String, dynamic> value})>{};
+  Future<Map<String, dynamic>> _fetch(String path) async {
+    final cached = _cache[path];
+    if (cached != null && DateTime.now().difference(cached.at) < cacheDuration) return cached.value;
+    final value = await _fetchSource(path);
+    if (_cache.length >= 40) _cache.remove(_cache.keys.first);
+    _cache[path] = (at: DateTime.now(), value: value);
+    return value;
+  }
+
   static Future<Map<String, dynamic>> _get(String path) async {
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
     try {
@@ -90,14 +113,35 @@ final class GithubReleases {
     }
   }
 
-  Future<List<Map<String, dynamic>>> search(String query, {String? architecture}) async {
-    final repos = query.contains('/')
-        ? [await _fetch('/repos/$query')]
-        : ((await _fetch(
-                    '/search/repositories?q=${Uri.encodeQueryComponent('$query in:name,description')}&per_page=5',
-                  ))['items']
-                  as List? ??
-              []);
+  Future<List<Map<String, dynamic>>> search(
+    String query, {
+    String? architecture,
+    Iterable<String> suggestions = const [],
+  }) async {
+    final repos = <Map>[];
+    if (RegExp(r'^[\w.-]+/[\w.-]+$').hasMatch(query)) {
+      repos.add(await _fetch('/repos/$query'));
+    } else {
+      for (final term in searchTerms(query, suggestions: suggestions)) {
+        final found = (await _fetch(
+          '/search/repositories?q=${Uri.encodeQueryComponent('$term in:name,description')}&per_page=5',
+        ))['items'];
+        if (found is List) {
+          for (final repo in found.whereType<Map>()) {
+            if (!repos.any((r) => r['full_name'] == repo['full_name'])) repos.add(repo);
+          }
+        }
+      }
+    }
+    final terms = searchTerms(query, suggestions: suggestions);
+    final ranked = [for (var i = 0; i < repos.length; i++) (repo: repos[i], index: i)]
+      ..sort((a, b) {
+        final score = searchRank(
+          '${a.repo['name'] ?? a.repo['full_name']?.split('/').last ?? ''}',
+          terms,
+        ).compareTo(searchRank('${b.repo['name'] ?? b.repo['full_name']?.split('/').last ?? ''}', terms));
+        return score != 0 ? score : a.index.compareTo(b.index);
+      });
     final out = <Map<String, dynamic>>[];
     final arch =
         architecture ??
@@ -106,8 +150,9 @@ final class GithubReleases {
             : Abi.current() == Abi.linuxX64
             ? 'x64'
             : 'unsupported');
-    for (final repo in repos.take(5)) {
-      if (repo is! Map || repo['archived'] == true || repo['disabled'] == true) {
+    for (final entry in ranked.take(5)) {
+      final repo = entry.repo;
+      if (repo['archived'] == true || repo['disabled'] == true) {
         continue;
       }
       final name = repo['full_name'];

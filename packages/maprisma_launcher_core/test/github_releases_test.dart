@@ -24,15 +24,16 @@ void main() {
       'browser_download_url': url ?? 'https://github.com/storytold/craft-launcher/releases/download/v1/$file',
     };
     var assets = [asset('craft-arm64.AppImage'), asset('craft-x86_64.AppImage')];
-    final github = GithubReleases(
+    final github = GithubReleases(cacheDuration: Duration.zero,
       fetch: (path) async {
         calls.add(path);
-        if (path.startsWith('/search/'))
+        if (path.startsWith('/search/')) {
           return {
             'items': [
               {'full_name': 'storytold/craft-launcher'},
             ],
           };
+        }
         return {'tag_name': 'v1', 'assets': assets};
       },
     );
@@ -47,7 +48,7 @@ void main() {
   });
   test('repositories without releases remain visible; API failures are not empty results', () async {
     var status = 404;
-    final github = GithubReleases(
+    final github = GithubReleases(cacheDuration: Duration.zero,
       fetch: (path) async {
         if (path.startsWith('/search/')) {
           expect(Uri.parse(path).queryParameters['q'], 'artcraft in:name,description');
@@ -73,7 +74,7 @@ void main() {
     addTearDown(() => temp.deleteSync(recursive: true));
     final core = CoreService(
       environment: {'HOME': temp.path, 'PATH': '/usr/bin:/bin'},
-      githubReleases: GithubReleases(
+      githubReleases: GithubReleases(cacheDuration: Duration.zero,
         fetch: (path) async => path.startsWith('/search/')
             ? {
                 'items': [

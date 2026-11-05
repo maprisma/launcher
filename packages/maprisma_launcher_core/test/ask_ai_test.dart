@@ -3,6 +3,7 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'package:maprisma_launcher_core/src/github_releases.dart';
 
 import 'package:maprisma_launcher_core/maprisma_launcher_core.dart';
 import 'package:path/path.dart' as p;
@@ -152,7 +153,7 @@ fi
       final apps = Directory(p.join(home.path, 'data/applications'))..createSync(recursive: true);
       File(p.join(apps.path, 'writer.desktop'))
           .writeAsStringSync('[Desktop Entry]\nType=Application\nName=Writer\nExec=/bin/true\nComment=Writes\n');
-      core = CoreService(
+      core = CoreService(githubReleases: GithubReleases(fetch: (_) async => {'items': []}),
         environment: {
           'HOME': home.path,
           'PATH': '$bin:/usr/bin:/bin',

@@ -207,7 +207,8 @@
     "No setting matches “{0}”": "Keine Einstellung passt zu „{0}“",
     "Downloads to Applications and verifies SHA-256. No password is needed.": "Lädt nach Applications herunter und prüft SHA-256. Kein Passwort nötig.",
     "No repositories were found on GitHub.": "Auf GitHub wurden keine Repositorys gefunden.",
-    "GitHub repositories": "GitHub-Repositorys"
+    "GitHub repositories": "GitHub-Repositorys",
+    "GitHub search is unavailable. Package results are still shown.": "Die GitHub-Suche ist nicht verfügbar. Paketergebnisse werden weiterhin angezeigt."
   },
   "es": {
     "\u0004{0} app": [
@@ -417,7 +418,8 @@
     "No setting matches “{0}”": "Ningún ajuste coincide con «{0}»",
     "Downloads to Applications and verifies SHA-256. No password is needed.": "Descarga en Applications y verifica SHA-256. No se necesita contraseña.",
     "No repositories were found on GitHub.": "No se encontraron repositorios en GitHub.",
-    "GitHub repositories": "Repositorios de GitHub"
+    "GitHub repositories": "Repositorios de GitHub",
+    "GitHub search is unavailable. Package results are still shown.": "La búsqueda de GitHub no está disponible. Se siguen mostrando los paquetes."
   },
   "fr": {
     "\u0004{0} app": [
@@ -627,7 +629,8 @@
     "No setting matches “{0}”": "Aucun réglage ne correspond à « {0} »",
     "Downloads to Applications and verifies SHA-256. No password is needed.": "Télécharge dans Applications et vérifie SHA-256. Aucun mot de passe nécessaire.",
     "No repositories were found on GitHub.": "Aucun dépôt trouvé sur GitHub.",
-    "GitHub repositories": "Dépôts GitHub"
+    "GitHub repositories": "Dépôts GitHub",
+    "GitHub search is unavailable. Package results are still shown.": "La recherche GitHub est indisponible. Les résultats des paquets restent affichés."
   },
   "it": {
     "\u0004{0} app": [
@@ -837,7 +840,8 @@
     "No setting matches “{0}”": "Nessuna impostazione corrisponde a «{0}»",
     "Downloads to Applications and verifies SHA-256. No password is needed.": "Scarica in Applications e verifica SHA-256. Non serve una password.",
     "No repositories were found on GitHub.": "Nessun repository trovato su GitHub.",
-    "GitHub repositories": "Repository GitHub"
+    "GitHub repositories": "Repository GitHub",
+    "GitHub search is unavailable. Package results are still shown.": "La ricerca GitHub non è disponibile. I risultati dei pacchetti restano visibili."
   },
   "nl": {
     "\u0004{0} app": [
@@ -1047,7 +1051,8 @@
     "No setting matches “{0}”": "Geen instelling komt overeen met ‘{0}’",
     "Downloads to Applications and verifies SHA-256. No password is needed.": "Downloadt naar Applications en controleert SHA-256. Geen wachtwoord nodig.",
     "No repositories were found on GitHub.": "Geen repositories gevonden op GitHub.",
-    "GitHub repositories": "GitHub-repositories"
+    "GitHub repositories": "GitHub-repositories",
+    "GitHub search is unavailable. Package results are still shown.": "Zoeken op GitHub is niet beschikbaar. Pakketresultaten worden nog steeds getoond."
   },
   "pl": {
     "\u0004{0} app": [
@@ -1261,7 +1266,8 @@
     "No setting matches “{0}”": "Żadne ustawienie nie pasuje do „{0}”",
     "Downloads to Applications and verifies SHA-256. No password is needed.": "Pobiera do Applications i sprawdza SHA-256. Hasło nie jest wymagane.",
     "No repositories were found on GitHub.": "Nie znaleziono repozytoriów na GitHubie.",
-    "GitHub repositories": "Repozytoria GitHub"
+    "GitHub repositories": "Repozytoria GitHub",
+    "GitHub search is unavailable. Package results are still shown.": "Wyszukiwanie w GitHubie jest niedostępne. Wyniki pakietów są nadal wyświetlane."
   },
   "pt": {
     "\u0004{0} app": [
@@ -1471,6 +1477,7 @@
     "No setting matches “{0}”": "Nenhuma definição corresponde a «{0}»",
     "Downloads to Applications and verifies SHA-256. No password is needed.": "Transfere para Applications e verifica SHA-256. Não é necessária palavra-passe.",
     "No repositories were found on GitHub.": "Não foram encontrados repositórios no GitHub.",
-    "GitHub repositories": "Repositórios do GitHub"
+    "GitHub repositories": "Repositórios do GitHub",
+    "GitHub search is unavailable. Package results are still shown.": "A pesquisa no GitHub está indisponível. Os resultados dos pacotes continuam visíveis."
   }
 }

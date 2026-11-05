@@ -348,7 +348,9 @@ String askPrompt({
     '"installed": ["<ids of installed apps that already fit>"]}\n'
     'when the user wants to find, get suggestions for or install an app. Package searches only match names '
     'and short descriptions: give real app names (for photo editing for example gimp, krita, darktable), not '
-    'the user\'s phrase.\n'
+    'the user\'s phrase. Preserve partial names and offer close spelling corrections when useful; '
+    'for named apps try spacing/hyphen variants. Never replace a named app with an unrelated alternative. '
+    'Public GitHub repositories are searched too; do not claim only package-manager installs are supported.\n'
     '{"action": "remove", "apps": ["<ids of installed apps>"]}\n'
     '{"action": "update", "apps": ["<ids of installed apps>"]}\n'
     '{"action": "update_system"}\n'
@@ -385,7 +387,7 @@ String picksPrompt({
   String? language,
 }) =>
     '$_rules\n\n'
-    'Packages found on this system\'s package managers (manager, package, version, description; aur means '
+    'Packages found across allowed package managers and public GitHub repositories (manager, package, version, description, installable; aur means '
     'a community build script, not checked by the distribution): ${jsonEncode(found)}\n'
     'Installed apps that may already fit (id, name, description): ${jsonEncode(installed)}\n\n'
     '${_request(request, answer)}\n'
@@ -393,7 +395,7 @@ String picksPrompt({
     '"picks": [{"manager": "<manager>", "package": "<exact package from the list>", '
     '"reason": "<one short sentence: what it is best for>"}], "installed": ["<ids of installed apps that fit>"]}. '
     'At most $maxPicks picks, only packages from the list, the best first; prefer packages that are not from '
-    'the AUR. No picks when nothing fits.\n'
+    'the AUR. GitHub entries without installable=true can be opened as repositories, not installed. No picks when nothing fits.\n'
     '${_language(language)}';
 
 /// The first JSON object in an answer (agents may wrap it in prose or ```).

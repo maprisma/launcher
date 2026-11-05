@@ -230,3 +230,11 @@ No add-on runs code.
   descriptions. Show repositories even without a compatible checksummed AppImage,
   with an Open action; only verified compatible assets get Install. Release 404s
   mean no release, while API errors propagate instead of reporting no matches.
+- **2026-11-05 — general app searches:** share bounded spacing/hyphen variants
+  across package and GitHub search. Ask AI may suggest close spelling corrections;
+  explicit GitHub requests check lexical similarity before searching those hints.
+  General Ask AI and Install apps now include public GitHub results too. Rank exact
+  names and checked corrections above broad matches, deduplicate repositories, and
+  cache bounded public metadata for five minutes. GitHub failures keep package
+  results and show a source warning. No per-app aliases or invented repositories.
+  Regression cases include partial names, multiword names and misspellings.

@@ -488,8 +488,9 @@ final class CoreService {
       if (query.isEmpty || query.length > 100 || query.contains(RegExp(r'[\x00-\x1f]'))) {
         throw ServiceError('bad_params');
       }
-      _found = await _managers.search(query, _enabledManagers());
-      return {'results': _found};
+      final found = await _searchApps([query], _enabledManagers());
+      _found = found.results;
+      return {'results': _found, 'github_unavailable': found.githubUnavailable};
     },
     'packages.install_plan': (params) async => _installPlan(params),
     'packages.install': (params) async {
@@ -788,6 +789,26 @@ final class CoreService {
     };
   }
 
+  /// Both manual search and Ask AI use the same real sources. A failed public
+  /// lookup must not erase package results or masquerade as "no matches".
+  Future<({List<Found> results, bool githubUnavailable})> _searchApps(List<String> queries, List<String> managers) async {
+    final results = <Found>[];
+    var githubUnavailable = false;
+    void add(Iterable<Found> found) {
+      for (final f in found) {
+        if (!results.any((r) => r['manager'] == f['manager'] && r['package'] == f['package'])) results.add(f);
+      }
+    }
+    for (final query in queries) {
+      add(await _managers.search(query, managers));
+    }
+    for (final query in queries.take(2)) {
+      try { add(await githubReleases.search(query)); }
+      on Object { githubUnavailable = true; break; }
+    }
+    return (results: results, githubUnavailable: githubUnavailable);
+  }
+
   /// Ask AI: one click, at most two answers, never a retry. The helper only
   /// sees facts; every name it returns is checked here.
   Future<Map<String, dynamic>> _askRun(Map<String, dynamic> params) async {
@@ -797,7 +818,22 @@ final class CoreService {
     final github = githubQuery(request);
     if (github != null) {
       try {
-        _found = await githubReleases.search(github);
+        // A helper may correct spelling, but only nearby names survive the
+        // shared lexical check. Search results, never the helper, supply repos.
+        var suggestions = <String>[];
+        final command = params['helper'];
+        if (command is String && command.isNotEmpty) {
+          final piOnline = await _piOnlineNow();
+          if (helperStates(session, piOnline: piOnline).any((h) => h['command'] == command && h['installed'] == true)) {
+            try {
+              final text = await _ask.run(command,
+                askPrompt(request: request, installed: const [], managers: const ['github']), piOnline: piOnline);
+              final checked = checkAsk(firstJson(text), const {});
+              suggestions = (checked['queries'] as List? ?? const []).cast<String>();
+            } on Object { /* An optional spelling hint must not prevent search. */ }
+          }
+        }
+        _found = await githubReleases.search(github, suggestions: suggestions);
       } on Object {
         _found = [];
         throw ServiceError('github_failed');
@@ -852,19 +888,19 @@ final class CoreService {
     List<String> toKeys(Object? list) => [for (final id in (list as List? ?? const [])) ?ids[id]];
     switch (first['action']) {
       case 'search':
-        final merged = <Found>[];
-        for (final q in first['queries'] as List) {
-          for (final f in await _managers.search(q as String, managers)) {
-            if (!merged.any((m) => m['manager'] == f['manager'] && m['package'] == f['package'])) merged.add(f);
-          }
-        }
+        final queries = (first['queries'] as List).cast<String>();
+        // Keep a short literal search as well as the helper's interpretation:
+        // a partial or misspelled app name must not disappear from discovery.
+        final literal = RegExp(r'^[\w .+-]{1,40}$').hasMatch(request) && request.split(RegExp(r'\s+')).length <= 3;
+        final combined = await _searchApps([...{if (literal) request, ...queries}], managers);
+        final merged = combined.results;
         // Official repositories first, the AUR last (Antigravity's review, 6b).
         merged.sort((a, b) => (a['aur'] == true ? 1 : 0).compareTo(b['aur'] == true ? 1 : 0));
         final found = merged.take(maxSearchResults).toList();
         _found = found;
         final already = first['installed'] as List;
         if (found.isEmpty) {
-          return {'action': 'install', 'summary': '', 'picks': [], 'installed': toKeys(already), 'queries': first['queries']};
+          return {'action': 'install', 'summary': '', 'picks': [], 'installed': toKeys(already), 'queries': first['queries'], 'github_unavailable': combined.githubUnavailable};
         }
         String second;
         try {
@@ -883,6 +919,7 @@ final class CoreService {
                     'description': '${f['description'] ?? ''}'.length > 120
                         ? '${f['description']}'.substring(0, 120)
                         : f['description'],
+                    if (f['manager'] == 'github') 'installable': f['installable'],
                     if (f['aur'] == true) 'aur': true,
                     if (f['installed'] == true) 'installed': true,
                   },
@@ -901,6 +938,7 @@ final class CoreService {
           'picks': picks['picks'],
           'installed': toKeys({...already, ...picks['installed'] as List}.toList()),
           'queries': first['queries'],
+          'github_unavailable': combined.githubUnavailable,
         };
       case 'remove' || 'update' || 'explain':
         return {...first, 'apps': toKeys(first['apps'])};

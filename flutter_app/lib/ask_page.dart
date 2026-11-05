@@ -475,7 +475,9 @@ class _AskPageState extends State<AskPage> {
     final a = widget.actions;
     final apps = [for (final k in (r['apps'] as List? ?? const [])) ?widget.apps[k]];
     final installed = [for (final k in (r['installed'] as List? ?? const [])) ?widget.apps[k]];
-    final children = <Widget>[];
+    final children = <Widget>[
+      if (r['github_unavailable'] == true) Text(tr('GitHub search is unavailable. Package results are still shown.')),
+    ];
     switch (r['action']) {
       case 'install':
         final picks = [for (final x in r['picks'] as List? ?? const []) Map<String, dynamic>.from(x)];
