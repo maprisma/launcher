@@ -771,6 +771,45 @@ void main() {
     expect(find.text('Shortcuts for Writer'), findsNothing);
   });
 
+  testWidgets('wide window: a slow right click on an icon in a folder opens only its menu, not the group menu too', (tester) async {
+    tester.view.physicalSize = const Size(1500, 1150);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    // The real core answers over a pipe: the app menu opens a moment later.
+    var slow = false;
+    Future<Map<String, dynamic>> core(String method, [Map<String, dynamic> params = const {}]) async {
+      if (slow) await Future<void>.delayed(const Duration(milliseconds: 50));
+      return call(method, params);
+    }
+
+    final key = GlobalKey<AppsPageState>();
+    await tester.pumpWidget(MaterialApp(home: AppsPage(key: key, core: core, desktop: 'generic')));
+    await settle(tester);
+    expect(key.currentState!.showingFolders, isTrue);
+    slow = true;
+    // Held past the tap deadline: both the icon and
+    // the folder around it saw a down; only the icon's menu may open.
+    final writer = find.byWidgetPredicate((w) => w is Tooltip && w.message == 'Writer');
+    final press = await tester.startGesture(
+      tester.getCenter(writer),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryButton,
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await press.up();
+    await settle(tester);
+    expect(find.text('Change icon…'), findsOneWidget);
+    expect(find.text('Delete group'), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(tester);
+    expect(find.text('Change icon…'), findsNothing);
+    expect(find.text('Delete group'), findsNothing);
+
+    // Beside the icons the folder still has its group menu.
+    await tester.tapAt(tester.getCenter(find.text('Office').first), buttons: kSecondaryButton);
+    await settle(tester);
+    expect(find.text('Delete group'), findsOneWidget);
+  });
   testWidgets('Change icon: a theme icon is used, and reset again', (tester) async {
     tester.view.physicalSize = const Size(420, 700);
     tester.view.devicePixelRatio = 1;

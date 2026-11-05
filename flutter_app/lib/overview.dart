@@ -191,7 +191,7 @@ extension Overview on AppsPageState {
       child: InkWell(
         borderRadius: BorderRadius.circular(radius),
         onTap: () => setOverviewFilter(gid),
-        onSecondaryTapDown: _canDropInto(gid) && gid != 'other' ? (d) => _groupMenu(gid, d.globalPosition) : null,
+        onSecondaryTapUp: _canDropInto(gid) && gid != 'other' ? (d) => _groupMenu(gid, d.globalPosition) : null,
         child: Padding(
           padding: const EdgeInsets.all(4),
           child: Column(
