@@ -225,3 +225,8 @@ No add-on runs code.
   installs into `~/Applications` without replacing files or executing the download.
   Only x86_64/arm64 AppImages with published SHA-256 digests are offered. No GitHub
   credentials are used. API errors do not fall back to unrelated package suggestions.
+- **2026-11-05 — GitHub listing follow-up:** preserve the topic in natural requests
+  such as "can you list the artcraft apps from github"; search repository names and
+  descriptions. Show repositories even without a compatible checksummed AppImage,
+  with an Open action; only verified compatible assets get Install. Release 404s
+  mean no release, while API errors propagate instead of reporting no matches.

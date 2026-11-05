@@ -19,9 +19,15 @@ void main() {
           {'command': 'agy', 'name': 'Antigravity', 'installed': false, 'signed_in': false},
         ],
       },
+      'ask.run' when '${params['request']}' == 'can you list the artcraft apps from github' => {
+        'action': 'install', 'source': 'github', 'picks': [{
+          'manager': 'github', 'package': 'storytold/craft-launcher', 'installable': false,
+          'repository': 'https://github.com/storytold/craft-launcher', 'description': 'ArtCraft apps',
+        }],
+      },
       'ask.run' when '${params['request']}' == 'install craft-launcher from github' => {
         'action': 'install', 'source': 'github', 'picks': [{
-          'manager': 'github', 'package': 'storytold/craft-launcher', 'version': 'v1',
+          'manager': 'github', 'package': 'storytold/craft-launcher', 'version': 'v1', 'installable': true,
           'repository': 'https://github.com/storytold/craft-launcher', 'asset': 'craft-x86_64.AppImage',
         }],
       },
@@ -97,6 +103,24 @@ void main() {
     updateKind: (app) => null,
     setHidden: (app, hidden) async {},
   );
+
+  testWidgets('screenshot listing shows repositories without installers and opens the source', (tester) async {
+    asked.clear();
+    helpersReady = true;
+    await tester.pumpWidget(MaterialApp(home: AskPage(core: fake, apps: apps, actions: actions())));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'can you list the artcraft apps from github');
+    await tester.tap(find.byTooltip('Ask'));
+    await tester.pumpAndSettle();
+    expect(find.text('GitHub repositories'), findsOneWidget);
+    expect(find.textContaining('storytold/craft-launcher'), findsOneWidget);
+    expect(find.text('Install…'), findsNothing);
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    expect(asked.where((a) => a['method'] == 'open.url').single['url'],
+      'https://github.com/storytold/craft-launcher');
+    expect(asked.where((a) => a['method'] == 'packages.install_plan'), isEmpty);
+  });
 
   testWidgets('GitHub suggestion keeps its repository and uses the install preview', (tester) async {
     asked.clear();

@@ -9,16 +9,54 @@ import 'desktop_entries.dart';
 
 String? githubQuery(String request) {
   // Other actions mentioning a repository must keep their existing meaning.
-  if (RegExp(r'^\s*(?:remove|uninstall|hide|unhide|update|explain)\b', caseSensitive: false).hasMatch(request)) return null;
-  final url = RegExp(
-    r'https://github\.com/([\w.-]+/[\w.-]+)',
-    caseSensitive: false,
-  ).firstMatch(request);
+  if (RegExp(r'^\s*(?:remove|uninstall|hide|unhide|update|explain)\b', caseSensitive: false).hasMatch(request))
+    return null;
+  final url = RegExp(r'https://github\.com/([\w.-]+/[\w.-]+)', caseSensitive: false).firstMatch(request);
   if (url != null) return url[1]!.replaceFirst(RegExp(r'\.git$'), '');
-  return RegExp(
-    r'([\w.-]+(?:/[\w.-]+)?)\s+(?:from|on)\s+github\b',
-    caseSensitive: false,
-  ).firstMatch(request)?[1];
+  final source = RegExp(r'\b(?:from|on)\s+github\b', caseSensitive: false).firstMatch(request);
+  if (source == null) return null;
+  // Preserve the topic of a sentence such as "list the artcraft apps", rather
+  // than taking only the final word before "from GitHub".
+  final words = request.substring(0, source.start).trim().split(RegExp(r'\s+'));
+  const grammar = {
+    'can',
+    'could',
+    'would',
+    'you',
+    'please',
+    'i',
+    'want',
+    'to',
+    'list',
+    'show',
+    'me',
+    'find',
+    'search',
+    'for',
+    'the',
+    'a',
+    'an',
+    'install',
+    'download',
+    'get',
+    'apps',
+    'app',
+    'applications',
+    'application',
+    'repositories',
+    'repository',
+    'repos',
+    'projects',
+  };
+  final topic = words.where((w) => !grammar.contains(w.toLowerCase())).join(' ');
+  return RegExp(r'^[\w .+/-]{1,120}$').hasMatch(topic) ? topic : null;
+}
+
+final class GithubLookupFailure implements Exception {
+  const GithubLookupFailure(this.status);
+  final int status;
+  @override
+  String toString() => 'GitHub returned HTTP $status';
 }
 
 typedef GithubFetch = Future<Map<String, dynamic>> Function(String path);
@@ -27,19 +65,16 @@ final class GithubReleases {
   GithubReleases({GithubFetch? fetch}) : _fetch = fetch ?? _get;
   final GithubFetch _fetch;
   static Future<Map<String, dynamic>> _get(String path) async {
-    final client = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 10);
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
     try {
       return await (() async {
-        final request = await client.getUrl(
-          Uri.parse('https://api.github.com$path'),
-        );
+        final request = await client.getUrl(Uri.parse('https://api.github.com$path'));
         request.headers.set('User-Agent', 'Maprisma-Launcher');
         request.headers.set('Accept', 'application/vnd.github+json');
         request.followRedirects = false;
         final response = await request.close();
         if (response.statusCode != 200) {
-          throw const HttpException('GitHub lookup failed');
+          throw GithubLookupFailure(response.statusCode);
         }
         final bytes = <int>[];
         await for (final chunk in response) {
@@ -55,14 +90,11 @@ final class GithubReleases {
     }
   }
 
-  Future<List<Map<String, dynamic>>> search(
-    String query, {
-    String? architecture,
-  }) async {
+  Future<List<Map<String, dynamic>>> search(String query, {String? architecture}) async {
     final repos = query.contains('/')
         ? [await _fetch('/repos/$query')]
         : ((await _fetch(
-                    '/search/repositories?q=${Uri.encodeQueryComponent('$query in:name')}&per_page=5',
+                    '/search/repositories?q=${Uri.encodeQueryComponent('$query in:name,description')}&per_page=5',
                   ))['items']
                   as List? ??
               []);
@@ -74,7 +106,7 @@ final class GithubReleases {
             : Abi.current() == Abi.linuxX64
             ? 'x64'
             : 'unsupported');
-    for (final repo in repos) {
+    for (final repo in repos.take(5)) {
       if (repo is! Map || repo['archived'] == true || repo['disabled'] == true) {
         continue;
       }
@@ -82,18 +114,27 @@ final class GithubReleases {
       if (name is! String || !RegExp(r'^[\w.-]+/[\w.-]+$').hasMatch(name)) {
         continue;
       }
+      final result = <String, dynamic>{
+        'manager': 'github',
+        'package': name,
+        'name': repo['name'] ?? name,
+        'description': repo['description'] ?? '',
+        'repository': 'https://github.com/$name',
+        'installable': false,
+      };
+      // A repository is still a useful listing result without an installer.
+      out.add(result);
       Map release;
       try {
         release = await _fetch('/repos/$name/releases/latest');
-      } on Object {
-        continue;
+      } on GithubLookupFailure catch (e) {
+        if (e.status == 404) continue; // No published release.
+        rethrow; // Rate limits and service failures are not "nothing found".
       }
       if (release['draft'] == true || release['prerelease'] == true) continue;
       for (final asset in release['assets'] as List? ?? []) {
         if (asset is! Map) continue;
-        final file = asset['name'],
-            digest = asset['digest'],
-            url = asset['browser_download_url'];
+        final file = asset['name'], digest = asset['digest'], url = asset['browser_download_url'];
         if (file is! String || !RegExp(r'^[\w.+-]+\.AppImage$').hasMatch(file)) {
           continue;
         }
@@ -101,9 +142,7 @@ final class GithubReleases {
         final matches = arch == 'x64'
             ? RegExp(r'x86_64|amd64|x64').hasMatch(lower)
             : arch == 'arm64' && RegExp(r'aarch64|arm64').hasMatch(lower);
-        if (!matches ||
-            digest is! String ||
-            !RegExp(r'^sha256:[a-f0-9]{64}$').hasMatch(digest)) {
+        if (!matches || digest is! String || !RegExp(r'^sha256:[a-f0-9]{64}$').hasMatch(digest)) {
           continue;
         }
         final uri = url is String ? Uri.tryParse(url) : null;
@@ -115,11 +154,8 @@ final class GithubReleases {
             !uri.path.startsWith('/$name/releases/download/')) {
           continue;
         }
-        out.add({
-          'manager': 'github',
-          'package': name,
-          'name': repo['name'] ?? name,
-          'description': repo['description'] ?? '',
+        result.addAll({
+          'installable': true,
           'version': release['tag_name'] ?? '',
           'repository': 'https://github.com/$name',
           'url': url,
@@ -136,14 +172,11 @@ final class GithubReleases {
 /// Download privately, verify, and atomically publish without replacing files.
 /// This only installs the AppImage; it does not execute it.
 List<String>? githubInstall(Session session, Map found, List<String> terminal) {
+  if (found['installable'] != true) return null;
   final curl = session.which('curl'), sha = session.which('sha256sum');
   if (curl == null || sha == null) return null;
   final repo = found['package'] as String;
-  final destination = p.join(
-    session.home,
-    'Applications',
-    '${repo.replaceAll('/', '-')}-${found['asset']}',
-  );
+  final destination = p.join(session.home, 'Applications', '${repo.replaceAll('/', '-')}-${found['asset']}');
   return [
     ...terminal,
     'sh',

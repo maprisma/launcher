@@ -139,6 +139,14 @@ class _AskPageState extends State<AskPage> {
 
   Future<void> _stop() => widget.core('ask.cancel');
 
+  Future<void> _openRepository(Map pick) async {
+    try {
+      await widget.core('open.url', {'url': pick['repository']});
+    } on ServiceError catch (e) {
+      if (mounted) setState(() => error = trf('That did not work ({0}).', [e.code]));
+    }
+  }
+
   /// A started request in the field, the cursor at its end (the user names the app).
   void _start(String text) {
     request.value = TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
@@ -480,10 +488,10 @@ class _AskPageState extends State<AskPage> {
         }
         if (picks.isEmpty && installed.isEmpty) {
           children.add(Text(r['source'] == 'github'
-              ? tr('No compatible Linux AppImage with a SHA-256 digest was found on GitHub.')
+              ? tr('No repositories were found on GitHub.')
               : trf('Nothing found for “{0}”.', [(r['queries'] as List? ?? const []).join(', ')])));
         }
-        if (picks.isNotEmpty) children.add(_section(tr('Suggestions')));
+        if (picks.isNotEmpty) children.add(_section(r['source'] == 'github' ? tr('GitHub repositories') : tr('Suggestions')));
         for (final pick in picks) {
           final aur = pick['aur'] == true;
           children.add(
@@ -507,7 +515,12 @@ class _AskPageState extends State<AskPage> {
                   label: Text(aur ? 'AUR' : pick['manager'] == 'github' ? 'GitHub' : '${pick['manager']}', style: const TextStyle(fontSize: 11)),
                   backgroundColor: aur ? markColors(context).update.withValues(alpha: .2) : null,
                 ),
-                trailing: pick['installed'] == true
+                trailing: pick['manager'] == 'github' && pick['installable'] != true
+                    ? TextButton(
+                        onPressed: () => _openRepository(pick),
+                        child: Text(tr('Open')),
+                      )
+                    : pick['installed'] == true
                     ? Icon(Icons.check_circle, color: markColors(context).running)
                     : TextButton(
                         onPressed: () => reviewInstall(context, widget.core, pick, aur ? 'AUR' : pick['manager'] == 'github' ? 'GitHub' : '${pick['manager']}'),
