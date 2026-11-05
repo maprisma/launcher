@@ -32,9 +32,10 @@ A request is `{"id", "protocol": 1, "method", "params"}`, the answer `{"id", "re
 | `apps.admin_check` / `apps.admin_launch` | `key` | `can` / `started`; `not_enabled`, `launch_failed` |
 | `apps.uninstall_plan` | `key` | `kind` (null, `flatpak`, `package` + `manager`, `webapp`, `omarchy` + `how`, `trash`), `what`, `warnings` |
 | `apps.uninstall` | `key` | what the plan said: started in a terminal, or done |
-| `updates.check` | `force`? | `apps` {desktop path: [package, old, new]}, `flatpaks` {key: …}, `appimages` {key: release details}, `checked` |
+| `updates.check` | `force`? | `apps` {desktop path: [package, old, new]}, `flatpaks` {key: …}, `appimages` {key: release details}, `appimage_unknown` {key: reason}, `appimage_restorable` [keys], `checked` |
 | `updates.flatpak` | `key` | the updates; `bad_params`, `update_failed` |
-| `updates.appimage` | `key` | installs a verified newer AppImage from embedded GitHub update information and updates its desktop entry; `no_update`, `update_failed` |
+| `updates.appimage` | `key` | installs a verified newer AppImage from embedded GitHub update information at its existing path, keeping the previous binary as `.bak`; `no_update`, `busy`, `update_failed` |
+| `updates.appimage_restore` | `key` | swaps the previous AppImage back into its existing path; `busy`, `restore_failed` |
 | `updates.system` | — | `started` (the desktop's own updater); `no_updater` |
 | `packages.managers` | — | `managers` [{`id`, `label`, `program`, `enabled`}] |
 | `packages.search` | `query` | `results` of the enabled managers |

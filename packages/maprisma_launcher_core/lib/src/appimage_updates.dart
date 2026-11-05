@@ -3,6 +3,7 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:convert/convert.dart';
 import 'package:path/path.dart' as p;
@@ -11,6 +12,7 @@ import 'appimages.dart';
 import 'bounded.dart';
 import 'desktop_entries.dart';
 import 'origins.dart' show programPath;
+import 'posix.dart';
 
 final _safePart = RegExp(r'^[A-Za-z0-9_.-]{1,100}$');
 final _safeAsset = RegExp(r'^[A-Za-z0-9_.+-]{1,200}\.AppImage$');
@@ -21,15 +23,30 @@ final _updateInfo = RegExp(
 /// An update must not place files in a directory another account can change.
 bool privateUpdateDirectory(String path) {
   try {
-    final stat = Directory(path).statSync();
-    return stat.type == FileSystemEntityType.directory && stat.mode & 0x12 == 0;
+    // A sandbox may map root's uid to an overflow uid. Trust the owner of /.
+    final rootOwner = Posix.instance.owner('/');
+    if (rootOwner == null) return false;
+    for (var dir = p.normalize(p.absolute(path)); ; dir = p.dirname(dir)) {
+      final stat = Directory(dir).statSync();
+      final owner = Posix.instance.owner(dir);
+      if (stat.type != FileSystemEntityType.directory || owner == null) {
+        return false;
+      }
+      if (stat.mode & 0x12 != 0 && !(owner == rootOwner && stat.mode & 0x200 != 0)) {
+        return false;
+      }
+      if (owner != rootOwner && owner != Posix.instance.uid) return false;
+      if (dir == p.dirname(dir)) break;
+    }
+    return true;
   } on FileSystemException {
     return false;
   }
 }
 
 bool absentWithoutFollowingLinks(String path) =>
-    FileSystemEntity.typeSync(path, followLinks: false) == FileSystemEntityType.notFound;
+    FileSystemEntity.typeSync(path, followLinks: false) ==
+    FileSystemEntityType.notFound;
 
 /// GitHub publisher and AppImage asset pattern embedded in .upd_info.
 typedef AppImageSource = ({
@@ -76,8 +93,9 @@ bool newerAppImage(String installed, String available) {
 Map<String, String>? appImageRelease(
   Map<String, dynamic> json,
   AppImageSource source,
-  String oldFile,
-) {
+  String oldFile, {
+  String? installedVersion,
+}) {
   final tag = json['tag_name'];
   if (tag is! String || !_safePart.hasMatch(tag) || tag == '..') return null;
   final assets = json['assets'];
@@ -87,10 +105,23 @@ Map<String, String>? appImageRelease(
     final filename = asset['name'];
     if (filename is! String ||
         !_safeAsset.hasMatch(filename) ||
-        !_matchesPattern(filename, source.pattern) ||
-        !newerAppImage(oldFile, filename)) {
+        !_matchesPattern(filename, source.pattern)) {
       continue;
     }
+    final current = installedVersion ?? appImageVersion(oldFile);
+    final available =
+        appImageVersion(filename) ??
+        RegExp(r'^v?(\d+(?:\.\d+)+)').firstMatch(tag)?[1];
+    if (current != null &&
+        available != null &&
+        compareVersionKeys(
+              versionKey('App-$available'),
+              versionKey('App-$current'),
+            ) <=
+            0) {
+      continue;
+    }
+    if (current == null && available == null) continue;
     final url = asset['browser_download_url'];
     final digest = asset['digest'];
     if (url !=
@@ -100,8 +131,8 @@ Map<String, String>? appImageRelease(
       continue;
     }
     return {
-      'version': appImageVersion(filename) ?? '',
-      'installed': appImageVersion(oldFile) ?? '',
+      'version': available ?? '',
+      'installed': current ?? '',
       'filename': filename,
       'url': url,
       'sha256': digest.substring(7).toLowerCase(),
@@ -110,16 +141,43 @@ Map<String, String>? appImageRelease(
       'channel': source.channel,
       'pattern': source.pattern,
       'tag': tag,
+      'size': '${asset['size'] is int ? asset['size'] : ''}',
     };
   }
   return null;
 }
 
 final class AppImageUpdates {
-  AppImageUpdates(this.session);
+  static final Set<String> _activePaths = {};
+  AppImageUpdates(this.session, {this.sourceLookup, this.download, this.place});
   final Session session;
+  final Future<AppImageSource?> Function(String)? sourceLookup;
+  final Future<({Stream<List<int>> bytes, int length})> Function(Uri)? download;
+  final Future<bool> Function(String from, String to)? place;
+
+  Future<bool> _place(String from, String to) async {
+    if (place != null) return place!(from, to);
+    return (await Process.run('/usr/bin/ln', ['--', from, to])).exitCode == 0;
+  }
+
+  String _versionFile(String path) => '$path.maprisma-version';
+  String? installedVersion(String path) {
+    try {
+      if (FileSystemEntity.typeSync(_versionFile(path), followLinks: false) !=
+          FileSystemEntityType.file) {
+        return null;
+      }
+      final bytes = Posix.instance.readRegular(_versionFile(path), 64);
+      if (bytes == null) return null;
+      final value = utf8.decode(bytes).trim();
+      return RegExp(r'^\d+(?:\.\d+)+$').hasMatch(value) ? value : null;
+    } on FileSystemException {
+      return null;
+    }
+  }
 
   Future<AppImageSource?> _source(String path) async {
+    if (sourceLookup != null) return sourceLookup!(path);
     final readelf = session.which('readelf');
     if (readelf == null) return null;
     final out = await readBoundedText(
@@ -132,8 +190,9 @@ final class AppImageUpdates {
   }
 
   /// Entry key to release details. A failed network request leaves that app unknown.
-  Future<Map<String, Map<String, String>>> check(Map<String, Map> apps) async {
+  Future<Map<String, dynamic>> check(Map<String, Map> apps) async {
     final wanted = <String, (String, AppImageSource)>{};
+    final unknown = <String, String>{};
     final entries = await Future.wait(
       apps.entries.map((entry) async {
         final path = programPath(entry.value, session);
@@ -143,17 +202,12 @@ final class AppImageUpdates {
             !privateUpdateDirectory(p.dirname(path))) {
           return null;
         }
-        final desktop = entry.value['desktop_path'];
-        if (desktop is String &&
-            desktop.isNotEmpty &&
-            !p.isWithin(
-              p.join(session.home, '.local/share/applications'),
-              desktop,
-            )) {
+        final source = await _source(path);
+        if (source == null) {
+          unknown[entry.key] = 'No embedded update source';
           return null;
         }
-        final source = await _source(path);
-        return source == null ? null : (entry.key, path, source);
+        return (entry.key, path, source);
       }),
     );
     for (final entry in entries) {
@@ -187,12 +241,16 @@ final class AppImageUpdates {
               response.contentLength > 1024 * 1024) {
             return (key, null);
           }
-          final body = await utf8.decoder
-              .bind(response)
-              .join()
-              .timeout(const Duration(seconds: 8));
-          if (body.length > 1024 * 1024) return (key, null);
-          final json = jsonDecode(body);
+          final body = BytesBuilder(copy: false);
+          final started = DateTime.now();
+          await for (final chunk in response.timeout(const Duration(seconds: 8))) {
+            if (body.length + chunk.length > 1024 * 1024 ||
+                DateTime.now().difference(started) > const Duration(seconds: 20)) {
+              return (key, null);
+            }
+            body.add(chunk);
+          }
+          final json = jsonDecode(utf8.decode(body.takeBytes()));
           if (json is Map<String, dynamic>) return (key, json);
         } on Object {
           /* Offline or rate limited: leave the result unknown. */
@@ -204,23 +262,107 @@ final class AppImageUpdates {
         wanted.values.map((v) => sourceKey(v.$2)).toSet().map(fetch),
       );
       final releases = {for (final (key, release) in fetched) key: release};
-      return {
+      final updates = {
         for (final e in wanted.entries)
           if (releases[sourceKey(e.value.$2)] case final json?)
-            if (appImageRelease(json, e.value.$2, p.basename(e.value.$1))
+            if (appImageRelease(
+                  json,
+                  e.value.$2,
+                  p.basename(e.value.$1),
+                  installedVersion: installedVersion(e.value.$1),
+                )
                 case final release?)
               e.key: {...release, 'path': e.value.$1},
       };
+      for (final e in wanted.entries) {
+        if (updates.containsKey(e.key)) continue;
+        final json = releases[sourceKey(e.value.$2)];
+        if (json == null) {
+          unknown[e.key] = 'Release check unavailable';
+        } else if (json['assets'] is List &&
+            (json['assets'] as List).any((asset) => asset is Map &&
+              asset['name'] is String && _matchesPattern(asset['name'] as String, e.value.$2.pattern))) {
+          final current = installedVersion(e.value.$1) ?? appImageVersion(p.basename(e.value.$1));
+          final available = RegExp(r'^v?(\d+(?:\.\d+)+)').firstMatch('${json['tag_name']}')?[1];
+          if (current == null || available == null ||
+              compareVersionKeys(versionKey('App-$available'), versionKey('App-$current')) > 0) {
+            unknown[e.key] = 'Release cannot be verified';
+          }
+        }
+      }
+      return {'updates': updates, 'unknown': unknown};
     } finally {
       client.close(force: true);
     }
   }
 
-  /// Download and verify before changing either the launcher or its file.
+  Future<({Stream<List<int>> bytes, int length})> _openDownload(Uri uri) async {
+    if (download != null) return download!(uri);
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 15);
+    client.userAgent = 'Maprisma Launcher';
+    try {
+      var current = uri;
+      for (var hop = 0; hop <= 5; hop++) {
+        if (current.scheme != 'https') {
+          throw const FileSystemException('Insecure download redirect');
+        }
+        final request = await client
+            .getUrl(current)
+            .timeout(const Duration(seconds: 30));
+        request.followRedirects = false;
+        final response = await request.close().timeout(
+          const Duration(seconds: 30),
+        );
+        if ([301, 302, 303, 307, 308].contains(response.statusCode)) {
+          final location = response.headers.value(HttpHeaders.locationHeader);
+          if (location == null) {
+            throw const FileSystemException('Invalid download redirect');
+          }
+          current = current.resolve(location);
+          continue;
+        }
+        if (response.statusCode != 200) {
+          throw const FileSystemException('Download failed');
+        }
+        if (response.contentLength > 512 * 1024 * 1024) {
+          throw const FileSystemException('Download too large');
+        }
+        Stream<List<int>> body() async* {
+          try {
+            yield* response;
+          } finally {
+            client.close(force: true);
+          }
+        }
+
+        return (bytes: body(), length: response.contentLength);
+      }
+      throw const FileSystemException('Too many download redirects');
+    } catch (_) {
+      client.close(force: true);
+      rethrow;
+    }
+  }
+
+  /// Download and verify, then replace the binary at its stable path.
   Future<void> install(Map app, Map release) async {
     final old = programPath(app, session);
-    if (old == null ||
-        !p.isWithin(session.home, old) ||
+    if (old == null) {
+      throw const FileSystemException('Not an installed user AppImage');
+    }
+    if (!_activePaths.add(old)) {
+      throw const FileSystemException('Update already running');
+    }
+    try {
+      await _install(app, release, old);
+    } finally {
+      _activePaths.remove(old);
+    }
+  }
+
+  Future<void> _install(Map app, Map release, String old) async {
+    if (!p.isWithin(session.home, old) ||
         !old.toLowerCase().endsWith('.appimage') ||
         !privateUpdateDirectory(p.dirname(old)) ||
         release['path'] != old) {
@@ -242,43 +384,31 @@ final class AppImageUpdates {
         release['url'] !=
             'https://github.com/${source.owner}/${source.repo}/releases/download/$tag/$filename' ||
         !RegExp(r'^[a-f0-9]{64}$').hasMatch('${release['sha256']}') ||
-        !newerAppImage(p.basename(old), filename)) {
+        appImageRelease(
+              {
+                'tag_name': tag,
+                'assets': [
+                  {
+                    'name': filename,
+                    'browser_download_url': release['url'],
+                    'digest': 'sha256:${release['sha256']}',
+                  },
+                ],
+              },
+              source,
+              p.basename(old),
+              installedVersion: installedVersion(old),
+            ) ==
+            null) {
       throw const FileSystemException('Invalid release');
     }
-    final desktop = app['desktop_path'];
-    final ownDesktop = p.join(session.home, '.local/share/applications');
-    if (desktop is! String ||
-        (desktop.isNotEmpty &&
-            (!p.isWithin(ownDesktop, desktop) ||
-                !privateUpdateDirectory(p.dirname(desktop)) ||
-                FileSystemEntity.typeSync(desktop, followLinks: false) != FileSystemEntityType.file ||
-                File(desktop).resolveSymbolicLinksSync() != p.normalize(desktop)))) {
-      throw const FileSystemException('No editable desktop launcher');
-    }
-    final oldText = desktop.isEmpty ? null : await File(desktop).readAsString();
-    if (oldText != null && !oldText.contains(old)) {
-      throw const FileSystemException(
-        'Launcher does not reference this AppImage',
-      );
-    }
-    final destination = p.join(p.dirname(old), filename);
-    if (!absentWithoutFollowingLinks(destination) || !absentWithoutFollowingLinks('$old.bak')) {
-      throw const FileSystemException('Existing update or backup needs review');
-    }
-    final downloadDir = await Directory(p.dirname(old)).createTemp('.maprisma-update-');
+    final downloadDir = await Directory(
+      p.dirname(old),
+    ).createTemp('.maprisma-update-');
     final part = File(p.join(downloadDir.path, 'download.part'));
-    final desktopDir = oldText == null ? null : await Directory(p.dirname(desktop)).createTemp('.maprisma-update-');
-    final desktopPart = desktopDir == null ? null : File(p.join(desktopDir.path, 'launcher.desktop'));
-    final client = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 15);
-    client.userAgent = 'Maprisma Launcher';
     try {
-      final request = await client.getUrl(Uri.parse(release['url'] as String));
-      final response = await request.close().timeout(
-        const Duration(seconds: 30),
-      );
-      if (response.statusCode != 200 ||
-          response.contentLength > 512 * 1024 * 1024) {
+      final response = await _openDownload(Uri.parse(release['url'] as String));
+      if (response.length > 512 * 1024 * 1024) {
         throw const FileSystemException('Download failed');
       }
       final sink = part.openWrite();
@@ -287,7 +417,7 @@ final class AppImageUpdates {
       var bytes = 0;
       try {
         final started = DateTime.now();
-        await for (final chunk in response.timeout(
+        await for (final chunk in response.bytes.timeout(
           const Duration(seconds: 30),
         )) {
           if (DateTime.now().difference(started) > const Duration(minutes: 9)) {
@@ -313,29 +443,138 @@ final class AppImageUpdates {
       if (chmod.exitCode != 0) {
         throw const FileSystemException('Could not mark AppImage executable');
       }
-      await part.rename(destination);
+      final marker = File(_versionFile(old));
+      final markerBackup = File('${_versionFile(old)}.bak');
+      final rotatedBackup = File(p.join(downloadDir.path, 'previous.bak'));
+      final rotatedMarker = File(
+        p.join(downloadDir.path, 'previous-version.bak'),
+      );
+      final nextMarker = File(p.join(downloadDir.path, 'next-version'));
+      final nextVersion = release['version'];
+      if (nextVersion is String && nextVersion.isNotEmpty) {
+        await nextMarker.writeAsString(nextVersion, flush: true);
+      }
+      var oldMoved = false;
+      var newPlaced = false;
+      var backupMoved = false;
+      var markerBackupMoved = false;
+      var markerMoved = false;
+      var nextMarkerPlaced = false;
       try {
-        // The desktop entry now points to the new version. Keep the old binary
-        // as a rollback file outside the AppImage scanner's filename pattern.
-        if (oldText != null) {
-          await desktopPart!.writeAsString(
-            oldText.replaceAll(old, destination),
-            flush: true,
-          );
-          await desktopPart.rename(desktop);
+        for (final path in [marker.path, markerBackup.path]) {
+          final type = FileSystemEntity.typeSync(path, followLinks: false);
+          if (type != FileSystemEntityType.notFound &&
+              type != FileSystemEntityType.file) {
+            throw const FileSystemException('Invalid update version record');
+          }
+        }
+        if (!absentWithoutFollowingLinks('$old.bak')) {
+          if (FileSystemEntity.typeSync('$old.bak', followLinks: false) !=
+              FileSystemEntityType.file) {
+            throw const FileSystemException('Invalid previous version');
+          }
+          await File('$old.bak').rename(rotatedBackup.path);
+          backupMoved = true;
+        }
+        if (await markerBackup.exists()) {
+          await markerBackup.rename(rotatedMarker.path);
+          markerBackupMoved = true;
         }
         await File(old).rename('$old.bak');
-      } on Object {
-        if (oldText != null) {
-          await File(desktop).writeAsString(oldText, flush: true);
+        oldMoved = true;
+        if (!await _place(part.path, old)) {
+          throw const FileSystemException('Could not place verified AppImage');
         }
-        if (await File(destination).exists()) await File(destination).delete();
+        newPlaced = true;
+        if (await marker.exists()) {
+          await marker.rename(markerBackup.path);
+          markerMoved = true;
+        }
+        if (await nextMarker.exists()) {
+          await nextMarker.rename(marker.path);
+          nextMarkerPlaced = true;
+        }
+        await part.delete();
+      } on Object {
+        if (newPlaced &&
+            FileSystemEntity.typeSync(old, followLinks: false) == FileSystemEntityType.file &&
+            await part.exists() &&
+            await FileSystemEntity.identical(old, part.path)) {
+          await File(old).delete();
+        }
+        if (oldMoved && await File('$old.bak').exists()) {
+          if (await _place('$old.bak', old)) await File('$old.bak').delete();
+        }
+        if (nextMarkerPlaced && await marker.exists()) await marker.delete();
+        if (markerMoved && await markerBackup.exists()) {
+          await markerBackup.rename(marker.path);
+        }
+        if (backupMoved && await rotatedBackup.exists()) {
+          await rotatedBackup.rename('$old.bak');
+        }
+        if (markerBackupMoved && await rotatedMarker.exists()) {
+          await rotatedMarker.rename(markerBackup.path);
+        }
         rethrow;
       }
     } finally {
-      client.close(force: true);
       if (await downloadDir.exists()) await downloadDir.delete(recursive: true);
-      if (desktopDir != null && await desktopDir.exists()) await desktopDir.delete(recursive: true);
+    }
+  }
+
+  bool canRestore(Map app) {
+    final path = programPath(app, session);
+    return path != null &&
+        p.isWithin(session.home, path) &&
+        privateUpdateDirectory(p.dirname(path)) &&
+        FileSystemEntity.typeSync('$path.bak', followLinks: false) == FileSystemEntityType.file;
+  }
+
+  Future<void> restore(Map app) async {
+    final path = programPath(app, session);
+    if (path == null || !canRestore(app)) {
+      throw const FileSystemException('No previous version');
+    }
+    if (!_activePaths.add(path)) throw const FileSystemException('Update already running');
+    try {
+      await _restore(path);
+    } finally {
+      _activePaths.remove(path);
+    }
+  }
+
+  Future<void> _restore(String path) async {
+    final temp = '$path.maprisma-restore-temp';
+    if (!absentWithoutFollowingLinks(temp)) {
+      throw const FileSystemException('Restore is already in progress');
+    }
+    final marker = File(_versionFile(path));
+    final saved = File('${_versionFile(path)}.bak');
+    final temporaryMarker = File('${marker.path}.tmp');
+    for (final name in [marker.path, saved.path]) {
+      final type = FileSystemEntity.typeSync(name, followLinks: false);
+      if (type != FileSystemEntityType.file && type != FileSystemEntityType.notFound) {
+        throw const FileSystemException('Invalid update version record');
+      }
+    }
+    if (!absentWithoutFollowingLinks(temporaryMarker.path)) {
+      throw const FileSystemException('Restore is already in progress');
+    }
+    await File(path).rename(temp);
+    var previousPlaced = false;
+    try {
+      await File('$path.bak').rename(path);
+      previousPlaced = true;
+      await File(temp).rename('$path.bak');
+    } catch (_) {
+      if (previousPlaced) await File(path).rename('$path.bak');
+      if (await File(temp).exists()) await File(temp).rename(path);
+      rethrow;
+    }
+    if (await marker.exists()) await marker.rename(temporaryMarker.path);
+    if (await saved.exists()) await saved.rename(marker.path);
+    if (await temporaryMarker.exists()) {
+      await temporaryMarker.rename(saved.path);
     }
   }
 }

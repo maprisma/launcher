@@ -268,7 +268,7 @@ extension Overview on AppsPageState {
   Widget _card(Map<String, dynamic> app, bool isSelected, double iconSize) {
     final scheme = Theme.of(context).colorScheme;
     final description = descriptionOf(app);
-    final facts = [if (versionText(app) case final version?) 'v$version', ?sizeText(app), ?sourceText(app)].join(' · ');
+    final facts = [if (versionText(app) case final version?) 'v$version', ?sizeText(app), ?sourceText(app), ?updateUnknown(app)].join(' · ');
     final radius = BorderRadius.circular(corners(context));
     return _entry(
       app,
