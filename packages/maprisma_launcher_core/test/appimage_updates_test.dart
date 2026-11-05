@@ -137,6 +137,49 @@ void main() {
     expect(appImageRelease(release, fixed, 'FooEditor-x86_64.AppImage', installedVersion: '2.1.0'), isNull);
   });
 
+  test('versionless moving build is offered once per checksum', () async {
+    final home = Directory.current.createTempSync('.test-appimage-continuous-');
+    addTearDown(() => home.deleteSync(recursive: true));
+    final old = p.join(home.path, 'App-1.2-x86_64.AppImage');
+    File(old).writeAsBytesSync([1, 2, 3]);
+    final bytes = List<int>.filled(1024 * 1024, 7);
+    final sha = sha256.convert(bytes).toString();
+    final source = parseAppImageUpdateInfo(
+      'gh-releases-zsync|example|app|continuous|App-*.AppImage.zsync',
+    )!;
+    const filename = 'App-x86_64.AppImage';
+    const tag = 'continuous';
+    const url = 'https://github.com/example/app/releases/download/$tag/$filename';
+    final json = {
+      'tag_name': tag,
+      'assets': [{'name': filename, 'browser_download_url': url, 'digest': 'sha256:$sha'}],
+    };
+    final originalSha = sha256.convert([1, 2, 3]).toString();
+    expect(appImageRelease(json, source, p.basename(old)), isNull);
+    final release = appImageRelease(json, source, p.basename(old), installedSha256: originalSha)!;
+    expect(release['version'], '');
+    final updater = AppImageUpdates(Session(environment: {'HOME': home.path}),
+      sourceLookup: (_) async => source,
+      releaseLookup: (_) async => json,
+      download: (_) async => (bytes: Stream.value(bytes), length: bytes.length));
+    final app = {'argv': [old], 'desktop_path': ''};
+    expect((await updater.check({'app': app}))['updates'], contains('app'));
+    await updater.install(app, {...release, 'path': old});
+    final record = updater.installedRecord(old)!;
+    expect(record.version, isNull);
+    expect(record.tag, tag);
+    expect(record.sha256, sha);
+    expect(appImageRelease(json, source, p.basename(old), installedVersion: '',
+      installedSha256: sha), isNull);
+    expect((await updater.check({'app': app}))['updates'], isEmpty);
+    final changed = {
+      ...json,
+      'assets': [{'name': filename, 'browser_download_url': url, 'digest': 'sha256:${'a' * 64}'}],
+    };
+    expect(appImageRelease(changed, source, p.basename(old), installedVersion: '',
+      installedSha256: sha), isNotNull);
+  });
+
   test('an AppImage without update metadata reports an unknown status', () async {
     final home = Directory.current.createTempSync('.test-appimage-unknown-');
     addTearDown(() => home.deleteSync(recursive: true));

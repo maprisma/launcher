@@ -164,9 +164,9 @@ final class AppFacts {
       };
       if (programs[e.key] case final program?
           when program.toLowerCase().endsWith('.appimage')) {
-        facts['version'] =
-            AppImageUpdates(session).installedVersion(program) ??
-            appImageVersion(program);
+        final record = AppImageUpdates(session).installedRecord(program);
+        facts['version'] = record == null ? appImageVersion(program) : record.version;
+        if (record != null && record.version == null) facts['version_unknown'] = true;
       }
       if (plan case ('flatpak', final id?)) {
         facts['manager'] = 'flatpak';

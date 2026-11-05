@@ -95,6 +95,7 @@ Map<String, String>? appImageRelease(
   AppImageSource source,
   String oldFile, {
   String? installedVersion,
+  String? installedSha256,
 }) {
   final tag = json['tag_name'];
   if (tag is! String || !_safePart.hasMatch(tag) || tag == '..') return null;
@@ -108,10 +109,27 @@ Map<String, String>? appImageRelease(
         !_matchesPattern(filename, source.pattern)) {
       continue;
     }
-    final current = installedVersion ?? appImageVersion(oldFile);
+    final current = installedVersion == '' ? null : installedVersion ?? appImageVersion(oldFile);
     final available =
         appImageVersion(filename) ??
         RegExp(r'^v?(\d+(?:\.\d+)+)').firstMatch(tag)?[1];
+    final url = asset['browser_download_url'];
+    final digest = asset['digest'];
+    if (url !=
+            'https://github.com/${source.owner}/${source.repo}/releases/download/$tag/$filename' ||
+        digest is! String ||
+        !RegExp(r'^sha256:[a-fA-F0-9]{64}$').hasMatch(digest)) {
+      continue;
+    }
+    final sha = digest.substring(7).toLowerCase();
+    if (installedSha256 == sha) continue;
+    // Moving release channels often keep one asset name and a nonnumeric tag.
+    // Without the installed file's digest there is no reliable ordering.
+    if (available == null &&
+        (installedSha256 == null ||
+            !(source.channel == tag || source.channel == 'latest'))) {
+      continue;
+    }
     if (current != null &&
         available != null &&
         compareVersionKeys(
@@ -121,21 +139,12 @@ Map<String, String>? appImageRelease(
             0) {
       continue;
     }
-    if (current == null && available == null) continue;
-    final url = asset['browser_download_url'];
-    final digest = asset['digest'];
-    if (url !=
-            'https://github.com/${source.owner}/${source.repo}/releases/download/$tag/$filename' ||
-        digest is! String ||
-        !RegExp(r'^sha256:[a-fA-F0-9]{64}$').hasMatch(digest)) {
-      continue;
-    }
     return {
       'version': available ?? '',
       'installed': current ?? '',
       'filename': filename,
       'url': url,
-      'sha256': digest.substring(7).toLowerCase(),
+      'sha256': sha,
       'owner': source.owner,
       'repo': source.repo,
       'channel': source.channel,
@@ -149,9 +158,10 @@ Map<String, String>? appImageRelease(
 
 final class AppImageUpdates {
   static final Set<String> _activePaths = {};
-  AppImageUpdates(this.session, {this.sourceLookup, this.download, this.place});
+  AppImageUpdates(this.session, {this.sourceLookup, this.releaseLookup, this.download, this.place});
   final Session session;
   final Future<AppImageSource?> Function(String)? sourceLookup;
+  final Future<Map<String, dynamic>?> Function(AppImageSource)? releaseLookup;
   final Future<({Stream<List<int>> bytes, int length})> Function(Uri)? download;
   final Future<bool> Function(String from, String to)? place;
 
@@ -161,17 +171,57 @@ final class AppImageUpdates {
   }
 
   String _versionFile(String path) => '$path.maprisma-version';
-  String? installedVersion(String path) {
+  ({String? version, String? tag, String? sha256})? installedRecord(String path) {
     try {
       if (FileSystemEntity.typeSync(_versionFile(path), followLinks: false) !=
           FileSystemEntityType.file) {
         return null;
       }
-      final bytes = Posix.instance.readRegular(_versionFile(path), 64);
+      final bytes = Posix.instance.readRegular(_versionFile(path), 512);
       if (bytes == null) return null;
       final value = utf8.decode(bytes).trim();
-      return RegExp(r'^\d+(?:\.\d+)+$').hasMatch(value) ? value : null;
+      if (RegExp(r'^\d+(?:\.\d+)+$').hasMatch(value)) {
+        return (version: value, tag: null, sha256: null);
+      }
+      final parsed = jsonDecode(value);
+      if (parsed is! Map || parsed['version'] is! String ||
+          parsed['tag'] is! String || parsed['sha256'] is! String) {
+        return null;
+      }
+      final version = parsed['version'] as String;
+      final tag = parsed['tag'] as String;
+      final sha = parsed['sha256'] as String;
+      if (version.isNotEmpty && !RegExp(r'^\d+(?:\.\d+)+$').hasMatch(version)) return null;
+      if (!_safePart.hasMatch(tag) || !RegExp(r'^[a-f0-9]{64}$').hasMatch(sha)) return null;
+      return (version: version.isEmpty ? null : version, tag: tag, sha256: sha);
     } on FileSystemException {
+      return null;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  String? installedVersion(String path) => installedRecord(path)?.version;
+
+  Future<String?> _fileDigest(String path) async {
+    try {
+      final stat = await File(path).stat();
+      if (stat.type != FileSystemEntityType.file || stat.size > 512 * 1024 * 1024) return null;
+      final hash = AccumulatorSink<Digest>();
+      final sink = sha256.startChunkedConversion(hash);
+      var size = 0;
+      final started = DateTime.now();
+      await for (final chunk in File(path).openRead().timeout(const Duration(seconds: 15))) {
+        size += chunk.length;
+        if (size > 512 * 1024 * 1024 ||
+            DateTime.now().difference(started) > const Duration(minutes: 1)) {
+          return null;
+        }
+        sink.add(chunk);
+      }
+      sink.close();
+      return hash.events.single.toString();
+    } on Object {
       return null;
     }
   }
@@ -223,6 +273,7 @@ final class AppImageUpdates {
             .firstWhere((v) => sourceKey(v.$2) == key)
             .$2;
         try {
+          if (releaseLookup != null) return (key, await releaseLookup!(source));
           final route = source.channel == 'latest'
               ? '/repos/${source.owner}/${source.repo}/releases/latest'
               : '/repos/${source.owner}/${source.repo}/releases/tags/${source.channel}';
@@ -262,28 +313,34 @@ final class AppImageUpdates {
         wanted.values.map((v) => sourceKey(v.$2)).toSet().map(fetch),
       );
       final releases = {for (final (key, release) in fetched) key: release};
-      final updates = {
-        for (final e in wanted.entries)
-          if (releases[sourceKey(e.value.$2)] case final json?)
-            if (appImageRelease(
-                  json,
-                  e.value.$2,
-                  p.basename(e.value.$1),
-                  installedVersion: installedVersion(e.value.$1),
-                )
-                case final release?)
-              e.key: {...release, 'path': e.value.$1},
-      };
+      final updates = <String, Map<String, String>>{};
       for (final e in wanted.entries) {
-        if (updates.containsKey(e.key)) continue;
         final json = releases[sourceKey(e.value.$2)];
         if (json == null) {
           unknown[e.key] = 'Release check unavailable';
-        } else if (json['assets'] is List &&
-            (json['assets'] as List).any((asset) => asset is Map &&
-              asset['name'] is String && _matchesPattern(asset['name'] as String, e.value.$2.pattern))) {
-          final current = installedVersion(e.value.$1) ?? appImageVersion(p.basename(e.value.$1));
-          final available = RegExp(r'^v?(\d+(?:\.\d+)+)').firstMatch('${json['tag_name']}')?[1];
+          continue;
+        }
+        final record = installedRecord(e.value.$1);
+        final tagVersion = RegExp(r'^v?(\d+(?:\.\d+)+)').firstMatch('${json['tag_name']}')?[1];
+        final matching = json['assets'] is List
+            ? (json['assets'] as List).where((asset) => asset is Map &&
+                asset['name'] is String &&
+                _matchesPattern(asset['name'] as String, e.value.$2.pattern)).toList()
+            : const [];
+        final versionless = tagVersion == null && matching.any((asset) =>
+            appImageVersion(asset['name'] as String) == null);
+        final digest = versionless ? await _fileDigest(e.value.$1) : null;
+        final release = appImageRelease(json, e.value.$2, p.basename(e.value.$1),
+          installedVersion: record == null ? null : record.version ?? '',
+          installedSha256: digest);
+        if (release != null) {
+          updates[e.key] = {...release, 'path': e.value.$1};
+        } else if (versionless && digest == null) {
+          unknown[e.key] = 'Installed checksum unavailable';
+        } else if (matching.isNotEmpty &&
+            !matching.any((asset) => asset is Map && asset['digest'] == 'sha256:$digest')) {
+          final current = record == null ? appImageVersion(p.basename(e.value.$1)) : record.version;
+          final available = tagVersion ?? appImageVersion(matching.first['name'] as String);
           if (current == null || available == null ||
               compareVersionKeys(versionKey('App-$available'), versionKey('App-$current')) > 0) {
             unknown[e.key] = 'Release cannot be verified';
@@ -371,6 +428,8 @@ final class AppImageUpdates {
     final source = await _source(old);
     final filename = release['filename'];
     final tag = release['tag'];
+    final record = installedRecord(old);
+    final installedDigest = release['version'] == '' ? await _fileDigest(old) : null;
     if (source == null ||
         filename is! String ||
         !_safeAsset.hasMatch(filename) ||
@@ -383,23 +442,20 @@ final class AppImageUpdates {
         !_matchesPattern(filename, source.pattern) ||
         release['url'] !=
             'https://github.com/${source.owner}/${source.repo}/releases/download/$tag/$filename' ||
-        !RegExp(r'^[a-f0-9]{64}$').hasMatch('${release['sha256']}') ||
-        appImageRelease(
-              {
-                'tag_name': tag,
-                'assets': [
-                  {
-                    'name': filename,
-                    'browser_download_url': release['url'],
-                    'digest': 'sha256:${release['sha256']}',
-                  },
-                ],
-              },
-              source,
-              p.basename(old),
-              installedVersion: installedVersion(old),
-            ) ==
-            null) {
+        !RegExp(r'^[a-f0-9]{64}$').hasMatch('${release['sha256']}')) {
+      throw const FileSystemException('Invalid release');
+    }
+    final verified = appImageRelease({
+      'tag_name': tag,
+      'assets': [{
+        'name': filename,
+        'browser_download_url': release['url'],
+        'digest': 'sha256:${release['sha256']}',
+      }],
+    }, source, p.basename(old),
+      installedVersion: record == null ? null : record.version ?? '',
+      installedSha256: installedDigest);
+    if (verified == null || release['version'] != verified['version']) {
       throw const FileSystemException('Invalid release');
     }
     final downloadDir = await Directory(
@@ -451,9 +507,19 @@ final class AppImageUpdates {
       );
       final nextMarker = File(p.join(downloadDir.path, 'next-version'));
       final nextVersion = release['version'];
-      if (nextVersion is String && nextVersion.isNotEmpty) {
-        await nextMarker.writeAsString(nextVersion, flush: true);
+      if (nextVersion is! String) {
+        throw const FileSystemException('Invalid release version');
       }
+      if (nextVersion.isNotEmpty) {
+        if (!RegExp(r'^\d+(?:\.\d+)+$').hasMatch(nextVersion)) {
+          throw const FileSystemException('Invalid release version');
+        }
+      }
+      await nextMarker.writeAsString(jsonEncode({
+        'version': nextVersion,
+        'tag': tag,
+        'sha256': release['sha256'],
+      }), flush: true);
       var oldMoved = false;
       var newPlaced = false;
       var backupMoved = false;
