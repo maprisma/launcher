@@ -208,7 +208,8 @@
     "Downloads to Applications and verifies SHA-256. No password is needed.": "Lädt nach Applications herunter und prüft SHA-256. Kein Passwort nötig.",
     "No repositories were found on GitHub.": "Auf GitHub wurden keine Repositorys gefunden.",
     "GitHub repositories": "GitHub-Repositorys",
-    "GitHub search is unavailable. Package results are still shown.": "Die GitHub-Suche ist nicht verfügbar. Paketergebnisse werden weiterhin angezeigt."
+    "GitHub search is unavailable. Package results are still shown.": "Die GitHub-Suche ist nicht verfügbar. Paketergebnisse werden weiterhin angezeigt.",
+    "Search the web for official downloads": "Im Web nach offiziellen Downloads suchen"
   },
   "es": {
     "\u0004{0} app": [
@@ -419,7 +420,8 @@
     "Downloads to Applications and verifies SHA-256. No password is needed.": "Descarga en Applications y verifica SHA-256. No se necesita contraseña.",
     "No repositories were found on GitHub.": "No se encontraron repositorios en GitHub.",
     "GitHub repositories": "Repositorios de GitHub",
-    "GitHub search is unavailable. Package results are still shown.": "La búsqueda de GitHub no está disponible. Se siguen mostrando los paquetes."
+    "GitHub search is unavailable. Package results are still shown.": "La búsqueda de GitHub no está disponible. Se siguen mostrando los paquetes.",
+    "Search the web for official downloads": "Buscar descargas oficiales en la web"
   },
   "fr": {
     "\u0004{0} app": [
@@ -630,7 +632,8 @@
     "Downloads to Applications and verifies SHA-256. No password is needed.": "Télécharge dans Applications et vérifie SHA-256. Aucun mot de passe nécessaire.",
     "No repositories were found on GitHub.": "Aucun dépôt trouvé sur GitHub.",
     "GitHub repositories": "Dépôts GitHub",
-    "GitHub search is unavailable. Package results are still shown.": "La recherche GitHub est indisponible. Les résultats des paquets restent affichés."
+    "GitHub search is unavailable. Package results are still shown.": "La recherche GitHub est indisponible. Les résultats des paquets restent affichés.",
+    "Search the web for official downloads": "Rechercher les téléchargements officiels sur le Web"
   },
   "it": {
     "\u0004{0} app": [
@@ -841,7 +844,8 @@
     "Downloads to Applications and verifies SHA-256. No password is needed.": "Scarica in Applications e verifica SHA-256. Non serve una password.",
     "No repositories were found on GitHub.": "Nessun repository trovato su GitHub.",
     "GitHub repositories": "Repository GitHub",
-    "GitHub search is unavailable. Package results are still shown.": "La ricerca GitHub non è disponibile. I risultati dei pacchetti restano visibili."
+    "GitHub search is unavailable. Package results are still shown.": "La ricerca GitHub non è disponibile. I risultati dei pacchetti restano visibili.",
+    "Search the web for official downloads": "Cerca download ufficiali sul web"
   },
   "nl": {
     "\u0004{0} app": [
@@ -1052,7 +1056,8 @@
     "Downloads to Applications and verifies SHA-256. No password is needed.": "Downloadt naar Applications en controleert SHA-256. Geen wachtwoord nodig.",
     "No repositories were found on GitHub.": "Geen repositories gevonden op GitHub.",
     "GitHub repositories": "GitHub-repositories",
-    "GitHub search is unavailable. Package results are still shown.": "Zoeken op GitHub is niet beschikbaar. Pakketresultaten worden nog steeds getoond."
+    "GitHub search is unavailable. Package results are still shown.": "Zoeken op GitHub is niet beschikbaar. Pakketresultaten worden nog steeds getoond.",
+    "Search the web for official downloads": "Zoek op het web naar officiële downloads"
   },
   "pl": {
     "\u0004{0} app": [
@@ -1267,7 +1272,8 @@
     "Downloads to Applications and verifies SHA-256. No password is needed.": "Pobiera do Applications i sprawdza SHA-256. Hasło nie jest wymagane.",
     "No repositories were found on GitHub.": "Nie znaleziono repozytoriów na GitHubie.",
     "GitHub repositories": "Repozytoria GitHub",
-    "GitHub search is unavailable. Package results are still shown.": "Wyszukiwanie w GitHubie jest niedostępne. Wyniki pakietów są nadal wyświetlane."
+    "GitHub search is unavailable. Package results are still shown.": "Wyszukiwanie w GitHubie jest niedostępne. Wyniki pakietów są nadal wyświetlane.",
+    "Search the web for official downloads": "Szukaj oficjalnych plików do pobrania w sieci"
   },
   "pt": {
     "\u0004{0} app": [
@@ -1478,6 +1484,7 @@
     "Downloads to Applications and verifies SHA-256. No password is needed.": "Transfere para Applications e verifica SHA-256. Não é necessária palavra-passe.",
     "No repositories were found on GitHub.": "Não foram encontrados repositórios no GitHub.",
     "GitHub repositories": "Repositórios do GitHub",
-    "GitHub search is unavailable. Package results are still shown.": "A pesquisa no GitHub está indisponível. Os resultados dos pacotes continuam visíveis."
+    "GitHub search is unavailable. Package results are still shown.": "A pesquisa no GitHub está indisponível. Os resultados dos pacotes continuam visíveis.",
+    "Search the web for official downloads": "Pesquisar transferências oficiais na Web"
   }
 }

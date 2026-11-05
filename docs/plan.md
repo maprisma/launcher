@@ -238,3 +238,10 @@ No add-on runs code.
   cache bounded public metadata for five minutes. GitHub failures keep package
   results and show a source warning. No per-app aliases or invented repositories.
   Regression cases include partial names, multiword names and misspellings.
+- **2026-11-05 — opt-in web discovery:** Claude Code's Ask AI page offers
+  "Search the web for official downloads". The helper gets only WebSearch and
+  WebFetch, with existing hook/MCP restrictions retained. Checked GitHub repository
+  identities are resolved through the core's latest stable release lookup;
+  installation still uses the verified AppImage and manual review. No web-supplied
+  command runs. Other helpers retain their existing modes. Tests use a fake helper
+  and synthetic release data; direct network access is unavailable in this session.

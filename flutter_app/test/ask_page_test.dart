@@ -104,6 +104,21 @@ void main() {
     setHidden: (app, hidden) async {},
   );
 
+  testWidgets('web discovery is opt-in and sent with the selected helper', (tester) async {
+    asked.clear();
+    helpersReady = true;
+    await tester.pumpWidget(MaterialApp(home: AskPage(core: fake, apps: apps, actions: actions())));
+    await tester.pumpAndSettle();
+    expect(tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value, false);
+    await tester.tap(find.text('Search the web for official downloads'));
+    await tester.enterText(find.byType(TextField), 'find ArtCraft launcher');
+    await tester.tap(find.byTooltip('Ask'));
+    await tester.pumpAndSettle();
+    final call = asked.where((a) => a['method'] == 'ask.run').single;
+    expect(call['web'], true);
+    expect(call['helper'], 'claude');
+  });
+
   testWidgets('screenshot listing shows repositories without installers and opens the source', (tester) async {
     asked.clear();
     helpersReady = true;

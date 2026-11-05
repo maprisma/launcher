@@ -44,6 +44,7 @@ class _AskPageState extends State<AskPage> {
   final request = TextEditingController();
   List<Map<String, dynamic>> helpers = [];
   String? helper;
+  bool searchWeb = false;
   bool asking = false;
   Map<String, dynamic>? result;
   String? error;
@@ -119,6 +120,7 @@ class _AskPageState extends State<AskPage> {
       final r = await widget.core('ask.run', {
         'request': text,
         'helper': helper,
+        'web': searchWeb && helper == 'claude',
         'language': I18n.language,
         'answer': ?answer,
       });
@@ -389,6 +391,13 @@ class _AskPageState extends State<AskPage> {
                     ),
                   ],
                 ),
+              ),
+              if (helper == 'claude') CheckboxListTile(
+                title: Text(tr('Search the web for official downloads')),
+                value: searchWeb,
+                dense: true,
+                controlAffinity: ListTileControlAffinity.leading,
+                onChanged: asking ? null : (value) => setState(() => searchWeb = value == true),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),

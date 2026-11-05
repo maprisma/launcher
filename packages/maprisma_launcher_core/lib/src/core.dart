@@ -814,6 +814,26 @@ final class CoreService {
   Future<Map<String, dynamic>> _askRun(Map<String, dynamic> params) async {
     final request = _string(params, 'request').trim();
     if (request.length > 2000) throw ServiceError('bad_params');
+    if (params['web'] == true) {
+      final command = _string(params, 'helper');
+      if (command != 'claude') throw ServiceError('web_unsupported');
+      if (!helperStates(session).any((h) => h['command'] == command && h['installed'] == true)) throw ServiceError('no_helper');
+      Map<String, dynamic> discovery;
+      try {
+        final language = params['language'] is String ? params['language'] as String : null;
+        discovery = checkWebAsk(firstJson(await _ask.run(command, webAskPrompt(request, language: language), web: true)));
+      } on Object catch (e) { throw ServiceError('helper_failed', '$e'); }
+      _found = [];
+      try {
+        for (final repo in discovery['repositories'] as List) {
+          for (final found in await githubReleases.search(repo as String)) {
+            if (!_found.any((f) => f['package'] == found['package'])) _found.add(found);
+          }
+        }
+      } on Object { _found = []; throw ServiceError('github_failed'); }
+      return {'action': 'install', 'source': 'github', 'web': true, 'summary': discovery['summary'],
+        'picks': _found, 'installed': <String>[], 'queries': discovery['repositories']};
+    }
     // Preserve an explicit source instead of substituting unrelated packages.
     final github = githubQuery(request);
     if (github != null) {
