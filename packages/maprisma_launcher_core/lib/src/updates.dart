@@ -38,32 +38,35 @@ final class UpdateCheck {
   Map<String, String> get _cEnv => {...session.environment, 'LC_ALL': 'C'};
 
   Future<Map<String, (String, String)>> packageUpdates() async {
-    final result = <String, (String, String)>{};
-    final check = session.which('checkupdates');
-    if (check != null) {
+    Future<Map<String, (String, String)>> official() async {
+      final check = session.which('checkupdates');
+      if (check == null) return {};
       // Exit 2: no updates. checkupdates syncs a private copy of the database.
-      result.addAll(parseUpdateLines(await readBoundedText(
+      return parseUpdateLines(await readBoundedText(
         [check],
         maxBytes: 1024 * 1024,
         timeout: const Duration(seconds: 90),
         okCodes: const {0, 2},
         environment: session.environment,
-      )));
+      ));
     }
-    for (final helper in ['yay', 'paru']) {
-      final path = session.which(helper);
-      if (path == null) continue;
-      // Exit 1: no AUR updates.
-      result.addAll(parseUpdateLines(await readBoundedText(
-        [path, '-Qua'],
-        maxBytes: 1024 * 1024,
-        timeout: const Duration(seconds: 90),
-        okCodes: const {0, 1},
-        environment: session.environment,
-      )));
-      break;
+    Future<Map<String, (String, String)>> aur() async {
+      for (final helper in ['yay', 'paru']) {
+        final path = session.which(helper);
+        if (path == null) continue;
+        // Exit 1: no AUR updates.
+        return parseUpdateLines(await readBoundedText(
+          [path, '-Qua'],
+          maxBytes: 1024 * 1024,
+          timeout: const Duration(seconds: 90),
+          okCodes: const {0, 1},
+          environment: session.environment,
+        ));
+      }
+      return {};
     }
-    return result;
+    final (packages, aurPackages) = await (official(), aur()).wait;
+    return {...packages, ...aurPackages};
   }
 
   /// {.desktop path: owning package} for the system-wide desktop files.
@@ -109,16 +112,21 @@ final class UpdateCheck {
   /// updates.check: {"apps": {path: (package, installed, available)},
   /// "flatpaks": {app id: (installed, available)}}.
   Future<Map<String, dynamic>> check(Iterable<String> desktopPaths, {bool fetch = true}) async {
-    final owners = await desktopPackages(desktopPaths);
-    final packages = owners.isEmpty ? <String, (String, String)>{} : await packageUpdates();
+    Future<(Map<String, String>, Map<String, (String, String)>)> system() async {
+      final owners = await desktopPackages(desktopPaths);
+      final packages = owners.isEmpty ? <String, (String, String)>{} : await packageUpdates();
+      return (owners, packages);
+    }
+    final ((owners, packages), flatpaks) = await (
+      system(),
+      fetch ? flatpakUpdates() : Future.value(<String, (String, String)>{}),
+    ).wait;
     return {
       'apps': {
         for (final e in owners.entries)
           if (packages[e.value] case final v?) e.key: [e.value, v.$1, v.$2],
       },
-      'flatpaks': fetch
-          ? {for (final e in (await flatpakUpdates()).entries) e.key: [e.value.$1, e.value.$2]}
-          : <String, dynamic>{},
+      'flatpaks': {for (final e in flatpaks.entries) e.key: [e.value.$1, e.value.$2]},
     };
   }
 

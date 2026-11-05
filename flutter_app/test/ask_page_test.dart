@@ -52,7 +52,7 @@ void main() {
       },
       'ask.run' when '${params['request']}'.contains('update') => {
         'action': 'update',
-        'apps': ['k2', 'k3'],
+        'apps': ['k2', 'k3', 'k5'],
       },
       'ask.run' when params['answer'] == null && '${params['request']}'.contains('editor') => {
         'action': 'clarify',
@@ -77,12 +77,14 @@ void main() {
     'k2': <String, dynamic>{'key': 'k2', 'name': 'Code', 'description': 'Editor'},
     'k3': <String, dynamic>{'key': 'k3', 'name': 'Flat', 'description': 'A Flatpak'},
     'k4': <String, dynamic>{'key': 'k4', 'name': 'Old Tool', 'description': 'Hidden', 'hidden': true},
+    'k5': <String, dynamic>{'key': 'k5', 'name': 'Image App', 'description': 'An AppImage'},
   };
   final opened = <String>[];
   AppActions actions() => (
     open: (app) => opened.add('${app['name']}'),
     uninstall: (app) async {},
     update: (app) async {},
+    updateAppImage: (app) async {},
     updateSystem: () async {},
     details: (app) async {},
     updateKind: (app) => null,
@@ -137,7 +139,7 @@ void main() {
     expect(asked.where((a) => a['method'] == 'ask.run'), hasLength(2));
   });
 
-  testWidgets('update: a package goes with the system, a Flatpak alone with a spinner', (tester) async {
+  testWidgets('update: packages use the system, Flatpaks and AppImages update alone', (tester) async {
     final done = <String>[];
     final flatpak = Completer<void>();
     final actions = (
@@ -147,12 +149,14 @@ void main() {
         done.add('flatpak ${app['name']}');
         await flatpak.future;
       },
+      updateAppImage: (Map app) async => done.add('appimage ${app['name']}'),
       updateSystem: () async => done.add('system'),
       details: (Map app) async {},
       setHidden: (Map app, bool hidden) async {},
       updateKind: (Map app) => switch (app['key']) {
         'k2' => 'package',
         'k3' => 'flatpak',
+        'k5' => 'appimage',
         _ => null,
       },
     );
@@ -167,14 +171,17 @@ void main() {
     await tester.pump();
     expect(done, ['system']);
     // Flat (a Flatpak): Update, then a spinner until it is done.
-    await tester.tap(find.widgetWithText(TextButton, 'Update'));
+    await tester.tap(find.widgetWithText(TextButton, 'Update').first);
     await tester.pump();
     expect(done, ['system', 'flatpak Flat']);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     flatpak.complete();
     await tester.pumpAndSettle();
     expect(find.byType(CircularProgressIndicator), findsNothing);
-    expect(find.widgetWithText(TextButton, 'Update'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Update'), findsNWidgets(2));
+    await tester.tap(find.widgetWithText(TextButton, 'Update').last);
+    await tester.pumpAndSettle();
+    expect(done, ['system', 'flatpak Flat', 'appimage Image App']);
   });
 
   testWidgets('hidden apps: listed with Unhide; a click unhides, then the button offers Hide', (tester) async {
@@ -184,6 +191,7 @@ void main() {
       open: base.open,
       uninstall: base.uninstall,
       update: base.update,
+      updateAppImage: base.updateAppImage,
       updateSystem: base.updateSystem,
       details: base.details,
       updateKind: base.updateKind,

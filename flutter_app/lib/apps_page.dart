@@ -304,10 +304,13 @@ class AppsPageState extends State<AppsPage> {
               open: (app) => _launch(app),
               uninstall: _uninstall,
               update: _updateFlatpak,
+              updateAppImage: _updateAppImage,
               updateSystem: _updateSystem,
               details: _details,
               setHidden: _setHidden,
-              updateKind: (app) => (updates['flatpaks'] as Map?)?.containsKey(app['key']) == true
+              updateKind: (app) => (updates['appimages'] as Map?)?.containsKey(app['key']) == true
+                  ? 'appimage'
+                  : (updates['flatpaks'] as Map?)?.containsKey(app['key']) == true
                   ? 'flatpak'
                   : (updates['apps'] as Map?)?.containsKey(app['desktop_path']) == true
                   ? 'package'
@@ -355,6 +358,17 @@ class AppsPageState extends State<AppsPage> {
     return mb >= 10 ? '${mb.round()} MB' : '${mb.toStringAsFixed(1)} MB';
   }
 
+  /// A locally installed package or the version in an AppImage filename.
+  String? versionText(Map app) {
+    final packageVersion = ownPackage(app)?['version'];
+    if (packageVersion is String && packageVersion.isNotEmpty) return packageVersion;
+    final program = (facts[app['key']] as Map?)?['program'];
+    if (program is! String) return null;
+    final filename = program.split('/').last;
+    final match = RegExp(r'(?:^|[-_ ])v?(\d+(?:\.\d+)+)(?=[-_. ])').firstMatch(filename);
+    return match?[1];
+  }
+
   /// Where it comes from, in a word: pacman, Flatpak, AppImage, web app, …
   String? sourceText(Map app) {
     final f = facts[app['key']] as Map?;
@@ -380,6 +394,12 @@ class AppsPageState extends State<AppsPage> {
 
   /// update_note: "Update available: …" for an entry with an update.
   String? updateNote(Map app) {
+    if ((updates['appimages'] as Map?)?[app['key']] case final Map release) {
+      final installed = '${release['installed'] ?? ''}', available = '${release['version'] ?? ''}';
+      return installed.isNotEmpty && available.isNotEmpty
+          ? trf('Update available: {0} → {1}', [installed, available])
+          : tr('Update available');
+    }
     if ((updates['flatpaks'] as Map?)?[app['key']] case final List v) {
       return '${v[0]}'.isNotEmpty ? trf('Update available: {0} → {1}', v) : tr('Update available');
     }
@@ -742,6 +762,7 @@ class AppsPageState extends State<AppsPage> {
     final actions = [for (final a in app['actions'] as List? ?? []) Map<String, dynamic>.from(a)];
     final hidden = app['hidden'] == true;
     final flatpakUpdate = (updates['flatpaks'] as Map?)?.containsKey(app['key']) == true;
+    final appImageUpdate = (updates['appimages'] as Map?)?.containsKey(app['key']) == true;
     final omarchy = widget.desktop == 'omarchy';
     final hasWindows = runStates[app['key']] == 'active';
     // The open windows: 1 closes straight away, more than 1 opens a submenu.
@@ -834,9 +855,11 @@ class AppsPageState extends State<AppsPage> {
           ],
           if (canQuit) PopupMenuItem(value: '\x00quit', child: MenuLine(Icons.power_settings_new, tr('Quit'))),
         ],
-        if (flatpakUpdate || packageUpdate) ...[
+        if (flatpakUpdate || packageUpdate || appImageUpdate) ...[
           const PopupMenuDivider(),
-          if (flatpakUpdate)
+          if (appImageUpdate)
+            PopupMenuItem(value: '\x00appimage-update', child: MenuLine(Icons.system_update_alt, tr('Update')))
+          else if (flatpakUpdate)
             PopupMenuItem(value: '\x00update', child: MenuLine(Icons.system_update_alt, tr('Update')))
           else
             PopupMenuItem(value: '\x00system', child: MenuLine(Icons.system_update_alt, tr('Update system…'))),
@@ -884,6 +907,8 @@ class AppsPageState extends State<AppsPage> {
         return _groupChoice(app, position);
       case '\x00update':
         return _updateFlatpak(app);
+      case '\x00appimage-update':
+        return _updateAppImage(app);
       case '\x00uninstall':
         return _uninstall(app);
       case '\x00switch':
@@ -1192,6 +1217,19 @@ class AppsPageState extends State<AppsPage> {
       if (!mounted) return;
       setState(() => updates = result);
       _tell(trf('{0} updated', [app['name']]));
+    } on ServiceError catch (e) {
+      _tell('${trf('{0} could not be updated', [app['name']])}${e.reason == null ? '' : ': ${e.reason}'}');
+    }
+  }
+
+  Future<void> _updateAppImage(Map app) async {
+    _tell(trf('Updating {0}…', [app['name']]));
+    try {
+      final result = await widget.core('updates.appimage', {'key': app['key']});
+      if (!mounted) return;
+      setState(() => updates = result);
+      _tell(trf('{0} updated', [app['name']]));
+      await _load();
     } on ServiceError catch (e) {
       _tell('${trf('{0} could not be updated', [app['name']])}${e.reason == null ? '' : ': ${e.reason}'}');
     }

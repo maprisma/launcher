@@ -15,13 +15,14 @@ typedef AppActions = ({
   void Function(Map app) open,
   Future<void> Function(Map app) uninstall,
   Future<void> Function(Map app) update,
+  Future<void> Function(Map app) updateAppImage,
   Future<void> Function() updateSystem,
   Future<void> Function(Map app) details,
 
   /// Hide from the launcher's list (true) or show again (false).
   Future<void> Function(Map app, bool hidden) setHidden,
 
-  /// 'flatpak' (updated alone), 'package' (with the whole system), or null.
+  /// 'flatpak', 'appimage', 'package' (with the whole system), or null.
   String? Function(Map app) updateKind,
 });
 
@@ -545,7 +546,7 @@ class _AskPageState extends State<AskPage> {
             _appRow(app, [
               switch (a.updateKind(app)) {
                 // A Flatpak updates alone; the row shows it is working.
-                'flatpak' when updating.contains(key) => const Padding(
+                ('flatpak' || 'appimage') when updating.contains(key) => const Padding(
                   padding: EdgeInsets.all(10),
                   child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
                 ),
@@ -554,6 +555,17 @@ class _AskPageState extends State<AskPage> {
                     setState(() => updating.add(key));
                     try {
                       await a.update(app);
+                    } finally {
+                      if (mounted) setState(() => updating.remove(key));
+                    }
+                  },
+                  child: Text(tr('Update')),
+                ),
+                'appimage' => TextButton(
+                  onPressed: () async {
+                    setState(() => updating.add(key));
+                    try {
+                      await a.updateAppImage(app);
                     } finally {
                       if (mounted) setState(() => updating.remove(key));
                     }

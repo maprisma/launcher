@@ -79,11 +79,11 @@ final class PacmanDb {
   }
 }
 
-/// flatpak's `--columns=application,size,description` (tab separated).
+/// flatpak's `--columns=application,version,size,description` (tab separated).
 Map<String, Map<String, String>> parseFlatpakFacts(String? text) => {
   for (final line in (text ?? '').split('\n'))
-    if (line.split('\t') case [final id, final size, final description, ...] when flatpakIdRe.hasMatch(id))
-      id: {'size_text': size.trim(), 'description': description.trim()},
+    if (line.split('\t') case [final id, final version, final size, final description, ...] when flatpakIdRe.hasMatch(id))
+      id: {'version': version.trim(), 'size_text': size.trim(), 'description': description.trim()},
 };
 
 final class AppFacts {
@@ -189,7 +189,7 @@ final class AppFacts {
     final flatpak = session.which('flatpak');
     if (flatpak == null) return {};
     return parseFlatpakFacts(await readBoundedText(
-      [flatpak, 'list', '--app', '--columns=application,size,description'],
+      [flatpak, 'list', '--app', '--columns=application,version,size,description'],
       maxBytes: 1024 * 1024,
       timeout: const Duration(seconds: 20),
       environment: session.environment,

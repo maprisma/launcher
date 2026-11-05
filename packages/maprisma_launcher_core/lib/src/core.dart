@@ -12,6 +12,7 @@ import 'admin.dart';
 import 'apps.dart';
 import 'ask_ai.dart';
 import 'bounded.dart';
+import 'appimage_updates.dart';
 import 'config.dart';
 import 'desktop_entries.dart';
 import 'desktops.dart';
@@ -119,7 +120,7 @@ final class CoreService {
   /// Change icon: the last search's online candidates, by url (only these
   /// can be previewed or chosen).
   final _iconCandidates = <String, Candidate>{};
-  Map<String, dynamic> _updates = {'apps': {}, 'flatpaks': {}};
+  Map<String, dynamic> _updates = {'apps': {}, 'flatpaks': {}, 'appimages': {}};
   DateTime? _updatesAt;
   Future<Map<String, dynamic>>? _checking;
 
@@ -329,6 +330,21 @@ final class CoreService {
       return _hyprland.placePopup(pid, width, height);
     },
     'updates.check': (params) => _checkUpdates(force: params['force'] == true),
+    'updates.appimage': (params) async {
+      final app = _app(params);
+      final key = appKey(app);
+      final release = (_updates['appimages'] as Map?)?[key];
+      if (release is! Map) throw ServiceError('no_update');
+      try {
+        await AppImageUpdates(session).install(app, release);
+      } on Object catch (e) {
+        throw ServiceError('update_failed', '$e');
+      }
+      (_updates['appimages'] as Map).remove(key);
+      _updatesAt = null;
+      await _listApps();
+      return _updatesView();
+    },
     'updates.flatpak': (params) async {
       final plan = uninstallPlan(_app(params), session);
       if (plan == null || plan.$1 != 'flatpak') throw ServiceError('bad_params');
@@ -797,11 +813,16 @@ final class CoreService {
     final language = params['language'] is String ? params['language'] as String : null;
     settings.store.writeJson('settings.json', {...settings.raw(), 'ask_helper': command});
     if (_apps.isEmpty) await _listApps();
+    // An Ask AI request must see updates even if the background check is still running.
+    if (RegExp(r'update|upgrade|newer version|aktualisier', caseSensitive: false).hasMatch(request)) {
+      await _checkUpdates();
+    }
     // Short ids keep the prompt small; they map back to the keys here.
     final keys = _apps.keys.toList();
     final ids = {for (var i = 0; i < keys.length; i++) 'a$i': keys[i]};
     final hidden = loadHidden(store);
     final defaults = desktop.defaultDesktops();
+    final availableFlatpaks = _updatesView()['flatpaks'] as Map;
     // The keys that open each app now (any source), so "remove Super + B" finds its app.
     final keysNow = await shortcuts.allLabels(_apps);
     List<Map> facts(Iterable<String> only) => [
@@ -815,7 +836,9 @@ final class CoreService {
                   ? '${app['description']}'.substring(0, 80)
                   : app['description'],
               'origin': desktop.origin(app, defaults),
-              if ((_updates['apps'] as Map).containsKey(app['desktop_path'])) 'update': true,
+              if ((_updates['apps'] as Map).containsKey(app['desktop_path']) ||
+                  (_updates['appimages'] as Map).containsKey(e.value) ||
+                  availableFlatpaks.containsKey(e.value)) 'update': true,
               if (uninstallPlan(app, session) case (final kind, _) when kind != 'webapp') 'removable': true,
               // Hidden apps too (marked), so they can be listed and unhidden.
               if (hidden.contains(app['desktop_id'])) 'hidden': true,
@@ -834,6 +857,20 @@ final class CoreService {
       throw ServiceError('helper_failed', '$e');
     }
     final first = checkAsk(firstJson(text), ids.keys.toSet());
+    // A broad update request has a deterministic answer from the checked
+    // sources. Do not let a helper say "no updates" when the core found some.
+    final broadUpdateRequest = RegExp(r'^(?:are there|what|which|show|list|update all|update installed|gibt es|welche|alle)', caseSensitive: false).hasMatch(request) &&
+        RegExp(r'update|aktualisier', caseSensitive: false).hasMatch(request);
+    if (broadUpdateRequest) {
+      final view = _updatesView();
+      final available = [
+        for (final e in _apps.entries)
+          if ((view['apps'] as Map).containsKey(e.value['desktop_path']) ||
+              (view['flatpaks'] as Map).containsKey(e.key) ||
+              (view['appimages'] as Map).containsKey(e.key)) e.key,
+      ];
+      if (available.isNotEmpty) return {'action': 'update', 'apps': available};
+    }
     List<String> toKeys(Object? list) => [for (final id in (list as List? ?? const [])) ?ids[id]];
     switch (first['action']) {
       case 'search':
@@ -1140,6 +1177,7 @@ final class CoreService {
 
   Map<String, dynamic> _updatesView() => {
     'apps': _updates['apps'],
+    'appimages': _updates['appimages'],
     'flatpaks': {
       for (final e in _apps.entries)
         if (uninstallPlan(e.value, session) case ('flatpak', final id?))
@@ -1154,7 +1192,11 @@ final class CoreService {
     if (fresh && !force) return Future.value(_updatesView());
     return _checking ??= () async {
       try {
-        _updates = await UpdateCheck(session).check([for (final a in _list) a['desktop_path'] as String? ?? '']);
+        final (packageUpdates, appImageUpdates) = await (
+          UpdateCheck(session).check([for (final a in _list) a['desktop_path'] as String? ?? '']),
+          AppImageUpdates(session).check(_apps),
+        ).wait;
+        _updates = {...packageUpdates, 'appimages': appImageUpdates};
         _updatesAt = DateTime.now();
         return _updatesView();
       } finally {

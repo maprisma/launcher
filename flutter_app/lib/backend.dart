@@ -71,7 +71,7 @@ final class Backend {
     _send!.send(jsonEncode({'protocol': protocolVersion, 'id': id, 'method': method, 'params': params}));
     // Ask AI waits for a helper (the core stops it after 4 minutes).
     return pending.future.timeout(
-      method == 'ask.run' ? const Duration(minutes: 5) : const Duration(seconds: 60),
+      method == 'ask.run' ? const Duration(minutes: 7) : method == 'updates.appimage' ? const Duration(minutes: 10) : const Duration(seconds: 120),
       onTimeout: () {
         _pending.remove(id);
         throw ServiceError('timeout');
