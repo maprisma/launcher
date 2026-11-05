@@ -270,7 +270,10 @@ void main() {
     final core = FakeCore(dockState(settings: {'dock_enabled': false}));
     await tester.pumpWidget(MaterialApp(home: SettingsPage(core: core.call, settings: const {}, onChanged: (_) {})));
     await tester.pumpAndSettle();
-    expect(find.text('Dock'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('settings-section-dock')));
+    await tester.pumpAndSettle();
+    // The section in the list on the left and as the page's title.
+    expect(find.text('Dock'), findsNWidgets(2));
     await tester.tap(find.byKey(const ValueKey('dock_enabled')));
     await tester.pumpAndSettle();
     expect(core.calls.where((c) => c.$1 == 'dock.set').single.$2, {'key': 'dock_enabled', 'value': true});
@@ -278,6 +281,8 @@ void main() {
 
     final missing = FakeCore({...dockState(), 'available': false, 'reason': 'no_layer_shell'});
     await tester.pumpWidget(MaterialApp(home: SettingsPage(key: UniqueKey(), core: missing.call, settings: const {}, onChanged: (_) {})));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('settings-section-dock')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('dock-unavailable')), findsOneWidget);
     expect(find.textContaining('gtk-layer-shell'), findsWidgets);

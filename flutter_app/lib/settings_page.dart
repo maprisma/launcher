@@ -278,20 +278,44 @@ class _SettingsPageState extends State<SettingsPage> {
 
   /// Label left, control right: the control column grows with the room,
   /// 260 px in a small window up to 440 px in a wide one.
-  Widget _row(String label, String tip, Widget control) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: LayoutBuilder(
-      builder: (context, box) => Row(
-        children: [
-          Expanded(
-            child: Tooltip(message: tip, waitDuration: const Duration(milliseconds: 400), child: Text(label)),
-          ),
-          const SizedBox(width: 16),
-          SizedBox(
-            width: math.min(440.0, math.max(math.min(260.0, box.maxWidth * .55), box.maxWidth - 360)),
-            child: Align(alignment: Alignment.centerRight, child: control),
-          ),
-        ],
+  Widget _row(String label, String tip, Widget control) => _Row(
+    label,
+    tip,
+    Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: LayoutBuilder(
+        builder: (context, box) => Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              // The name, and under it what it does (as in the settings of
+              // other apps); the explanation is the tooltip too.
+              child: Tooltip(
+                message: tip,
+                waitDuration: const Duration(milliseconds: 400),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label),
+                    if (tip.isNotEmpty && tip != label)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2, bottom: 2),
+                        child: Text(
+                          tip,
+                          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            SizedBox(
+              width: math.min(440.0, math.max(math.min(260.0, box.maxWidth * .55), box.maxWidth - 360)),
+              child: Align(alignment: Alignment.centerRight, child: control),
+            ),
+          ],
+        ),
       ),
     ),
   );
@@ -306,106 +330,230 @@ class _SettingsPageState extends State<SettingsPage> {
     onChanged: (v) => v == null ? null : onChanged(v),
   );
 
-  /// The rows as group cards (a _Section starts one): one column in a
-  /// small window; from 1100 px two (General, Layout and Icon sizes left;
-  /// Apps & AI, Screenshots and the Dock right), each at most 620 px.
-  Widget _columns(List<Widget> rows) => LayoutBuilder(
-    builder: (context, box) {
-      List<Widget> cards(List<Widget> part) {
-        final out = <Widget>[];
-        _Section? section;
-        var members = <Widget>[];
-        void flush() {
-          if (section != null && members.isNotEmpty) out.add(_card(section, members));
-          if (section == null) out.addAll(members);
-          members = [];
-        }
+  /// The section chosen last, kept while the app runs.
+  static String? _chosen;
+  final _find = TextEditingController();
+  final _scroll = ScrollController();
 
-        for (final w in part) {
-          if (w is _Section) {
-            flush();
-            section = w;
-          } else {
-            members.add(w);
-          }
-        }
-        flush();
-        return out;
-      }
+  @override
+  void dispose() {
+    _find.dispose();
+    _scroll.dispose();
+    super.dispose();
+  }
 
-      final at = rows.indexWhere((w) => w is _ColumnBreak);
-      final left = cards(at < 0 ? rows : rows.sublist(0, at));
-      final right = cards(at < 0 ? const <Widget>[] : rows.sublist(at + 1));
-      if (box.maxWidth < 1100 || right.isEmpty) {
-        return ListView(
-          padding: EdgeInsets.symmetric(horizontal: math.max(16, (box.maxWidth - 720) / 2), vertical: 8),
-          children: [...left, ...right],
-        );
+  /// The rows by section (a _Section starts one; _ColumnBreak is ignored).
+  List<(_Section, List<Widget>)> _bySection(List<Widget> rows) {
+    final out = <(_Section, List<Widget>)>[];
+    for (final w in rows) {
+      if (w is _Section) {
+        out.add((w, []));
+      } else if (w is! _ColumnBreak && out.isNotEmpty) {
+        out.last.$2.add(w);
       }
-      final column = math.min(620.0, (box.maxWidth - 40 - 32) / 2);
-      return SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Center(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: column,
-                child: Column(children: left),
-              ),
-              const SizedBox(width: 32),
-              SizedBox(
-                width: column,
-                child: Column(children: right),
-              ),
-            ],
+    }
+    return [
+      for (final e in out)
+        if (e.$2.isNotEmpty) e,
+    ];
+  }
+
+  /// Settings as sections on the left and the chosen one's rows on the right,
+  /// with Find in Settings above them: a search shows the rows of every
+  /// section whose name or explanation says what was typed.
+  Widget _pages(List<Widget> rows) {
+    final scheme = Theme.of(context).colorScheme;
+    final sections = _bySection(rows);
+    final query = _find.text.trim().toLowerCase();
+    final currentId = sections.any((e) => e.$1.id == _chosen) ? _chosen! : sections.first.$1.id;
+    final current = sections.firstWhere((e) => e.$1.id == currentId).$1.title;
+    bool hit(Widget w) => w is _Row && (w.label.toLowerCase().contains(query) || w.tip.toLowerCase().contains(query));
+    final shown = query.isEmpty
+        ? [
+            for (final e in sections)
+              if (e.$1.id == currentId) e,
+          ]
+        : [
+            for (final e in sections)
+              if (e.$1.title.toLowerCase().contains(query))
+                e
+              else if (e.$2.any(hit))
+                (
+                  e.$1,
+                  [
+                    for (final w in e.$2)
+                      if (hit(w)) w,
+                  ],
+                ),
+          ];
+    void choose(String id) {
+      setState(() {
+        _chosen = id;
+        _find.clear();
+      });
+      if (_scroll.hasClients) _scroll.jumpTo(0);
+    }
+
+    final rounded = RoundedRectangleBorder(borderRadius: BorderRadius.circular(corners(context).clamp(6, 16)));
+    Widget find(double side) => Padding(
+      padding: EdgeInsets.fromLTRB(side, 4, side, 8),
+      child: Align(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 320),
+          child: TextField(
+            key: const ValueKey('settings-find'),
+            controller: _find,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              isDense: true,
+              prefixIcon: const Icon(Icons.search, size: 18),
+              hintText: tr('Find in Settings'),
+              suffixIcon: query.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: tr('Clear'),
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () => setState(_find.clear),
+                    ),
+              border: const OutlineInputBorder(),
+            ),
           ),
         ),
-      );
-    },
-  );
-
-  /// A group card: an icon and the title, then its rows.
-  Widget _card(_Section section, List<Widget> rows) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(corners(context).clamp(6, 16)),
-        border: Border.all(color: scheme.outlineVariant),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+    );
+    Widget content(double side, {bool reset = false}) => KeyedSubtree(
+      key: const ValueKey('settings-content'),
+      child: ListView(
+        controller: _scroll,
+        padding: EdgeInsets.fromLTRB(side, 4, side, 24),
         children: [
-          Row(
-            children: [
-              Icon(section.icon, size: 18, color: scheme.primary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  section.title,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                ),
+          Align(
+            alignment: Alignment.topLeft,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 760),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    query.isEmpty ? current : tr('Find in Settings'),
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 12),
+                  if (shown.isEmpty) Text(tr('No setting matches “{0}”').replaceAll('{0}', _find.text.trim())),
+                  for (final (section, members) in shown) ...[
+                    if (query.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Text(section.title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                      ),
+                    ...members,
+                    const SizedBox(height: 28),
+                  ],
+                  // Narrow: no list on the left, so Reset is under the rows.
+                  if (reset)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton.icon(
+                        key: const ValueKey('settings-reset'),
+                        onPressed: _reset,
+                        icon: const Icon(Icons.restart_alt, size: 18),
+                        label: Text(tr('Reset to defaults'), overflow: TextOverflow.ellipsis),
+                      ),
+                    ),
+                ],
               ),
-            ],
+            ),
           ),
-          Padding(
-            padding: const EdgeInsets.only(top: 8, bottom: 4),
-            child: Divider(height: 1, color: scheme.outlineVariant),
-          ),
-          ...rows,
         ],
       ),
     );
-  }
 
-  /// Back · SETTINGS and Reset in line with the rows.
-  double _edge(double width) =>
-      width >= 1100 ? (width - 2 * math.min(620.0, (width - 72) / 2) - 32) / 2 : math.max(16, (width - 720) / 2);
+    return LayoutBuilder(
+      builder: (context, box) {
+        // A narrow window (the popup): the sections as chips above the rows.
+        if (box.maxWidth < 720) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              find(16),
+              SizedBox(
+                height: 44,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  children: [
+                    for (final (section, _) in sections)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ChoiceChip(
+                          key: ValueKey('settings-section-${section.id}'),
+                          avatar: Icon(section.icon, size: 16),
+                          label: Text(section.title),
+                          selected: query.isEmpty && section.id == currentId,
+                          onSelected: (_) => choose(section.id),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Expanded(child: content(16, reset: true)),
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              width: 230,
+              // A Material, so the chosen section's highlight shows on it.
+              child: Material(
+                color: scheme.surfaceContainerLow,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 48, 8, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final (section, _) in sections)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: ListTile(
+                            key: ValueKey('settings-section-${section.id}'),
+                            leading: Icon(section.icon, size: 20),
+                            title: Text(section.title, overflow: TextOverflow.ellipsis),
+                            selected: query.isEmpty && section.id == currentId,
+                            selectedTileColor: scheme.secondaryContainer,
+                            selectedColor: scheme.onSecondaryContainer,
+                            shape: rounded,
+                            onTap: () => choose(section.id),
+                          ),
+                        ),
+                      const Spacer(),
+                      ListTile(
+                        key: const ValueKey('settings-reset'),
+                        leading: const Icon(Icons.restart_alt, size: 20),
+                        title: Text(tr('Reset to defaults'), overflow: TextOverflow.ellipsis),
+                        shape: rounded,
+                        onTap: _reset,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  find(28),
+                  Expanded(child: content(28)),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -425,12 +573,7 @@ class _SettingsPageState extends State<SettingsPage> {
           child: Column(
             children: [
               Padding(
-                padding: EdgeInsets.fromLTRB(
-                  _edge(MediaQuery.sizeOf(context).width) - 12,
-                  10,
-                  _edge(MediaQuery.sizeOf(context).width),
-                  4,
-                ),
+                padding: const EdgeInsets.fromLTRB(4, 10, 16, 4),
                 child: Row(
                   children: [
                     TextButton.icon(
@@ -458,8 +601,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
               Expanded(
-                child: _columns([
-                  _Section(tr('General'), Icons.tune),
+                child: _pages([
+                  _Section('general', tr('General'), Icons.tune),
                   _row(
                     tr('Language'),
                     tr('The interface language. “System” follows the language of your desktop.'),
@@ -488,7 +631,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       onChanged: (v) => _set('close_outside', v),
                     ),
                   ),
-                  _Section(tr('Layout'), Icons.dashboard_outlined),
+                  _Section('layout', tr('Layout'), Icons.dashboard_outlined),
                   _row(
                     tr('Layout when small'),
                     tr('How the narrow window shows the entries: as one list (the default), in groups, or by origin.'),
@@ -562,7 +705,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                     Switch(value: settings['filter_field'] != false, onChanged: (v) => _set('filter_field', v)),
                   ),
-                  _Section(tr('Icon sizes'), Icons.photo_size_select_large_outlined),
+                  _Section('sizes', tr('Icon sizes'), Icons.photo_size_select_large_outlined),
                   for (final (view, label, tip) in [
                     ('list', tr('List'), tr("How large the app icons are in the narrow window's list.")),
                     ('cards', tr('Cards'), tr('How large the app icons are on the cards; the cards grow with them.')),
@@ -588,7 +731,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   // The second column (wide window) starts here.
                   const _ColumnBreak(),
-                  _Section(tr('Apps & AI'), Icons.auto_awesome_outlined),
+                  _Section('apps', tr('Apps & AI'), Icons.auto_awesome_outlined),
                   _row(
                     tr('Ask AI'),
                     tr('Without AI, Install apps searches the packages by name.'),
@@ -633,7 +776,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                       Switch(value: admin['enabled'] == true, onChanged: adminPending ? null : _setAdmin),
                     ),
-                  _Section(tr('Screenshots'), Icons.photo_camera_outlined),
+                  _Section('screenshots', tr('Screenshots'), Icons.photo_camera_outlined),
                   _row(
                     tr('F12 saves a screenshot'),
                     tr('A picture of this window is saved, with a note if you like.'),
@@ -670,23 +813,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       ],
                     ),
                   ),
-                  _Section(tr('Dock'), Icons.dock_outlined),
+                  _Section('dock', tr('Dock'), Icons.dock_outlined),
                   ..._dockRows(),
                 ]),
-              ),
-              Padding(
-                // In line with the rows in a wide window.
-                padding: EdgeInsets.fromLTRB(_edge(MediaQuery.sizeOf(context).width), 4, 16, 12),
-                child: Row(
-                  children: [
-                    Flexible(
-                      child: OutlinedButton(
-                        onPressed: _reset,
-                        child: Text(tr('Reset to defaults'), overflow: TextOverflow.ellipsis),
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ],
           ),
@@ -705,9 +834,22 @@ class _ColumnBreak extends StatelessWidget {
 
 /// Where a settings group card begins (only a marker, never drawn).
 class _Section extends StatelessWidget {
-  const _Section(this.title, this.icon);
+  const _Section(this.id, this.title, this.icon);
+
+  /// Stable, whatever the language: the key `settings-section-$id`.
+  final String id;
   final String title;
   final IconData icon;
   @override
   Widget build(BuildContext context) => const SizedBox.shrink();
+}
+
+/// A settings row: its name and explanation (Find in Settings searches them)
+/// and how it is drawn.
+class _Row extends StatelessWidget {
+  const _Row(this.label, this.tip, this.child);
+  final String label, tip;
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => child;
 }

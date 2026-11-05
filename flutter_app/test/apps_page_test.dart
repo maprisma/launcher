@@ -439,7 +439,9 @@ void main() {
     expect(find.text('Sprache'), findsOneWidget);
     expect((await tester.runAsync(() => call('settings.get')))!['language'], 'de');
 
-    // View buttons when small: on.
+    // View buttons when small: on (Settings › Layout).
+    await tester.tap(find.byKey(const ValueKey('settings-section-layout')));
+    await settle(tester);
     await tester.tap(find.byKey(const ValueKey('view-buttons')));
     await settle(tester);
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
@@ -834,6 +836,8 @@ void main() {
 
     // Open Settings and disable "Close on click outside".
     await tester.tap(find.byIcon(Icons.settings_outlined));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('settings-section-general')));
     await settle(tester);
     final toggle = find.byKey(const ValueKey('close-outside'));
     expect(tester.widget<Switch>(toggle).value, isTrue);

@@ -201,7 +201,10 @@
     "Remove a shortcut": "Tastenkürzel entfernen",
     "Remove a shortcut…": "Tastenkürzel entfernen…",
     "Remove the shortcut of ": "Entferne das Tastenkürzel von ",
-    "Remove {0}": "{0} entfernen"
+    "Remove {0}": "{0} entfernen",
+    "Clear": "Leeren",
+    "Find in Settings": "In Einstellungen suchen",
+    "No setting matches “{0}”": "Keine Einstellung passt zu „{0}“"
   },
   "es": {
     "\u0004{0} app": [
@@ -405,7 +408,10 @@
     "Remove a shortcut": "Quitar un atajo",
     "Remove a shortcut…": "Quitar un atajo…",
     "Remove the shortcut of ": "Quita el atajo de ",
-    "Remove {0}": "Quitar {0}"
+    "Remove {0}": "Quitar {0}",
+    "Clear": "Vaciar",
+    "Find in Settings": "Buscar en Ajustes",
+    "No setting matches “{0}”": "Ningún ajuste coincide con «{0}»"
   },
   "fr": {
     "\u0004{0} app": [
@@ -609,7 +615,10 @@
     "Remove a shortcut": "Retirer un raccourci",
     "Remove a shortcut…": "Retirer un raccourci…",
     "Remove the shortcut of ": "Retire le raccourci de ",
-    "Remove {0}": "Retirer {0}"
+    "Remove {0}": "Retirer {0}",
+    "Clear": "Vider",
+    "Find in Settings": "Rechercher dans les réglages",
+    "No setting matches “{0}”": "Aucun réglage ne correspond à « {0} »"
   },
   "it": {
     "\u0004{0} app": [
@@ -813,7 +822,10 @@
     "Remove a shortcut": "Rimuovi una scorciatoia",
     "Remove a shortcut…": "Rimuovi una scorciatoia…",
     "Remove the shortcut of ": "Rimuovi la scorciatoia di ",
-    "Remove {0}": "Rimuovi {0}"
+    "Remove {0}": "Rimuovi {0}",
+    "Clear": "Svuota",
+    "Find in Settings": "Cerca nelle impostazioni",
+    "No setting matches “{0}”": "Nessuna impostazione corrisponde a «{0}»"
   },
   "nl": {
     "\u0004{0} app": [
@@ -1017,7 +1029,10 @@
     "Remove a shortcut": "Sneltoets verwijderen",
     "Remove a shortcut…": "Sneltoets verwijderen…",
     "Remove the shortcut of ": "Verwijder de sneltoets van ",
-    "Remove {0}": "{0} verwijderen"
+    "Remove {0}": "{0} verwijderen",
+    "Clear": "Wissen",
+    "Find in Settings": "Zoeken in instellingen",
+    "No setting matches “{0}”": "Geen instelling komt overeen met ‘{0}’"
   },
   "pl": {
     "\u0004{0} app": [
@@ -1225,7 +1240,10 @@
     "Remove a shortcut": "Usuń skrót",
     "Remove a shortcut…": "Usuń skrót…",
     "Remove the shortcut of ": "Usuń skrót aplikacji ",
-    "Remove {0}": "Usuń {0}"
+    "Remove {0}": "Usuń {0}",
+    "Clear": "Wyczyść",
+    "Find in Settings": "Szukaj w ustawieniach",
+    "No setting matches “{0}”": "Żadne ustawienie nie pasuje do „{0}”"
   },
   "pt": {
     "\u0004{0} app": [
@@ -1429,6 +1447,9 @@
     "Remove a shortcut": "Remover um atalho",
     "Remove a shortcut…": "Remover um atalho…",
     "Remove the shortcut of ": "Remove o atalho de ",
-    "Remove {0}": "Remover {0}"
+    "Remove {0}": "Remover {0}",
+    "Clear": "Limpar",
+    "Find in Settings": "Procurar nas definições",
+    "No setting matches “{0}”": "Nenhuma definição corresponde a «{0}»"
   }
 }
