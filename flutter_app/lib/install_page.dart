@@ -199,7 +199,7 @@ void tell(String text) => ScaffoldMessenger.of(context)
     context: context,
     builder: (context) => AlertDialog(
       title: Text(trf('Install {0}?', [found['name'] ?? found['package']])),
-      content: Column(
+      content: SingleChildScrollView(child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -207,7 +207,12 @@ void tell(String text) => ScaffoldMessenger.of(context)
           const SizedBox(height: 12),
           Text(trf('From: {0}', [managerLabel])),
           const SizedBox(height: 8),
-          Text(tr('A terminal runs this and asks for your password:')),
+          if (plan['github'] == true) ...[
+            SelectableText('${found['repository']}'),
+            Text('${found['asset']}'),
+            Text(tr('Downloads to Applications and verifies SHA-256. No password is needed.')),
+          ] else
+            Text(tr('A terminal runs this and asks for your password:')),
           const SizedBox(height: 4),
           Container(
             padding: const EdgeInsets.all(8),
@@ -230,7 +235,7 @@ void tell(String text) => ScaffoldMessenger.of(context)
             ),
           ],
         ],
-      ),
+      )),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Cancel'))),
         FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(tr('Install in terminal'))),

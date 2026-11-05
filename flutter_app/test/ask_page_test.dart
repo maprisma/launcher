@@ -19,6 +19,15 @@ void main() {
           {'command': 'agy', 'name': 'Antigravity', 'installed': false, 'signed_in': false},
         ],
       },
+      'ask.run' when '${params['request']}' == 'install craft-launcher from github' => {
+        'action': 'install', 'source': 'github', 'picks': [{
+          'manager': 'github', 'package': 'storytold/craft-launcher', 'version': 'v1',
+          'repository': 'https://github.com/storytold/craft-launcher', 'asset': 'craft-x86_64.AppImage',
+        }],
+      },
+      'packages.install_plan' when params['manager'] == 'github' => {
+        'github': true, 'command': 'download; sha256sum --check; install',
+      },
       'ask.run' when '${params['request']}'.contains('shortcuts of all') => {
         'action': 'shortcuts',
         'apps': ['k1'],
@@ -88,6 +97,25 @@ void main() {
     updateKind: (app) => null,
     setHidden: (app, hidden) async {},
   );
+
+  testWidgets('GitHub suggestion keeps its repository and uses the install preview', (tester) async {
+    asked.clear();
+    helpersReady = true;
+    await tester.pumpWidget(MaterialApp(home: AskPage(core: fake, apps: apps, actions: actions())));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'install craft-launcher from github');
+    await tester.tap(find.byTooltip('Ask'));
+    await tester.pumpAndSettle();
+    expect(find.text('GitHub'), findsOneWidget);
+    await tester.tap(find.text('Install…'));
+    await tester.pumpAndSettle();
+    expect(find.text('https://github.com/storytold/craft-launcher'), findsOneWidget);
+    expect(find.text('Downloads to Applications and verifies SHA-256. No password is needed.'), findsOneWidget);
+    expect(find.text('A terminal runs this and asks for your password:'), findsNothing);
+    expect(asked.where((a) => a['method'] == 'packages.install' || a['method'] == 'terminal.start'), isEmpty);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+  });
 
   testWidgets('no helper or AI disabled: shows Install apps with a hint why Ask AI is not available', (tester) async {
     helpersReady = false;

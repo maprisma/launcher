@@ -479,7 +479,9 @@ class _AskPageState extends State<AskPage> {
           }
         }
         if (picks.isEmpty && installed.isEmpty) {
-          children.add(Text(trf('Nothing found for “{0}”.', [(r['queries'] as List? ?? const []).join(', ')])));
+          children.add(Text(r['source'] == 'github'
+              ? tr('No compatible Linux AppImage with a SHA-256 digest was found on GitHub.')
+              : trf('Nothing found for “{0}”.', [(r['queries'] as List? ?? const []).join(', ')])));
         }
         if (picks.isNotEmpty) children.add(_section(tr('Suggestions')));
         for (final pick in picks) {
@@ -502,13 +504,13 @@ class _AskPageState extends State<AskPage> {
                 ),
                 leading: Chip(
                   visualDensity: VisualDensity.compact,
-                  label: Text(aur ? 'AUR' : '${pick['manager']}', style: const TextStyle(fontSize: 11)),
+                  label: Text(aur ? 'AUR' : pick['manager'] == 'github' ? 'GitHub' : '${pick['manager']}', style: const TextStyle(fontSize: 11)),
                   backgroundColor: aur ? markColors(context).update.withValues(alpha: .2) : null,
                 ),
                 trailing: pick['installed'] == true
                     ? Icon(Icons.check_circle, color: markColors(context).running)
                     : TextButton(
-                        onPressed: () => reviewInstall(context, widget.core, pick, aur ? 'AUR' : '${pick['manager']}'),
+                        onPressed: () => reviewInstall(context, widget.core, pick, aur ? 'AUR' : pick['manager'] == 'github' ? 'GitHub' : '${pick['manager']}'),
                         child: Text(tr('Install…')),
                       ),
               ),

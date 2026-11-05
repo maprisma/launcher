@@ -218,3 +218,10 @@ No add-on runs code.
   first face; the front face's chip is marked), Left/Right and Ctrl+G (no stop on All). Faces: name, count,
   ⋮ group menu, icon tiles (start, menu, drag), a drop target for apps. Filtering shows the normal grid.
   Widget test + offscreen shot (`SHOTS=… flutter test test/shots_test.dart --plain-name cube`).
+- **2026-11-05 — GitHub requests:** Ask AI preserves explicit `app from github` and
+  repository URL requests. GitHub's public repository/release metadata supplies
+  Linux AppImage candidates, never helper-generated download commands. Installation
+  uses the existing preview and terminal, checks the release SHA-256 digest and
+  installs into `~/Applications` without replacing files or executing the download.
+  Only x86_64/arm64 AppImages with published SHA-256 digests are offered. No GitHub
+  credentials are used. API errors do not fall back to unrelated package suggestions.

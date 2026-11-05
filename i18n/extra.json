@@ -204,7 +204,9 @@
     "Remove {0}": "{0} entfernen",
     "Clear": "Leeren",
     "Find in Settings": "In Einstellungen suchen",
-    "No setting matches “{0}”": "Keine Einstellung passt zu „{0}“"
+    "No setting matches “{0}”": "Keine Einstellung passt zu „{0}“",
+    "Downloads to Applications and verifies SHA-256. No password is needed.": "Lädt nach Applications herunter und prüft SHA-256. Kein Passwort nötig.",
+    "No compatible Linux AppImage with a SHA-256 digest was found on GitHub.": "Auf GitHub wurde kein passendes Linux-AppImage mit SHA-256-Prüfsumme gefunden."
   },
   "es": {
     "\u0004{0} app": [
@@ -411,7 +413,9 @@
     "Remove {0}": "Quitar {0}",
     "Clear": "Vaciar",
     "Find in Settings": "Buscar en Ajustes",
-    "No setting matches “{0}”": "Ningún ajuste coincide con «{0}»"
+    "No setting matches “{0}”": "Ningún ajuste coincide con «{0}»",
+    "Downloads to Applications and verifies SHA-256. No password is needed.": "Descarga en Applications y verifica SHA-256. No se necesita contraseña.",
+    "No compatible Linux AppImage with a SHA-256 digest was found on GitHub.": "No se encontró en GitHub una AppImage de Linux compatible con resumen SHA-256."
   },
   "fr": {
     "\u0004{0} app": [
@@ -618,7 +622,9 @@
     "Remove {0}": "Retirer {0}",
     "Clear": "Vider",
     "Find in Settings": "Rechercher dans les réglages",
-    "No setting matches “{0}”": "Aucun réglage ne correspond à « {0} »"
+    "No setting matches “{0}”": "Aucun réglage ne correspond à « {0} »",
+    "Downloads to Applications and verifies SHA-256. No password is needed.": "Télécharge dans Applications et vérifie SHA-256. Aucun mot de passe nécessaire.",
+    "No compatible Linux AppImage with a SHA-256 digest was found on GitHub.": "Aucune AppImage Linux compatible avec une empreinte SHA-256 trouvée sur GitHub."
   },
   "it": {
     "\u0004{0} app": [
@@ -825,7 +831,9 @@
     "Remove {0}": "Rimuovi {0}",
     "Clear": "Svuota",
     "Find in Settings": "Cerca nelle impostazioni",
-    "No setting matches “{0}”": "Nessuna impostazione corrisponde a «{0}»"
+    "No setting matches “{0}”": "Nessuna impostazione corrisponde a «{0}»",
+    "Downloads to Applications and verifies SHA-256. No password is needed.": "Scarica in Applications e verifica SHA-256. Non serve una password.",
+    "No compatible Linux AppImage with a SHA-256 digest was found on GitHub.": "Nessuna AppImage Linux compatibile con digest SHA-256 trovata su GitHub."
   },
   "nl": {
     "\u0004{0} app": [
@@ -1032,7 +1040,9 @@
     "Remove {0}": "{0} verwijderen",
     "Clear": "Wissen",
     "Find in Settings": "Zoeken in instellingen",
-    "No setting matches “{0}”": "Geen instelling komt overeen met ‘{0}’"
+    "No setting matches “{0}”": "Geen instelling komt overeen met ‘{0}’",
+    "Downloads to Applications and verifies SHA-256. No password is needed.": "Downloadt naar Applications en controleert SHA-256. Geen wachtwoord nodig.",
+    "No compatible Linux AppImage with a SHA-256 digest was found on GitHub.": "Geen geschikte Linux-AppImage met een SHA-256-controlesom gevonden op GitHub."
   },
   "pl": {
     "\u0004{0} app": [
@@ -1243,7 +1253,9 @@
     "Remove {0}": "Usuń {0}",
     "Clear": "Wyczyść",
     "Find in Settings": "Szukaj w ustawieniach",
-    "No setting matches “{0}”": "Żadne ustawienie nie pasuje do „{0}”"
+    "No setting matches “{0}”": "Żadne ustawienie nie pasuje do „{0}”",
+    "Downloads to Applications and verifies SHA-256. No password is needed.": "Pobiera do Applications i sprawdza SHA-256. Hasło nie jest wymagane.",
+    "No compatible Linux AppImage with a SHA-256 digest was found on GitHub.": "Nie znaleziono na GitHubie zgodnego obrazu AppImage dla Linuksa z sumą SHA-256."
   },
   "pt": {
     "\u0004{0} app": [
@@ -1450,6 +1462,8 @@
     "Remove {0}": "Remover {0}",
     "Clear": "Limpar",
     "Find in Settings": "Procurar nas definições",
-    "No setting matches “{0}”": "Nenhuma definição corresponde a «{0}»"
+    "No setting matches “{0}”": "Nenhuma definição corresponde a «{0}»",
+    "Downloads to Applications and verifies SHA-256. No password is needed.": "Transfere para Applications e verifica SHA-256. Não é necessária palavra-passe.",
+    "No compatible Linux AppImage with a SHA-256 digest was found on GitHub.": "Não foi encontrada no GitHub uma AppImage Linux compatível com resumo SHA-256."
   }
 }

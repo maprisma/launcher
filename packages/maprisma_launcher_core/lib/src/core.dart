@@ -18,6 +18,7 @@ import 'desktops.dart';
 import 'dock.dart';
 import 'facts.dart';
 import 'groups.dart' as groups;
+import 'github_releases.dart';
 import 'icon_theme.dart';
 import 'icons.dart';
 import 'hyprland.dart';
@@ -48,7 +49,9 @@ final class CoreService {
     Session? session,
     String? configDir,
     String? executable,
+    GithubReleases? githubReleases,
   }) : session = session ?? Session(environment: environment ?? const {}),
+       githubReleases = githubReleases ?? GithubReleases(),
        executable = executable ?? Platform.resolvedExecutable {
     desktop = detectDesktop(this.session);
     store = ConfigStore(this.session, dir: configDir);
@@ -56,6 +59,7 @@ final class CoreService {
   }
 
   final Session session;
+  final GithubReleases githubReleases;
 
   /// This program (the dock and the window are both `maprisma-launcher`).
   final String executable;
@@ -789,6 +793,17 @@ final class CoreService {
   Future<Map<String, dynamic>> _askRun(Map<String, dynamic> params) async {
     final request = _string(params, 'request').trim();
     if (request.length > 2000) throw ServiceError('bad_params');
+    // Preserve an explicit source instead of substituting unrelated packages.
+    final github = githubQuery(request);
+    if (github != null) {
+      try {
+        _found = await githubReleases.search(github);
+      } on Object {
+        _found = [];
+        throw ServiceError('github_failed');
+      }
+      return {'action': 'install', 'summary': '', 'picks': _found, 'installed': <String>[], 'queries': [github], 'source': 'github'};
+    }
     final command = _string(params, 'helper');
     final piOnline = await _piOnlineNow();
     final state = helperStates(session, piOnline: piOnline).where((h) => h['command'] == command).firstOrNull;
@@ -963,17 +978,20 @@ final class CoreService {
   Future<Map<String, dynamic>> _installPlan(Map<String, dynamic> params) async {
     final manager = _string(params, 'manager'), package = _string(params, 'package');
     final found = _found.where((f) => f['manager'] == manager && f['package'] == package).firstOrNull;
-    if (found == null || !_enabledManagers().contains(manager)) throw ServiceError('not_found');
+    if (found == null || (manager != 'github' && !_enabledManagers().contains(manager))) throw ServiceError('not_found');
     // The app's own terminal needs no outside one; packages.install does.
     final terminal = desktop.terminal();
-    final argv = _managers.installCommand(manager, found, terminal ?? const []);
+    final argv = manager == 'github'
+        ? githubInstall(session, found, terminal ?? const [])
+        : _managers.installCommand(manager, found, terminal ?? const []);
     if (argv == null) throw ServiceError('not_found');
     return {
       'manager': manager,
       'package': package,
       'argv': argv,
       // Shown to the user: the line the terminal runs, with the package in it.
-      'command': _shownCommand(argv),
+      'command': manager == 'github' ? argv.sublist(argv.indexOf('-c') + 1).join('\n') : _shownCommand(argv),
+      if (manager == 'github') 'github': true,
       'aur': manager == 'aur',
     };
   }
@@ -1003,10 +1021,12 @@ final class CoreService {
       case 'install':
         final manager = _string(params, 'manager'), package = _string(params, 'package');
         final found = _found.where((f) => f['manager'] == manager && f['package'] == package).firstOrNull;
-        if (found == null || !_enabledManagers().contains(manager)) throw ServiceError('not_found');
-        final argv = _managers.installCommand(manager, found, const []);
+        if (found == null || (manager != 'github' && !_enabledManagers().contains(manager))) throw ServiceError('not_found');
+        final argv = manager == 'github'
+            ? githubInstall(session, found, const [])
+            : _managers.installCommand(manager, found, const []);
         if (argv == null) throw ServiceError('not_found');
-        return (_bare(argv), _shownCommand(argv));
+        return (_bare(argv), manager == 'github' ? '${found['repository']} → ${found['asset']}' : _shownCommand(argv));
       case 'uninstall':
         final app = _app(params);
         final plan = await _uninstallPlan(app);
