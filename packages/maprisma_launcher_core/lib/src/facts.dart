@@ -10,6 +10,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import 'bounded.dart';
+import 'appimage_updates.dart';
 import 'desktop_entries.dart';
 import 'origins.dart';
 import 'posix.dart';
@@ -59,7 +60,10 @@ final class PacmanDb {
       dirs = const [];
     }
     for (final dir in dirs) {
-      final bytes = Posix.instance.readRegular(p.join(dir.path, 'desc'), maxDescBytes);
+      final bytes = Posix.instance.readRegular(
+        p.join(dir.path, 'desc'),
+        maxDescBytes,
+      );
       if (bytes == null) continue;
       final f = parseDesc(utf8.decode(bytes, allowMalformed: true));
       final name = f['NAME'];
@@ -79,11 +83,21 @@ final class PacmanDb {
   }
 }
 
-/// flatpak's `--columns=application,size,description` (tab separated).
+/// flatpak's `--columns=application,version,size,description` (tab separated).
 Map<String, Map<String, String>> parseFlatpakFacts(String? text) => {
   for (final line in (text ?? '').split('\n'))
-    if (line.split('\t') case [final id, final size, final description, ...] when flatpakIdRe.hasMatch(id))
-      id: {'size_text': size.trim(), 'description': description.trim()},
+    if (line.split('\t') case [
+      final id,
+      final version,
+      final size,
+      final description,
+      ...,
+    ] when flatpakIdRe.hasMatch(id))
+      id: {
+        'version': version.trim(),
+        'size_text': size.trim(),
+        'description': description.trim(),
+      },
 };
 
 final class AppFacts {
@@ -92,6 +106,8 @@ final class AppFacts {
   final db = PacmanDb();
   Map<String, Map<String, dynamic>>? _cache;
   String? _cacheStamp;
+
+  void invalidate() => _cache = null;
 
   String _stamp(List<Map> apps) {
     String m(String path) {
@@ -114,12 +130,15 @@ final class AppFacts {
   Future<Map<String, Map<String, dynamic>>> all(Map<String, Map> apps) async {
     final stamp = _stamp(apps.values.toList());
     if (_cache != null && stamp == _cacheStamp) return _cache!;
-    final programs = {for (final e in apps.entries) e.key: programPath(e.value, session)};
+    final programs = {
+      for (final e in apps.entries) e.key: programPath(e.value, session),
+    };
     final owned = <String>{
       for (final path in programs.values)
         if (path != null && path.startsWith('/')) path,
       for (final app in apps.values)
-        if ((app['desktop_path'] as String? ?? '').startsWith('/usr/')) app['desktop_path'] as String,
+        if ((app['desktop_path'] as String? ?? '').startsWith('/usr/'))
+          app['desktop_path'] as String,
     };
     final owners = await _owners(owned);
     final packages = db.packages;
@@ -136,12 +155,19 @@ final class AppFacts {
             ? 'flatpak'
             : app['pwa'] == true || address != null
             ? 'webapp'
-            : app['terminal'] == true || terminalProgram(commandArgv(app)) != null
+            : app['terminal'] == true ||
+                  terminalProgram(commandArgv(app)) != null
             ? 'terminal'
             : 'app',
         'program': ?programs[e.key],
         'website': ?address,
       };
+      if (programs[e.key] case final program?
+          when program.toLowerCase().endsWith('.appimage')) {
+        final record = AppImageUpdates(session).installedRecord(program);
+        facts['version'] = record == null ? appImageVersion(program) : record.version;
+        if (record != null && record.version == null) facts['version_unknown'] = true;
+      }
       if (plan case ('flatpak', final id?)) {
         facts['manager'] = 'flatpak';
         facts['package'] = {'name': id, ...?flatpaks[id]};
@@ -150,7 +176,9 @@ final class AppFacts {
         final owner = owners[programs[e.key]] ?? owners[app['desktop_path']];
         // The package that installed the entry itself (not only its program:
         // a web app's program is the browser, a CLI's maybe node).
-        if (owners[app['desktop_path']] case final own?) facts['desktop_package'] = own;
+        if (owners[app['desktop_path']] case final own?) {
+          facts['desktop_package'] = own;
+        }
         final info = owner == null ? null : packages[owner];
         if (info != null) {
           facts['manager'] = 'pacman';
@@ -175,24 +203,33 @@ final class AppFacts {
     final pacman = session.which('pacman');
     if (paths.isEmpty || pacman == null) return {};
     // One call for all; exit 1 when some path has no owner.
-    return parseOwnerLines(await readBoundedText(
-      [pacman, '-Qo', '--', ...paths.take(4000)],
-      maxBytes: 1024 * 1024,
-      timeout: const Duration(seconds: 20),
-      // pacman -Qo exits with the number of paths it found no owner for.
-      okCodes: const {},
-      environment: {...session.environment, 'LC_ALL': 'C'},
-    ));
+    return parseOwnerLines(
+      await readBoundedText(
+        [pacman, '-Qo', '--', ...paths.take(4000)],
+        maxBytes: 1024 * 1024,
+        timeout: const Duration(seconds: 20),
+        // pacman -Qo exits with the number of paths it found no owner for.
+        okCodes: const {},
+        environment: {...session.environment, 'LC_ALL': 'C'},
+      ),
+    );
   }
 
   Future<Map<String, Map<String, String>>> _flatpaks() async {
     final flatpak = session.which('flatpak');
     if (flatpak == null) return {};
-    return parseFlatpakFacts(await readBoundedText(
-      [flatpak, 'list', '--app', '--columns=application,size,description'],
-      maxBytes: 1024 * 1024,
-      timeout: const Duration(seconds: 20),
-      environment: session.environment,
-    ));
+    return parseFlatpakFacts(
+      await readBoundedText(
+        [
+          flatpak,
+          'list',
+          '--app',
+          '--columns=application,version,size,description',
+        ],
+        maxBytes: 1024 * 1024,
+        timeout: const Duration(seconds: 20),
+        environment: session.environment,
+      ),
+    );
   }
 }

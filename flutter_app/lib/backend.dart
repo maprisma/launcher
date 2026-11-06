@@ -5,7 +5,8 @@ import 'dart:isolate';
 
 import 'package:maprisma_launcher_core/maprisma_launcher_core.dart';
 
-export 'package:maprisma_launcher_core/maprisma_launcher_core.dart' show ServiceError;
+export 'package:maprisma_launcher_core/maprisma_launcher_core.dart'
+    show ServiceError;
 
 void _serve((SendPort, Map<String, String>) args) {
   final inbox = ReceivePort();
@@ -57,21 +58,37 @@ final class Backend {
     final pending = _pending.remove(data['id']);
     if (pending == null) return;
     if (data['error'] case final Map error) {
-      pending.completeError(ServiceError('${error['code']}', error['message'] as String?));
+      pending.completeError(
+        ServiceError('${error['code']}', error['message'] as String?),
+      );
     } else {
       pending.complete(data['result'] as Map<String, dynamic>);
     }
   }
 
-  Future<Map<String, dynamic>> call(String method, [Map<String, dynamic> params = const {}]) {
+  Future<Map<String, dynamic>> call(
+    String method, [
+    Map<String, dynamic> params = const {},
+  ]) {
     if (_closed) return Future.error(StateError('Core closed'));
     final id = ++_id;
     final pending = Completer<Map<String, dynamic>>();
     _pending[id] = pending;
-    _send!.send(jsonEncode({'protocol': protocolVersion, 'id': id, 'method': method, 'params': params}));
+    _send!.send(
+      jsonEncode({
+        'protocol': protocolVersion,
+        'id': id,
+        'method': method,
+        'params': params,
+      }),
+    );
     // Ask AI waits for a helper (the core stops it after 4 minutes).
     return pending.future.timeout(
-      method == 'ask.run' ? const Duration(minutes: 5) : const Duration(seconds: 60),
+      method == 'ask.run'
+          ? const Duration(minutes: 7)
+          : method == 'updates.appimage'
+          ? const Duration(minutes: 10)
+          : const Duration(seconds: 60),
       onTimeout: () {
         _pending.remove(id);
         throw ServiceError('timeout');

@@ -41,7 +41,8 @@ final class Posix {
         Int Function(Int, Pointer<Utf8>, Int, Uint32, Pointer<Uint8>),
         int Function(int, Pointer<Utf8>, int, int, Pointer<Uint8>)
       >('statx');
-  static final _flock = _lib.lookupFunction<Int Function(Int, Int), int Function(int, int)>('flock');
+  static final _flock = _lib
+      .lookupFunction<Int Function(Int, Int), int Function(int, int)>('flock');
   static final _uid = _lib.lookupFunction<Uint32 Function(), int Function()>(
     'getuid',
   );
@@ -55,13 +56,31 @@ final class Posix {
 
   int get uid => _uid();
 
+  /// Owner of a path, following links, from statx(2).
+  int? owner(String path) {
+    final buffer = calloc<Uint8>(256);
+    try {
+      final ok = _withPath(
+        path,
+        (name) => _statx(-100, name, 0, 0xfff, buffer) == 0,
+      );
+      if (ok != true) return null;
+      return ByteData.sublistView(
+        buffer.asTypedList(256),
+      ).getUint32(20, Endian.host);
+    } finally {
+      calloc.free(buffer);
+    }
+  }
+
   /// Create [path] new (O_EXCL, never through a symlink) as 0600 and write
   /// [bytes] to it, synced. False when it exists or a write fails.
   bool writeNewPrivate(String path, List<int> bytes) {
     final fd =
         _withPath(
           path,
-          (name) => _open(name, 0x1 | 0x40 | 0x80 | _noFollow | _cloexec, 0x180),
+          (name) =>
+              _open(name, 0x1 | 0x40 | 0x80 | _noFollow | _cloexec, 0x180),
         ) ??
         -1;
     if (fd < 0) return false;
@@ -118,10 +137,17 @@ final class Posix {
   /// Run [body] holding flock(LOCK_EX) on [lockPath] (created 0600, never
   /// through a symlink): the same lock the plugins' Python plugin_ai takes.
   T withFlock<T>(String lockPath, T Function() body) {
-    final fd = _withPath(lockPath, (name) => _open(name, 0x1 | 0x40 | _noFollow | _cloexec, 0x180)) ?? -1;
+    final fd =
+        _withPath(
+          lockPath,
+          (name) => _open(name, 0x1 | 0x40 | _noFollow | _cloexec, 0x180),
+        ) ??
+        -1;
     if (fd < 0) throw FileSystemException('Could not open the lock', lockPath);
     try {
-      if (_flock(fd, 2) != 0) throw FileSystemException('Could not lock', lockPath);
+      if (_flock(fd, 2) != 0) {
+        throw FileSystemException('Could not lock', lockPath);
+      }
       return body();
     } finally {
       _close(fd);
@@ -133,9 +159,14 @@ final class Posix {
     final buffer = calloc<Uint8>(256);
     try {
       // AT_SYMLINK_NOFOLLOW = 0x100: a link's own owner.
-      final ok = _withPath(path, (name) => _statx(-100, name, follow ? 0 : 0x100, 0x8, buffer) == 0);
+      final ok = _withPath(
+        path,
+        (name) => _statx(-100, name, follow ? 0 : 0x100, 0x8, buffer) == 0,
+      );
       if (ok != true) return null;
-      return ByteData.sublistView(buffer.asTypedList(256)).getUint32(20, Endian.host);
+      return ByteData.sublistView(
+        buffer.asTypedList(256),
+      ).getUint32(20, Endian.host);
     } finally {
       calloc.free(buffer);
     }

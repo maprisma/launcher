@@ -218,3 +218,10 @@ No add-on runs code.
   first face; the front face's chip is marked), Left/Right and Ctrl+G (no stop on All). Faces: name, count,
   ⋮ group menu, icon tiles (start, menu, drag), a drop target for apps. Filtering shows the normal grid.
   Widget test + offscreen shot (`SHOTS=… flutter test test/shots_test.dart --plain-name cube`).
+- **2026-11-05 — installed-app updates:** Update checks already covered pacman/AUR and Flatpak. They now
+  read standard `.upd_info` from user AppImages with `readelf`, query the named GitHub release and matching
+  AppImage asset, and require the published SHA-256 before offering an update. This works for any AppImage
+  with supported `gh-releases-zsync` metadata, with no publisher allowlist. Ask AI receives those update
+  facts; broad update questions use the core's checked list so a helper cannot say none when updates were
+  found. The app menu and Ask AI can install an AppImage update with a backup of the old binary, and cards
+  show installed package, Flatpak and AppImage versions. AppImages without update information remain unknown.

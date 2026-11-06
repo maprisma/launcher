@@ -161,7 +161,9 @@ class AppsPageState extends State<AppsPage> {
   /// Ask AI's helpers (ask.helpers): the header button shows whether one is ready.
   List<Map<String, dynamic>> askHelpers = const [];
   bool get aiEnabled => settings['ai_enabled'] != false;
-  bool get askReady => aiEnabled && askHelpers.any((h) => h['installed'] == true && h['signed_in'] == true);
+  bool get askReady =>
+      aiEnabled &&
+      askHelpers.any((h) => h['installed'] == true && h['signed_in'] == true);
   Timer? _poll;
   int _columns = 1;
   int _asked = 0;
@@ -180,7 +182,10 @@ class AppsPageState extends State<AppsPage> {
     _load();
     widget.shownAgain?.addListener(_onShown);
     // refresh_running_async: the process scan runs in the core's isolate.
-    _poll = Timer.periodic(const Duration(seconds: 3), (_) => _refreshRunning());
+    _poll = Timer.periodic(
+      const Duration(seconds: 3),
+      (_) => _refreshRunning(),
+    );
   }
 
   @override
@@ -198,7 +203,9 @@ class AppsPageState extends State<AppsPage> {
     // Shown again (bar icon, toggle): always the app list, not the page
     // that was open when it was hidden (Settings, Ask AI, …).
     // Not while the app's terminal runs a command: that page stays.
-    if (TerminalPage.running.value > 0) return; // The terminal page stays, and its keys.
+    if (TerminalPage.running.value > 0) {
+      return; // The terminal page stays, and its keys.
+    }
     if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     _clearFilter();
     unawaited(_load());
@@ -211,16 +218,21 @@ class AppsPageState extends State<AppsPage> {
     if (result['groups'] case final List list) {
       groups = [for (final g in list) Map<String, dynamic>.from(g)];
     }
-    if (result['collapsed'] case final List list) collapsed = list.cast<String>();
+    if (result['collapsed'] case final List list) {
+      collapsed = list.cast<String>();
+    }
   }
 
   void _takeSettings(Map<String, dynamic> settings) {
     this.settings = settings;
     view = AppView.values.byName(settings['view'] as String? ?? 'list');
-    wideLayout = WideLayout.values.byName(settings['wide_layout'] as String? ?? 'folders');
+    wideLayout = WideLayout.values.byName(
+      settings['wide_layout'] as String? ?? 'folders',
+    );
     shownLayouts = [
       for (final l in WideLayout.values)
-        if ((settings['shown_layouts'] as List? ?? const []).contains(l.name)) l,
+        if ((settings['shown_layouts'] as List? ?? const []).contains(l.name))
+          l,
     ];
     if (shownLayouts.isEmpty) shownLayouts = WideLayout.values;
     if (settings['icon_sizes'] case final Map m) {
@@ -234,7 +246,9 @@ class AppsPageState extends State<AppsPage> {
       final settings = await widget.core('settings.get');
       if (!mounted) return;
       setState(() {
-        apps = [for (final a in result['apps'] as List) Map<String, dynamic>.from(a)];
+        apps = [
+          for (final a in result['apps'] as List) Map<String, dynamic>.from(a),
+        ];
         byKey
           ..clear()
           ..addEntries(apps.map((a) => MapEntry(a['key'] as String, a)));
@@ -258,8 +272,13 @@ class AppsPageState extends State<AppsPage> {
     try {
       final result = await widget.core('apps.running');
       final now = (result['running'] as List).cast<String>().toSet();
-      final states = Map<String, String>.from(result['states'] as Map? ?? const {});
-      final changed = now.length != running.length || !now.containsAll(running) || !mapEquals(states, runStates);
+      final states = Map<String, String>.from(
+        result['states'] as Map? ?? const {},
+      );
+      final changed =
+          now.length != running.length ||
+          !now.containsAll(running) ||
+          !mapEquals(states, runStates);
       if (!mounted) return;
       if (changed) {
         setState(() {
@@ -287,7 +306,13 @@ class AppsPageState extends State<AppsPage> {
   Future<void> _loadHelpers() async {
     try {
       final r = await widget.core('ask.helpers');
-      if (mounted) setState(() => askHelpers = [for (final h in r['helpers'] as List) Map<String, dynamic>.from(h)]);
+      if (mounted) {
+        setState(
+          () => askHelpers = [
+            for (final h in r['helpers'] as List) Map<String, dynamic>.from(h),
+          ],
+        );
+      }
     } on ServiceError {
       // The button stays, without the state.
     }
@@ -304,12 +329,21 @@ class AppsPageState extends State<AppsPage> {
               open: (app) => _launch(app),
               uninstall: _uninstall,
               update: _updateFlatpak,
+              updateAppImage: _updateAppImage,
               updateSystem: _updateSystem,
               details: _details,
               setHidden: _setHidden,
-              updateKind: (app) => (updates['flatpaks'] as Map?)?.containsKey(app['key']) == true
+              updateKind: (app) =>
+                  (updates['appimages'] as Map?)?.containsKey(app['key']) ==
+                      true
+                  ? 'appimage'
+                  : (updates['flatpaks'] as Map?)?.containsKey(app['key']) ==
+                        true
                   ? 'flatpak'
-                  : (updates['apps'] as Map?)?.containsKey(app['desktop_path']) == true
+                  : (updates['apps'] as Map?)?.containsKey(
+                          app['desktop_path'],
+                        ) ==
+                        true
                   ? 'package'
                   : null,
             ),
@@ -325,7 +359,11 @@ class AppsPageState extends State<AppsPage> {
   Future<void> _loadFacts() async {
     try {
       final result = await widget.core('apps.facts');
-      if (mounted) setState(() => facts = Map<String, dynamic>.from(result['facts'] as Map));
+      if (mounted) {
+        setState(
+          () => facts = Map<String, dynamic>.from(result['facts'] as Map),
+        );
+      }
     } on ServiceError {
       // Cards without size then.
     }
@@ -338,7 +376,9 @@ class AppsPageState extends State<AppsPage> {
     final f = facts[app['key']] as Map?;
     final pkg = f?['package'] as Map?;
     if (pkg == null) return null;
-    if (f?['manager'] == 'flatpak' || f?['desktop_package'] == pkg['name']) return pkg;
+    if (f?['manager'] == 'flatpak' || f?['desktop_package'] == pkg['name']) {
+      return pkg;
+    }
     return f?['kind'] == 'app' ? pkg : null;
   }
 
@@ -348,18 +388,33 @@ class AppsPageState extends State<AppsPage> {
     if (f?['kind'] == 'webapp' || f?['kind'] == 'cli') return null;
     final pkg = ownPackage(app);
     if (pkg == null && f?['package'] != null) return null;
-    if (pkg?['size_text'] case final String text when text.isNotEmpty) return text;
+    if (pkg?['size_text'] case final String text when text.isNotEmpty) {
+      return text;
+    }
     final bytes = (pkg?['size'] ?? f?['file_size']) as int?;
     if (bytes == null) return null;
     final mb = bytes / (1024 * 1024);
     return mb >= 10 ? '${mb.round()} MB' : '${mb.toStringAsFixed(1)} MB';
   }
 
+  /// A locally installed package or the version in an AppImage filename.
+  String? versionText(Map app) {
+    final packageVersion = ownPackage(app)?['version'];
+    if (packageVersion is String && packageVersion.isNotEmpty) {
+      return packageVersion
+          .replaceFirst(RegExp(r'^\d+:'), '')
+          .replaceFirst(RegExp(r'-\d+$'), '');
+    }
+    return (facts[app['key']] as Map?)?['version'] as String?;
+  }
+
   /// Where it comes from, in a word: pacman, Flatpak, AppImage, web app, …
   String? sourceText(Map app) {
     final f = facts[app['key']] as Map?;
     final kind = f?['kind'];
-    return switch (kind == 'webapp' || kind == 'cli' || ownPackage(app) == null && f?['manager'] == 'pacman'
+    return switch (kind == 'webapp' ||
+            kind == 'cli' ||
+            ownPackage(app) == null && f?['manager'] == 'pacman'
         ? kind
         : f?['manager'] ?? kind) {
       'pacman' => 'pacman',
@@ -380,14 +435,28 @@ class AppsPageState extends State<AppsPage> {
 
   /// update_note: "Update available: …" for an entry with an update.
   String? updateNote(Map app) {
+    if ((updates['appimages'] as Map?)?[app['key']] case final Map release) {
+      final installed = '${release['installed'] ?? ''}',
+          available = '${release['version'] ?? ''}';
+      return installed.isNotEmpty && available.isNotEmpty
+          ? trf('Update available: {0} → {1}', [installed, available])
+          : tr('Update available');
+    }
     if ((updates['flatpaks'] as Map?)?[app['key']] case final List v) {
-      return '${v[0]}'.isNotEmpty ? trf('Update available: {0} → {1}', v) : tr('Update available');
+      return '${v[0]}'.isNotEmpty
+          ? trf('Update available: {0} → {1}', v)
+          : tr('Update available');
     }
     if ((updates['apps'] as Map?)?[app['desktop_path']] case final List v) {
       return trf('Update available: {0} {1} → {2}', v);
     }
     return null;
   }
+
+  String? updateUnknown(Map app) =>
+      (updates['appimage_unknown'] as Map?)?.containsKey(app['key']) == true
+          ? tr('Update status unknown')
+          : null;
 
   bool isRunning(Map app) => running.contains(app['key']);
 
@@ -415,9 +484,15 @@ class AppsPageState extends State<AppsPage> {
       (
         'new',
         Icon(Icons.star_rounded, size: 16, color: marks.fresh),
-        tr('New: installed recently (until you open it), or a new group (until it has an entry)'),
+        tr(
+          'New: installed recently (until you open it), or a new group (until it has an entry)',
+        ),
       ),
-      ('hidden', const Icon(Icons.visibility_off, size: 15), tr('Hidden: shown only with the eye button')),
+      (
+        'hidden',
+        const Icon(Icons.visibility_off, size: 15),
+        tr('Hidden: shown only with the eye button'),
+      ),
     ];
     final choice = await showMenu<String>(
       context: context,
@@ -435,7 +510,10 @@ class AppsPageState extends State<AppsPage> {
                   const SizedBox(width: 8),
                   Flexible(child: Text(text)),
                   if (markFilter == id)
-                    const Padding(padding: EdgeInsets.only(left: 6), child: Icon(Icons.check, size: 16)),
+                    const Padding(
+                      padding: EdgeInsets.only(left: 6),
+                      child: Icon(Icons.check, size: 16),
+                    ),
                 ],
               ),
             ),
@@ -475,6 +553,7 @@ class AppsPageState extends State<AppsPage> {
       },
     if (app['new'] == true) tr('Newly installed'),
     ?updateNote(app),
+    ?updateUnknown(app),
     if (app['hidden'] == true) tr('Hidden'),
   ].join(' · ');
 
@@ -492,8 +571,11 @@ class AppsPageState extends State<AppsPage> {
     ];
   }
 
-  static List<(String, List<String>)> _parseSections(Map<String, dynamic> result) => [
-    for (final s in result['sections'] as List) (s['id'] as String, (s['keys'] as List).cast<String>()),
+  static List<(String, List<String>)> _parseSections(
+    Map<String, dynamic> result,
+  ) => [
+    for (final s in result['sections'] as List)
+      (s['id'] as String, (s['keys'] as List).cast<String>()),
   ];
 
   Future<void> _refreshSections() async {
@@ -502,10 +584,23 @@ class AppsPageState extends State<AppsPage> {
     try {
       // Running on top: always in the wide window's bar, in the narrow
       // views when the header's ● asks for it.
-      final byGroup = await widget.core('apps.sections', {'view': 'groups', 'keys': keys, 'running': true});
-      final byOrigin = await widget.core('apps.sections', {'view': 'origin', 'keys': keys, 'running': true});
+      final byGroup = await widget.core('apps.sections', {
+        'view': 'groups',
+        'keys': keys,
+        'running': true,
+      });
+      final byOrigin = await widget.core('apps.sections', {
+        'view': 'origin',
+        'keys': keys,
+        'running': true,
+      });
       final byView = view == AppView.origin
-          ? (runningFirst ? byOrigin : await widget.core('apps.sections', {'view': 'origin', 'keys': keys}))
+          ? (runningFirst
+                ? byOrigin
+                : await widget.core('apps.sections', {
+                    'view': 'origin',
+                    'keys': keys,
+                  }))
           : view == AppView.groups && !runningFirst
           ? await widget.core('apps.sections', {'view': 'groups', 'keys': keys})
           : byGroup;
@@ -527,12 +622,20 @@ class AppsPageState extends State<AppsPage> {
     final list = filtered;
     if (view == AppView.list || sections.isEmpty) {
       // Stable: running apps first, each part in the usual order.
-      final ordered = runningFirst ? [...list.where(isRunning), ...list.where((a) => !isRunning(a))] : list;
+      final ordered = runningFirst
+          ? [...list.where(isRunning), ...list.where((a) => !isRunning(a))]
+          : list;
       return [for (final a in ordered) AppRow(a)];
     }
     final out = <ListItem>[];
     for (final (id, keys) in sections) {
-      if (keys.isEmpty && (filtering || id == 'other' || id.startsWith('o-') || id == '_running')) continue;
+      if (keys.isEmpty &&
+          (filtering ||
+              id == 'other' ||
+              id.startsWith('o-') ||
+              id == '_running')) {
+        continue;
+      }
       final folded = collapsed.contains(id) && !filtering;
       out.add(HeadingRow(id, keys.length, folded));
       if (!folded) {
@@ -563,7 +666,8 @@ class AppsPageState extends State<AppsPage> {
     return name.isNotEmpty ? name : tr(builtinGroupNames[id] ?? id);
   }
 
-  bool isNewGroup(String id) => groups.any((g) => g['id'] == id && g['new'] == true);
+  bool isNewGroup(String id) =>
+      groups.any((g) => g['id'] == id && g['new'] == true);
 
   // --- actions ---------------------------------------------------------------
 
@@ -573,7 +677,10 @@ class AppsPageState extends State<AppsPage> {
 
   Future<void> _launch(Map app, {String? action}) async {
     try {
-      await widget.core(action == null ? 'apps.launch' : 'apps.action', {'key': app['key'], 'action': ?action});
+      await widget.core(action == null ? 'apps.launch' : 'apps.action', {
+        'key': app['key'],
+        'action': ?action,
+      });
       _clearFilter();
       // On Omarchy the window steps aside after a start, as the bar popup did.
       if (widget.desktop == 'omarchy') widget.onHide?.call();
@@ -594,7 +701,10 @@ class AppsPageState extends State<AppsPage> {
 
   Future<void> _saveSetting(String key, Object value) async {
     try {
-      final settings = await widget.core('settings.set', {'key': key, 'value': value});
+      final settings = await widget.core('settings.set', {
+        'key': key,
+        'value': value,
+      });
       if (mounted) setState(() => _takeSettings(settings));
       widget.onSettings?.call(settings);
     } on ServiceError {
@@ -626,19 +736,34 @@ class AppsPageState extends State<AppsPage> {
       setState(() => _takeGroups(result));
       return result['result'];
     } on ServiceError catch (e) {
-      _tell(e.reason != null ? tr(e.reason!) : trf('That did not work ({0}).', [e.code]));
+      _tell(
+        e.reason != null
+            ? tr(e.reason!)
+            : trf('That did not work ({0}).', [e.code]),
+      );
       return null;
     }
   }
 
   /// put_in_group: into group gid, at the end or next to target (dropped on it).
-  Future<void> _place(String key, String gid, {String? target, bool after = false}) async {
-    await _editGroups('groups.place', {'key': key, 'group': gid, 'target': ?target, 'after': after});
+  Future<void> _place(
+    String key,
+    String gid, {
+    String? target,
+    bool after = false,
+  }) async {
+    await _editGroups('groups.place', {
+      'key': key,
+      'group': gid,
+      'target': ?target,
+      'after': after,
+    });
     await _load();
     if (mounted) setState(() => selectedKey = key);
   }
 
-  Future<void> _putInGroup(Map app, String gid) => _place(app['key'] as String, gid);
+  Future<void> _putInGroup(Map app, String gid) =>
+      _place(app['key'] as String, gid);
 
   /// Groups move among themselves (Other stays last); entries go into any
   /// group, never into Running, All or an origin.
@@ -652,14 +777,19 @@ class AppsPageState extends State<AppsPage> {
       case DraggedApp(:final key):
         _place(key, id);
       case DraggedGroup(id: final moved):
-        _editGroups('groups.reorder', {'id': moved, 'target': id, 'after': after}).then((_) => _refreshSections());
+        _editGroups('groups.reorder', {
+          'id': moved,
+          'target': id,
+          'after': after,
+        }).then((_) => _refreshSections());
     }
   }
 
   bool _acceptsOnGroup(String id, Dragged d) => switch (d) {
     // Into its own group again: nothing to do (a click that moved a pixel
     // starts a drag with a mouse; it must not send the app to the end).
-    DraggedApp(:final key) => _canDropInto(id) && '${byKey[key]?['group'] ?? ''}' != id,
+    DraggedApp(:final key) =>
+      _canDropInto(id) && '${byKey[key]?['group'] ?? ''}' != id,
     DraggedGroup(id: final moved) => _ownGroup(id) && moved != id,
   };
 
@@ -672,15 +802,19 @@ class AppsPageState extends State<AppsPage> {
     }
   }
 
-  Future<String?> _askName(String title, {String initial = ''}) => showDialog<String>(
-    context: context,
-    builder: (_) => NameDialog(title: title, initial: initial),
-  );
+  Future<String?> _askName(String title, {String initial = ''}) =>
+      showDialog<String>(
+        context: context,
+        builder: (_) => NameDialog(title: title, initial: initial),
+      );
 
   Future<void> _newGroup({Map? app}) async {
     final name = await _askName(tr('New group'));
     if (name == null) return;
-    final gid = await _editGroups('groups.add', {'name': name, 'key': ?app?['key']});
+    final gid = await _editGroups('groups.add', {
+      'name': name,
+      'key': ?app?['key'],
+    });
     if (gid != null) await _load();
   }
 
@@ -693,25 +827,46 @@ class AppsPageState extends State<AppsPage> {
       position: RelativeRect.fromLTRB(at.dx, at.dy, at.dx, at.dy),
       items: [
         if (own) ...[
-          PopupMenuItem(value: 'rename', child: MenuLine(Icons.edit, tr('Rename…'))),
-          PopupMenuItem(value: 'up', enabled: index > 0, child: MenuLine(Icons.arrow_upward, tr('Move up'))),
+          PopupMenuItem(
+            value: 'rename',
+            child: MenuLine(Icons.edit, tr('Rename…')),
+          ),
+          PopupMenuItem(
+            value: 'up',
+            enabled: index > 0,
+            child: MenuLine(Icons.arrow_upward, tr('Move up')),
+          ),
           PopupMenuItem(
             value: 'down',
             enabled: index < ids.length - 1,
             child: MenuLine(Icons.arrow_downward, tr('Move down')),
           ),
-          PopupMenuItem(value: 'delete', child: MenuLine(Icons.delete_outline, tr('Delete group'))),
+          PopupMenuItem(
+            value: 'delete',
+            child: MenuLine(Icons.delete_outline, tr('Delete group')),
+          ),
           const PopupMenuDivider(),
         ],
-        PopupMenuItem(value: 'new', child: MenuLine(Icons.add, tr('New group…'))),
+        PopupMenuItem(
+          value: 'new',
+          child: MenuLine(Icons.add, tr('New group…')),
+        ),
       ],
     );
     switch (choice) {
       case 'rename':
-        final name = await _askName(tr('Rename group'), initial: groupName(gid));
-        if (name != null) await _editGroups('groups.rename', {'id': gid, 'name': name});
+        final name = await _askName(
+          tr('Rename group'),
+          initial: groupName(gid),
+        );
+        if (name != null) {
+          await _editGroups('groups.rename', {'id': gid, 'name': name});
+        }
       case 'up' || 'down':
-        await _editGroups('groups.move', {'id': gid, 'delta': choice == 'up' ? -1 : 1});
+        await _editGroups('groups.move', {
+          'id': gid,
+          'delta': choice == 'up' ? -1 : 1,
+        });
         await _refreshSections();
       case 'delete':
         if (!mounted) return;
@@ -721,8 +876,14 @@ class AppsPageState extends State<AppsPage> {
             title: Text(trf('Delete “{0}”?', [groupName(gid)])),
             content: Text(tr('Its entries move back.')),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Cancel'))),
-              FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(tr('Delete'))),
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(tr('Cancel')),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(tr('Delete')),
+              ),
             ],
           ),
         );
@@ -736,12 +897,19 @@ class AppsPageState extends State<AppsPage> {
     }
   }
 
-  Future<void> _toggleGroup(String gid) => _editGroups('groups.toggle', {'id': gid});
+  Future<void> _toggleGroup(String gid) =>
+      _editGroups('groups.toggle', {'id': gid});
 
   Future<void> _menu(Map app, Offset position) async {
-    final actions = [for (final a in app['actions'] as List? ?? []) Map<String, dynamic>.from(a)];
+    final actions = [
+      for (final a in app['actions'] as List? ?? [])
+        Map<String, dynamic>.from(a),
+    ];
     final hidden = app['hidden'] == true;
-    final flatpakUpdate = (updates['flatpaks'] as Map?)?.containsKey(app['key']) == true;
+    final flatpakUpdate =
+        (updates['flatpaks'] as Map?)?.containsKey(app['key']) == true;
+    final appImageUpdate =
+        (updates['appimages'] as Map?)?.containsKey(app['key']) == true;
     final omarchy = widget.desktop == 'omarchy';
     final hasWindows = runStates[app['key']] == 'active';
     // The open windows: 1 closes straight away, more than 1 opens a submenu.
@@ -749,7 +917,11 @@ class AppsPageState extends State<AppsPage> {
     if (hasWindows) {
       try {
         windows = [
-          for (final w in (await widget.core('apps.windows', {'key': app['key']}))['windows'] as List)
+          for (final w
+              in (await widget.core('apps.windows', {
+                    'key': app['key'],
+                  }))['windows']
+                  as List)
             Map<String, dynamic>.from(w as Map),
         ];
       } on ServiceError {
@@ -776,40 +948,71 @@ class AppsPageState extends State<AppsPage> {
 
     final (adminCan, quitLabel, dock) = await (
       ask('apps.admin_check', 'can'),
-      isRunning(app) ? ask('apps.quit_check', 'label') : Future<Object?>.value(),
+      isRunning(app)
+          ? ask('apps.quit_check', 'label')
+          : Future<Object?>.value(),
       // Pin to dock: only while the dock (Omarchy) is switched on.
       omarchy ? dockState() : Future<Object?>.value(),
     ).wait;
-    final dockSettings = dock is Map && dock['available'] == true ? dock['settings'] as Map? : null;
-    final canPin = dockSettings?['dock_enabled'] == true && app['cli_command'] == null;
-    final pinned = canPin && (dockSettings!['dock_pinned'] as List? ?? const []).contains(app['desktop_id']);
+    final dockSettings = dock is Map && dock['available'] == true
+        ? dock['settings'] as Map?
+        : null;
+    final canPin =
+        dockSettings?['dock_enabled'] == true && app['cli_command'] == null;
+    final pinned =
+        canPin &&
+        (dockSettings!['dock_pinned'] as List? ?? const []).contains(
+          app['desktop_id'],
+        );
     final asAdmin = adminCan == true, canQuit = quitLabel is String;
     if (!mounted) return;
-    final packageUpdate = (updates['apps'] as Map?)?.containsKey(app['desktop_path']) == true;
+    final packageUpdate =
+        (updates['apps'] as Map?)?.containsKey(app['desktop_path']) == true;
     final choice = await showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy),
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx,
+        position.dy,
+      ),
       items: [
-        PopupMenuItem(value: '\x00open', child: MenuLine(Icons.play_arrow, tr('Open'))),
+        PopupMenuItem(
+          value: '\x00open',
+          child: MenuLine(Icons.play_arrow, tr('Open')),
+        ),
         if (asAdmin)
           PopupMenuItem(
             value: '\x00admin',
-            child: MenuLine(Icons.admin_panel_settings_outlined, tr('Open as administrator')),
+            child: MenuLine(
+              Icons.admin_panel_settings_outlined,
+              tr('Open as administrator'),
+            ),
           ),
         if (omarchy) ...[
           PopupMenuItem(
             value: '\x00float',
-            child: MenuLine(Icons.picture_in_picture_alt, tr('Open in floating window')),
+            child: MenuLine(
+              Icons.picture_in_picture_alt,
+              tr('Open in floating window'),
+            ),
           ),
           PopupMenuItem(
             value: '\x00workspace',
-            child: MenuLine(Icons.view_carousel_outlined, tr('Open on workspace'), trailing: Icons.chevron_right),
+            child: MenuLine(
+              Icons.view_carousel_outlined,
+              tr('Open on workspace'),
+              trailing: Icons.chevron_right,
+            ),
           ),
         ],
         if (actions.isNotEmpty) ...[
           const PopupMenuDivider(),
           for (final a in actions)
-            PopupMenuItem(value: a['id'] as String, child: MenuLine(Icons.launch, '${a['name']}')),
+            PopupMenuItem(
+              value: a['id'] as String,
+              child: MenuLine(Icons.launch, '${a['name']}'),
+            ),
         ],
         if (hasWindows || canQuit) ...[
           const PopupMenuDivider(),
@@ -827,37 +1030,80 @@ class AppsPageState extends State<AppsPage> {
                 value: '\x00close',
                 child: MenuLine(
                   Icons.close,
-                  windowCount == 1 ? tr('Close window') : trf('Close all windows ({0})', [windowCount]),
+                  windowCount == 1
+                      ? tr('Close window')
+                      : trf('Close all windows ({0})', [windowCount]),
                   trailing: windowCount > 1 ? Icons.chevron_right : null,
                 ),
               ),
           ],
-          if (canQuit) PopupMenuItem(value: '\x00quit', child: MenuLine(Icons.power_settings_new, tr('Quit'))),
+          if (canQuit)
+            PopupMenuItem(
+              value: '\x00quit',
+              child: MenuLine(Icons.power_settings_new, tr('Quit')),
+            ),
         ],
-        if (flatpakUpdate || packageUpdate) ...[
+        if (flatpakUpdate || packageUpdate || appImageUpdate) ...[
           const PopupMenuDivider(),
-          if (flatpakUpdate)
-            PopupMenuItem(value: '\x00update', child: MenuLine(Icons.system_update_alt, tr('Update')))
+          if (appImageUpdate)
+            PopupMenuItem(
+              value: '\x00appimage-update',
+              child: MenuLine(Icons.system_update_alt, tr('Update')),
+            )
+          else if (flatpakUpdate)
+            PopupMenuItem(
+              value: '\x00update',
+              child: MenuLine(Icons.system_update_alt, tr('Update')),
+            )
           else
-            PopupMenuItem(value: '\x00system', child: MenuLine(Icons.system_update_alt, tr('Update system…'))),
+            PopupMenuItem(
+              value: '\x00system',
+              child: MenuLine(Icons.system_update_alt, tr('Update system…')),
+            ),
         ],
+        if ((updates['appimage_restorable'] as List?)?.contains(app['key']) ==
+            true)
+          PopupMenuItem(
+            value: '\x00appimage-restore',
+            child: MenuLine(Icons.history, tr('Restore previous version')),
+          ),
         const PopupMenuDivider(),
         PopupMenuItem(
           value: '\x00group',
-          child: MenuLine(Icons.folder_outlined, tr('Move to group…'), trailing: Icons.chevron_right),
+          child: MenuLine(
+            Icons.folder_outlined,
+            tr('Move to group…'),
+            trailing: Icons.chevron_right,
+          ),
         ),
         if (canPin)
           PopupMenuItem(
             value: '\x00dock',
-            child: MenuLine(Icons.push_pin_outlined, pinned ? tr('Unpin from dock') : tr('Pin to dock')),
+            child: MenuLine(
+              Icons.push_pin_outlined,
+              pinned ? tr('Unpin from dock') : tr('Pin to dock'),
+            ),
           ),
         const PopupMenuDivider(),
-        PopupMenuItem(value: '\x00details', child: MenuLine(Icons.info_outline, tr('Details…'))),
-        PopupMenuItem(value: '\x00icon', child: MenuLine(Icons.image_outlined, tr('Change icon…'))),
-        PopupMenuItem(value: '\x00shortcut', child: MenuLine(Icons.keyboard_outlined, tr('Shortcut…'))),
+        PopupMenuItem(
+          value: '\x00details',
+          child: MenuLine(Icons.info_outline, tr('Details…')),
+        ),
+        PopupMenuItem(
+          value: '\x00icon',
+          child: MenuLine(Icons.image_outlined, tr('Change icon…')),
+        ),
+        PopupMenuItem(
+          value: '\x00shortcut',
+          child: MenuLine(Icons.keyboard_outlined, tr('Shortcut…')),
+        ),
         const PopupMenuDivider(),
-        if ((app['uninstall'] != null || widget.desktop == 'omarchy') && app['cli_command'] == null)
-          PopupMenuItem(value: '\x00uninstall', child: MenuLine(Icons.delete_outline, tr('Uninstall…'))),
+        if ((app['uninstall'] != null || widget.desktop == 'omarchy') &&
+            app['cli_command'] == null)
+          PopupMenuItem(
+            value: '\x00uninstall',
+            child: MenuLine(Icons.delete_outline, tr('Uninstall…')),
+          ),
         PopupMenuItem(
           value: '\x00hide',
           child: MenuLine(
@@ -884,6 +1130,10 @@ class AppsPageState extends State<AppsPage> {
         return _groupChoice(app, position);
       case '\x00update':
         return _updateFlatpak(app);
+      case '\x00appimage-update':
+        return _updateAppImage(app);
+      case '\x00appimage-restore':
+        return _restoreAppImage(app);
       case '\x00uninstall':
         return _uninstall(app);
       case '\x00switch':
@@ -933,7 +1183,9 @@ class AppsPageState extends State<AppsPage> {
     }
     final kind = plan['kind'] as String?, what = '${plan['what']}';
     if (kind == null) {
-      _tell('${trf('Could not uninstall {0}', [app['name']])}: ${tr('No package owns its desktop file.')}');
+      _tell(
+        '${trf('Could not uninstall {0}', [app['name']])}: ${tr('No package owns its desktop file.')}',
+      );
       return;
     }
     final manager = plan['manager'] as String?;
@@ -942,20 +1194,35 @@ class AppsPageState extends State<AppsPage> {
         '{0} is a web app installed in {1}, so only {1} can uninstall it: open the app and choose ⋮ → Uninstall, or right-click it on {2} and choose Remove.',
         [app['name'], what, _appsPages[what] ?? tr('its apps page')],
       ),
-      'flatpak' => trf('Removes the Flatpak {0}. Its data in ~/.var/app stays.', [what]),
+      'flatpak' => trf(
+        'Removes the Flatpak {0}. Its data in ~/.var/app stays.',
+        [what],
+      ),
       // Omarchy's own omarchy-remove-launcher-entry, by what it will do.
       'omarchy' => switch (plan['how']) {
-        'webapp' => trf('Removes the web app {0}, as Omarchy\'s menu does.', [what]),
-        'tui' => trf('Removes the terminal app {0}, as Omarchy\'s menu does.', [what]),
+        'webapp' => trf('Removes the web app {0}, as Omarchy\'s menu does.', [
+          what,
+        ]),
+        'tui' => trf('Removes the terminal app {0}, as Omarchy\'s menu does.', [
+          what,
+        ]),
         'own' => trf('Deletes your own launcher entry for {0}.', [what]),
-        'package' => trf('Removes the package {0} with pacman, in a terminal that asks for your password.', [what]),
-        _ => trf('Removes the Flatpak {0}. Its data in ~/.var/app stays.', [what]),
+        'package' => trf(
+          'Removes the package {0} with pacman, in a terminal that asks for your password.',
+          [what],
+        ),
+        _ => trf('Removes the Flatpak {0}. Its data in ~/.var/app stays.', [
+          what,
+        ]),
       },
       'package' when manager == 'pacman' => trf(
         'Removes the package {0} with pacman, in a terminal that asks for your password.',
         [what],
       ),
-      'package' => trf('Removes the package {0} with {1}, in a terminal that asks for your password.', [what, manager]),
+      'package' => trf(
+        'Removes the package {0} with {1}, in a terminal that asks for your password.',
+        [what, manager],
+      ),
       _ => trf('Moves {0} to the trash.', [what]),
     };
     final warnings = (plan['warnings'] as List? ?? const []).cast<String>();
@@ -978,24 +1245,37 @@ class AppsPageState extends State<AppsPage> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.error.withValues(alpha: .15),
+                  color: Theme.of(context).colorScheme.error
+                      .withValues(alpha: .15),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   w == 'default'
                       ? trf('{0} is one of your default apps.', [app['name']])
-                      : tr('Omarchy installs this package itself; removing it can break the desktop.'),
+                      : tr(
+                          'Omarchy installs this package itself; removing it can break the desktop.',
+                        ),
                 ),
               ),
             ],
           ],
         ),
         actions: kind == 'webapp'
-            ? [TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Close')))]
+            ? [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text(tr('Close')),
+                ),
+              ]
             : [
-                TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Cancel'))),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text(tr('Cancel')),
+                ),
                 FilledButton(
-                  style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.error,
+                  ),
                   onPressed: () => Navigator.pop(context, true),
                   child: Text(tr('Uninstall')),
                 ),
@@ -1006,7 +1286,9 @@ class AppsPageState extends State<AppsPage> {
     // A package (or Omarchy's package/Flatpak removal): in the app's own
     // terminal, which asks for the password; the old way if it cannot.
     final needsTerminal =
-        kind == 'package' || (kind == 'omarchy' && (plan['how'] == 'package' || plan['how'] == 'flatpak'));
+        kind == 'package' ||
+        (kind == 'omarchy' &&
+            (plan['how'] == 'package' || plan['how'] == 'flatpak'));
     if (needsTerminal && mounted) {
       final code = await runInTerminal(
         context,
@@ -1053,7 +1335,9 @@ class AppsPageState extends State<AppsPage> {
   Future<void> _switchToWindow(Map app, Offset at) async {
     List windows;
     try {
-      windows = (await widget.core('apps.windows', {'key': app['key']}))['windows'] as List;
+      windows =
+          (await widget.core('apps.windows', {'key': app['key']}))['windows']
+              as List;
     } on ServiceError {
       return;
     }
@@ -1064,7 +1348,10 @@ class AppsPageState extends State<AppsPage> {
         context: context,
         position: RelativeRect.fromLTRB(at.dx, at.dy, at.dx, at.dy),
         items: [
-          PopupMenuItem(enabled: false, child: Text(trf('Switch to a window of {0}', [app['name']]))),
+          PopupMenuItem(
+            enabled: false,
+            child: Text(trf('Switch to a window of {0}', [app['name']])),
+          ),
           for (final w in windows)
             PopupMenuItem(
               value: w['address'] as String,
@@ -1072,7 +1359,12 @@ class AppsPageState extends State<AppsPage> {
                 children: [
                   if (w['workspace'] is int) CountChip(w['workspace'] as int),
                   const SizedBox(width: 8),
-                  Flexible(child: Text('${w['title']}', overflow: TextOverflow.ellipsis)),
+                  Flexible(
+                    child: Text(
+                      '${w['title']}',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1091,13 +1383,23 @@ class AppsPageState extends State<AppsPage> {
 
   /// Close: 1 window closes straight away; more than 1 opens a submenu to
   /// close all windows or one chosen window.
-  Future<void> _closeWindowChoice(Map app, List<Map<String, dynamic>> windows, Offset at) async {
+  Future<void> _closeWindowChoice(
+    Map app,
+    List<Map<String, dynamic>> windows,
+    Offset at,
+  ) async {
     if (windows.length <= 1) return _closeWindows(app);
     final chosen = await showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(at.dx, at.dy, at.dx, at.dy),
       items: [
-        PopupMenuItem(value: '\x00all', child: MenuLine(Icons.close, trf('Close all windows ({0})', [windows.length]))),
+        PopupMenuItem(
+          value: '\x00all',
+          child: MenuLine(
+            Icons.close,
+            trf('Close all windows ({0})', [windows.length]),
+          ),
+        ),
         const PopupMenuDivider(),
         for (final w in windows)
           PopupMenuItem(
@@ -1106,10 +1408,15 @@ class AppsPageState extends State<AppsPage> {
               children: [
                 const SizedBox(width: 22, child: Icon(Icons.close, size: 16)),
                 const SizedBox(width: 8),
-                if (w['workspace'] is int) ...[CountChip(w['workspace'] as int), const SizedBox(width: 8)],
+                if (w['workspace'] is int) ...[
+                  CountChip(w['workspace'] as int),
+                  const SizedBox(width: 8),
+                ],
                 Flexible(
                   child: Text(
-                    '${w['title'] ?? ''}'.isNotEmpty ? '${w['title']}' : '${app['name']}',
+                    '${w['title'] ?? ''}'.isNotEmpty
+                        ? '${w['title']}'
+                        : '${app['name']}',
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -1145,7 +1452,11 @@ class AppsPageState extends State<AppsPage> {
     }
   }
 
-  Future<void> _openSpecial(Map app, String route, Map<String, dynamic> extra) async {
+  Future<void> _openSpecial(
+    Map app,
+    String route,
+    Map<String, dynamic> extra,
+  ) async {
     try {
       await widget.core(route, {'key': app['key'], ...extra});
       _clearFilter();
@@ -1169,7 +1480,10 @@ class AppsPageState extends State<AppsPage> {
       context: context,
       position: RelativeRect.fromLTRB(at.dx, at.dy, at.dx, at.dy),
       items: [
-        PopupMenuItem(enabled: false, child: Text(trf('Open {0} on', [app['name']]))),
+        PopupMenuItem(
+          enabled: false,
+          child: Text(trf('Open {0} on', [app['name']])),
+        ),
         for (final w in found['workspaces'] as List)
           PopupMenuItem(
             value: w['id'] as int,
@@ -1178,10 +1492,13 @@ class AppsPageState extends State<AppsPage> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-        if (free != null) PopupMenuItem(value: free, child: Text(trf('{0} (empty)', [free]))),
+        if (free != null)
+          PopupMenuItem(value: free, child: Text(trf('{0} (empty)', [free]))),
       ],
     );
-    if (chosen != null) await _openSpecial(app, 'apps.open_on_workspace', {'workspace': chosen});
+    if (chosen != null) {
+      await _openSpecial(app, 'apps.open_on_workspace', {'workspace': chosen});
+    }
   }
 
   /// update_flatpak: this one app, in the background; says how it went.
@@ -1193,7 +1510,72 @@ class AppsPageState extends State<AppsPage> {
       setState(() => updates = result);
       _tell(trf('{0} updated', [app['name']]));
     } on ServiceError catch (e) {
-      _tell('${trf('{0} could not be updated', [app['name']])}${e.reason == null ? '' : ': ${e.reason}'}');
+      _tell(
+        '${trf('{0} could not be updated', [app['name']])}${e.reason == null ? '' : ': ${e.reason}'}',
+      );
+    }
+  }
+
+  Future<void> _updateAppImage(Map app) async {
+    final release = (updates['appimages'] as Map?)?[app['key']];
+    if (release is! Map || !mounted) return;
+    final size = int.tryParse('${release['size'] ?? ''}');
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(tr('Review AppImage update')),
+        content: SelectableText(
+          [
+            '${app['name']}',
+            '${release['installed'] == '' ? tr('Version unknown') : release['installed']} → ${release['version'] == '' ? tr('Version unknown') : release['version']}',
+            '',
+            '${tr('GitHub')}: ${release['owner']}/${release['repo']}',
+            '${tr('Tag')}: ${release['tag']}',
+            '${tr('Asset')}: ${release['filename']}',
+            if (size != null) '${tr('Size')}: ${(size / 1048576).toStringAsFixed(1)} MB',
+            '${tr('SHA-256 (GitHub release)')}: ${release['sha256']}',
+            '',
+            '${tr('Previous version saved at')}: ${release['path']}.bak',
+          ].join('\n'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(tr('Cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(tr('Update')),
+          ),
+        ],
+      ),
+    );
+    if (approved != true || !mounted) return;
+    _tell(trf('Updating {0}…', [app['name']]));
+    try {
+      final result = await widget.core('updates.appimage', {'key': app['key']});
+      if (!mounted) return;
+      setState(() => updates = result);
+      _tell(trf('{0} updated', [app['name']]));
+      await _load();
+    } on ServiceError catch (e) {
+      _tell(
+        '${trf('{0} could not be updated', [app['name']])}${e.reason == null ? '' : ': ${e.reason}'}',
+      );
+    }
+  }
+
+  Future<void> _restoreAppImage(Map app) async {
+    try {
+      final result = await widget.core('updates.appimage_restore', {
+        'key': app['key'],
+      });
+      if (!mounted) return;
+      setState(() => updates = result);
+      _tell(tr('Previous version restored'));
+      await _load();
+    } on ServiceError catch (e) {
+      _tell('${tr('Restore failed')}: ${e.reason ?? e.code}');
     }
   }
 
@@ -1224,8 +1606,15 @@ class AppsPageState extends State<AppsPage> {
         '${tr('The terminal asks for your password and shows the progress.')}',
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Cancel'))),
-        FilledButton(autofocus: true, onPressed: () => Navigator.pop(context, true), child: Text(tr('Update'))),
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text(tr('Cancel')),
+        ),
+        FilledButton(
+          autofocus: true,
+          onPressed: () => Navigator.pop(context, true),
+          child: Text(tr('Update')),
+        ),
       ],
     ),
   );
@@ -1247,11 +1636,23 @@ class AppsPageState extends State<AppsPage> {
       context: context,
       position: RelativeRect.fromLTRB(at.dx, at.dy, at.dx, at.dy),
       items: [
-        PopupMenuItem(enabled: false, child: Text(trf('Move {0} to', [app['name']]))),
+        PopupMenuItem(
+          enabled: false,
+          child: Text(trf('Move {0} to', [app['name']])),
+        ),
         for (final gid in [for (final g in groups) g['id'] as String, 'other'])
-          PopupMenuItem(value: gid, child: MenuLine(gid == current ? Icons.check : null, groupName(gid))),
+          PopupMenuItem(
+            value: gid,
+            child: MenuLine(
+              gid == current ? Icons.check : null,
+              groupName(gid),
+            ),
+          ),
         const PopupMenuDivider(),
-        PopupMenuItem(value: '\x00new', child: MenuLine(Icons.add, tr('New group…'))),
+        PopupMenuItem(
+          value: '\x00new',
+          child: MenuLine(Icons.add, tr('New group…')),
+        ),
       ],
     );
     if (choice == null) return;
@@ -1266,7 +1667,9 @@ class AppsPageState extends State<AppsPage> {
         app: app,
         facts: facts[app['key']] as Map?,
         groupName: groupName('${app['group']}'),
-        originName: originNames['o-${app['origin']}'] == null ? null : tr(originNames['o-${app['origin']}']!),
+        originName: originNames['o-${app['origin']}'] == null
+            ? null
+            : tr(originNames['o-${app['origin']}']!),
       ),
     ),
   );
@@ -1281,7 +1684,8 @@ class AppsPageState extends State<AppsPage> {
   /// Change icon: the theme's text colour tints one-colour icons.
   Future<void> _changeIcon(Map app) async {
     final fg = Theme.of(context).colorScheme.onSurface;
-    final hex = '#${(fg.toARGB32() & 0xffffff).toRadixString(16).padLeft(6, '0')}';
+    final hex =
+        '#${(fg.toARGB32() & 0xffffff).toRadixString(16).padLeft(6, '0')}';
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => IconPage(core: widget.core, app: app, foreground: hex),
@@ -1310,14 +1714,23 @@ class AppsPageState extends State<AppsPage> {
   bool _typeIntoFilter(KeyEvent event) {
     if (filterFieldShown) return false;
     final keyboard = HardwareKeyboard.instance;
-    if (keyboard.isControlPressed || keyboard.isAltPressed || keyboard.isMetaPressed) return false;
+    if (keyboard.isControlPressed ||
+        keyboard.isAltPressed ||
+        keyboard.isMetaPressed) {
+      return false;
+    }
     String next;
     if (event.logicalKey == LogicalKeyboardKey.backspace) {
       if (query.isEmpty) return false;
       next = query.substring(0, query.length - 1);
     } else {
       final c = event.character;
-      if (c == null || c.isEmpty || c.codeUnitAt(0) < 32 || c.codeUnitAt(0) == 127) return false;
+      if (c == null ||
+          c.isEmpty ||
+          c.codeUnitAt(0) < 32 ||
+          c.codeUnitAt(0) == 127) {
+        return false;
+      }
       next = query + c;
     }
     filter.text = next;
@@ -1336,7 +1749,9 @@ class AppsPageState extends State<AppsPage> {
   /// folder, then hides; Enter starts the selected app; the arrows move the
   /// selection; Ctrl+G: next view (narrow) or next group (wide).
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
     final key = event.logicalKey;
     final keyboard = HardwareKeyboard.instance;
     if (_typeIntoFilter(event)) return KeyEventResult.handled;
@@ -1364,19 +1779,24 @@ class AppsPageState extends State<AppsPage> {
     }
     final list = visibleApps;
     var index = list.indexWhere((a) => a['key'] == selectedKey);
-    if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
+    if (key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter) {
       if (list.isNotEmpty) _launch(list[index < 0 ? 0 : index]);
       return KeyEventResult.handled;
     }
     // The cube: Left/Right turn it a face; Ctrl+Up/Down flip it between groups and origins.
-    if (wide && showingCube && (key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.arrowRight)) {
+    if (wide &&
+        showingCube &&
+        (key == LogicalKeyboardKey.arrowLeft ||
+            key == LogicalKeyboardKey.arrowRight)) {
       turnCube(key == LogicalKeyboardKey.arrowRight ? 1 : -1);
       return KeyEventResult.handled;
     }
     if (wide &&
         showingCube &&
         keyboard.isControlPressed &&
-        (key == LogicalKeyboardKey.arrowUp || key == LogicalKeyboardKey.arrowDown)) {
+        (key == LogicalKeyboardKey.arrowUp ||
+            key == LogicalKeyboardKey.arrowDown)) {
       flipCube();
       return KeyEventResult.handled;
     }
@@ -1391,12 +1811,21 @@ class AppsPageState extends State<AppsPage> {
     };
     if (move != null && list.isNotEmpty) {
       if (index < 0) index = 0;
-      setState(() => selectedKey = list[(index + move).clamp(0, list.length - 1)]['key'] as String);
+      setState(
+        () => selectedKey =
+            list[(index + move).clamp(0, list.length - 1)]['key'] as String,
+      );
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final context = _selectedItem.currentContext;
         if (context != null) {
-          Scrollable.ensureVisible(context, alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd);
-          Scrollable.ensureVisible(context, alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtStart);
+          Scrollable.ensureVisible(
+            context,
+            alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+          );
+          Scrollable.ensureVisible(
+            context,
+            alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtStart,
+          );
         }
       });
       return KeyEventResult.handled;
@@ -1420,7 +1849,10 @@ class AppsPageState extends State<AppsPage> {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               final focused = FocusManager.instance.primaryFocus;
               if (mounted &&
-                  (focused == null || focused == filterFocus || !focused.hasPrimaryFocus || focused.context == null)) {
+                  (focused == null ||
+                      focused == filterFocus ||
+                      !focused.hasPrimaryFocus ||
+                      focused.context == null)) {
                 pageFocus.requestFocus();
               }
             });
@@ -1460,8 +1892,13 @@ class AppsPageState extends State<AppsPage> {
             child: Padding(
               padding: const EdgeInsets.only(left: 8),
               child: Text(
-                query.isEmpty ? tr('Maprisma Launcher') : trf('Filter: {0}', [query]),
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                query.isEmpty
+                    ? tr('Maprisma Launcher')
+                    : trf('Filter: {0}', [query]),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           )
@@ -1471,7 +1908,10 @@ class AppsPageState extends State<AppsPage> {
               controller: filter,
               focusNode: filterFocus,
               autofocus: true,
-              decoration: InputDecoration(hintText: tr('Type to filter'), prefixIcon: Icon(Icons.search, size: 20)),
+              decoration: InputDecoration(
+                hintText: tr('Type to filter'),
+                prefixIcon: Icon(Icons.search, size: 20),
+              ),
               onChanged: (text) {
                 setState(() {
                   query = text;
@@ -1506,13 +1946,18 @@ class AppsPageState extends State<AppsPage> {
     final marks = markColors(context);
     return IconButton(
       visualDensity: const VisualDensity(horizontal: -3, vertical: -2),
-      tooltip: runningFirst ? tr('Sort apps by name') : tr('Show running apps first'),
+      tooltip: runningFirst
+          ? tr('Sort apps by name')
+          : tr('Show running apps first'),
       isSelected: runningFirst,
       onPressed: () async {
         await _saveSetting('running_first', !runningFirst);
         unawaited(_refreshSections());
       },
-      icon: Icon(Icons.fiber_manual_record_outlined, color: running.isNotEmpty ? marks.running : null),
+      icon: Icon(
+        Icons.fiber_manual_record_outlined,
+        color: running.isNotEmpty ? marks.running : null,
+      ),
       selectedIcon: Icon(Icons.fiber_manual_record, color: marks.running),
     );
   }
@@ -1521,8 +1966,12 @@ class AppsPageState extends State<AppsPage> {
     final count = apps.where((a) => a['hidden'] == true).length;
     if (count == 0) return const SizedBox.shrink();
     return IconButton(
-      visualDensity: MediaQuery.sizeOf(context).width < 760 ? const VisualDensity(horizontal: -3, vertical: -2) : null,
-      tooltip: showHidden ? tr('Hide hidden apps') : trf('Show hidden apps ({0})', [count]),
+      visualDensity: MediaQuery.sizeOf(context).width < 760
+          ? const VisualDensity(horizontal: -3, vertical: -2)
+          : null,
+      tooltip: showHidden
+          ? tr('Hide hidden apps')
+          : trf('Show hidden apps ({0})', [count]),
       isSelected: showHidden,
       onPressed: () {
         setState(() => showHidden = !showHidden);
@@ -1537,7 +1986,9 @@ class AppsPageState extends State<AppsPage> {
 
   Widget _empty() => Center(
     child: Text(
-      query.isEmpty ? tr('No apps found.') : trf('No app matches “{0}”.', [query]),
+      query.isEmpty
+          ? tr('No apps found.')
+          : trf('No app matches “{0}”.', [query]),
       style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
     ),
   );
@@ -1546,7 +1997,9 @@ class AppsPageState extends State<AppsPage> {
     final shown = rows;
     if (shown.isEmpty) return _empty();
     final first = visibleApps.firstOrNull;
-    final selected = selectedKey ?? (filtering && first != null ? first['key'] as String : null);
+    final selected =
+        selectedKey ??
+        (filtering && first != null ? first['key'] as String : null);
     final slivers = <Widget>[];
     var chunk = <Map<String, dynamic>>[];
     String? chunkSection;
@@ -1557,7 +2010,8 @@ class AppsPageState extends State<AppsPage> {
         SliverFixedExtentList.builder(
           itemExtent: rowHeight,
           itemCount: members.length,
-          itemBuilder: (context, i) => _listRow(members[i], members[i]['key'] == selected, section),
+          itemBuilder: (context, i) =>
+              _listRow(members[i], members[i]['key'] == selected, section),
         ),
       );
       chunk = [];
@@ -1577,21 +2031,31 @@ class AppsPageState extends State<AppsPage> {
     return CustomScrollView(
       controller: scroll,
       slivers: [
-        for (final s in slivers) SliverPadding(padding: const EdgeInsets.symmetric(horizontal: 8), sliver: s),
+        for (final s in slivers)
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            sliver: s,
+          ),
         const SliverToBoxAdapter(child: SizedBox(height: 8)),
       ],
     );
   }
 
   Widget _narrowFooter() {
-    final muted = TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12);
+    final muted = TextStyle(
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+      fontSize: 12,
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 8, 4),
       child: SizedBox(
         height: 36,
         child: Row(
           children: [
-            Text(trf('{0} of {1} apps', [filtered.length, apps.length]), style: muted),
+            Text(
+              trf('{0} of {1} apps', [filtered.length, apps.length]),
+              style: muted,
+            ),
             const Spacer(),
             if (view == AppView.groups) _newGroupButton(compact: false),
           ],
@@ -1606,7 +2070,11 @@ class AppsPageState extends State<AppsPage> {
     child: Tooltip(
       message: tr('New group (or drop an app here to start one with it)'),
       child: compact
-          ? FooterItem(icon: Icons.add, label: tr('New group'), onTap: _newGroup)
+          ? FooterItem(
+              icon: Icons.add,
+              label: tr('New group'),
+              onTap: _newGroup,
+            )
           : TextButton.icon(
               onPressed: _newGroup,
               icon: const Icon(Icons.create_new_folder_outlined, size: 16),
@@ -1624,7 +2092,9 @@ class AppsPageState extends State<AppsPage> {
       child: InkWell(
         borderRadius: BorderRadius.circular(corners(context).clamp(0, 8)),
         onTap: () => _toggleGroup(row.id),
-        onSecondaryTapDown: own ? (d) => _groupMenu(row.id, d.globalPosition) : null,
+        onSecondaryTapDown: own
+            ? (d) => _groupMenu(row.id, d.globalPosition)
+            : null,
         child: Container(
           height: 40,
           padding: const EdgeInsets.only(left: 8),
@@ -1633,16 +2103,27 @@ class AppsPageState extends State<AppsPage> {
           ),
           child: Row(
             children: [
-              Icon(row.collapsed ? Icons.chevron_right : Icons.expand_more, size: 18, color: scheme.onSurfaceVariant),
+              Icon(
+                row.collapsed ? Icons.chevron_right : Icons.expand_more,
+                size: 18,
+                color: scheme.onSurfaceVariant,
+              ),
               const SizedBox(width: 6),
               if (isNewGroup(row.id)) ...[
                 Tooltip(
                   message: tr('New group: drag apps onto it to fill it.'),
-                  child: Icon(Icons.star_rounded, size: 15, color: markColors(context).fresh),
+                  child: Icon(
+                    Icons.star_rounded,
+                    size: 15,
+                    color: markColors(context).fresh,
+                  ),
                 ),
                 const SizedBox(width: 4),
               ],
-              Text(groupName(row.id), style: const TextStyle(fontWeight: FontWeight.w600)),
+              Text(
+                groupName(row.id),
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
               const SizedBox(width: 8),
               CountChip(row.count),
               const Spacer(),
@@ -1654,7 +2135,10 @@ class AppsPageState extends State<AppsPage> {
                     icon: const Icon(Icons.more_vert, size: 18),
                     onPressed: () {
                       final box = context.findRenderObject()! as RenderBox;
-                      _groupMenu(row.id, box.localToGlobal(box.size.bottomLeft(Offset.zero)));
+                      _groupMenu(
+                        row.id,
+                        box.localToGlobal(box.size.bottomLeft(Offset.zero)),
+                      );
                     },
                   ),
                 ),
@@ -1682,7 +2166,13 @@ class AppsPageState extends State<AppsPage> {
 
   /// An entry: its menu on right-click; it can be moved onto a group (and,
   /// with [section], dropped beside: before or after it in that group).
-  Widget _entry(Map app, Widget child, {String? section, bool horizontal = false, bool movable = true}) {
+  Widget _entry(
+    Map app,
+    Widget child, {
+    String? section,
+    bool horizontal = false,
+    bool movable = true,
+  }) {
     final shown = GestureDetector(
       onSecondaryTapDown: (d) => _menu(app, d.globalPosition),
       onLongPressStart: (d) => _menu(app, d.globalPosition),
@@ -1702,7 +2192,12 @@ class AppsPageState extends State<AppsPage> {
               accepts: (d) => d is DraggedApp && d.key != key,
               sided: (_) => true,
               horizontal: horizontal,
-              onDrop: (d, after) => _place((d as DraggedApp).key, section, target: key, after: after),
+              onDrop: (d, after) => _place(
+                (d as DraggedApp).key,
+                section,
+                target: key,
+                after: after,
+              ),
               child: shown,
             ),
     );
@@ -1719,10 +2214,18 @@ class AppsPageState extends State<AppsPage> {
         selected: isSelected,
         selectedTileColor: scheme.secondaryContainer,
         selectedColor: scheme.onSurface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(corners(context).clamp(0, 10))),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(corners(context).clamp(0, 10)),
+        ),
         leading: Tooltip(message: marksNote(app), child: marked(app, size)),
-        title: Text('${app['name']}', maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: description.isEmpty ? null : Text(description, maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Text(
+          '${app['name']}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: description.isEmpty
+            ? null
+            : Text(description, maxLines: 1, overflow: TextOverflow.ellipsis),
         onTap: () => _launch(app),
       ),
       section: section,
@@ -1740,8 +2243,14 @@ class CountChip extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
-      decoration: BoxDecoration(color: scheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(10)),
-      child: Text('$count', style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant)),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        '$count',
+        style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
+      ),
     );
   }
 }
@@ -1757,7 +2266,10 @@ class MenuLine extends StatelessWidget {
       SizedBox(width: 22, child: icon == null ? null : Icon(icon, size: 16)),
       const SizedBox(width: 8),
       Expanded(child: Text(text, overflow: TextOverflow.ellipsis)),
-      if (trailing != null) ...[const SizedBox(width: 8), Icon(trailing, size: 16)],
+      if (trailing != null) ...[
+        const SizedBox(width: 8),
+        Icon(trailing, size: 16),
+      ],
     ],
   );
 }
@@ -1792,8 +2304,14 @@ class _NameDialogState extends State<NameDialog> {
       onSubmitted: (v) => Navigator.pop(context, v),
     ),
     actions: [
-      TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Cancel'))),
-      FilledButton(onPressed: () => Navigator.pop(context, controller.text), child: Text(tr('Save'))),
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: Text(tr('Cancel')),
+      ),
+      FilledButton(
+        onPressed: () => Navigator.pop(context, controller.text),
+        child: Text(tr('Save')),
+      ),
     ],
   );
 }

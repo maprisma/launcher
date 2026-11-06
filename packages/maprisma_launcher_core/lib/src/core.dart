@@ -12,6 +12,7 @@ import 'admin.dart';
 import 'apps.dart';
 import 'ask_ai.dart';
 import 'bounded.dart';
+import 'appimage_updates.dart';
 import 'config.dart';
 import 'desktop_entries.dart';
 import 'desktops.dart';
@@ -89,7 +90,8 @@ final class CoreService {
   DateTime? _piOnlineAt;
   Future<List<({String provider, String model})>> _piOnlineNow() async {
     final at = _piOnlineAt;
-    if (at == null || DateTime.now().difference(at) > const Duration(minutes: 1)) {
+    if (at == null ||
+        DateTime.now().difference(at) > const Duration(minutes: 1)) {
       // pi did not answer in time: keep the last list rather than none.
       final listed = await piListedModels(session);
       if (listed != null) _piOnline = listed;
@@ -119,11 +121,15 @@ final class CoreService {
   /// Change icon: the last search's online candidates, by url (only these
   /// can be previewed or chosen).
   final _iconCandidates = <String, Candidate>{};
-  Map<String, dynamic> _updates = {'apps': {}, 'flatpaks': {}};
+  Map<String, dynamic> _updates = {'apps': {}, 'flatpaks': {}, 'appimages': {}, 'appimage_unknown': {}};
+  final Set<String> _appImageBusy = {};
   DateTime? _updatesAt;
   Future<Map<String, dynamic>>? _checking;
 
-  late final Map<String, Future<Map<String, dynamic>> Function(Map<String, dynamic>)>
+  late final Map<
+    String,
+    Future<Map<String, dynamic>> Function(Map<String, dynamic>)
+  >
   routes = {
     'core.hello': (_) async => {
       'version': coreVersion,
@@ -168,33 +174,46 @@ final class CoreService {
       var closed = 0;
       for (final w in _hyprland.windowsOf(app, _clients)) {
         if (address != null && w['address'] != address) continue;
-        if (Hyprland.validAddress(w['address']) && await _hyprland.closeWindow(w['address'] as String)) closed++;
+        if (Hyprland.validAddress(w['address']) &&
+            await _hyprland.closeWindow(w['address'] as String)) {
+          closed++;
+        }
       }
       return {'closed': closed};
     },
     'window.focus': (params) async {
       final address = _string(params, 'address');
       // Only a window Hyprland listed just now.
-      if (!_clients.any((c) => c['address'] == address)) throw ServiceError('not_found');
+      if (!_clients.any((c) => c['address'] == address)) {
+        throw ServiceError('not_found');
+      }
       if (!await _hyprland.focus(address)) throw ServiceError('focus_failed');
       return {'focused': true};
     },
     'apps.open_floating': (params) async {
-      if (!await _hyprland.execFloating(_startArgv(_app(params)))) throw ServiceError('launch_failed');
+      if (!await _hyprland.execFloating(_startArgv(_app(params)))) {
+        throw ServiceError('launch_failed');
+      }
       return {'started': true};
     },
     'apps.open_on_workspace': (params) async {
       final workspace = params['workspace'];
       if (workspace is! int) throw ServiceError('bad_params');
-      if (!await _hyprland.execOnWorkspace(_startArgv(_app(params)), workspace)) throw ServiceError('launch_failed');
+      if (!await _hyprland.execOnWorkspace(_startArgv(_app(params)), workspace)) {
+        throw ServiceError('launch_failed');
+      }
       return {'started': true};
     },
-    'workspaces.list': (_) async => await _hyprland.workspaces() ?? {'workspaces': const [], 'free': null},
+    'workspaces.list': (_) async =>
+        await _hyprland.workspaces() ?? {'workspaces': const [], 'free': null},
     // Open as administrator: off by default; on only after polkit confirmed
     // the password, for this login session only.
     'admin.state': (_) async => {
       'enabled': _admin.enabled(),
-      'available': session.which('pkexec') != null && _admin.sessionDir() != null && _admin.sessionToken() != null,
+      'available':
+          session.which('pkexec') != null &&
+          _admin.sessionDir() != null &&
+          _admin.sessionToken() != null,
     },
     'admin.enable': (params) async {
       if (params['on'] != true) {
@@ -209,7 +228,9 @@ final class CoreService {
       }
       return {'enabled': true};
     },
-    'apps.admin_check': (params) async => {'can': _admin.enabled() && await _admin.command(_app(params)) != null},
+    'apps.admin_check': (params) async => {
+      'can': _admin.enabled() && await _admin.command(_app(params)) != null,
+    },
     // The app's own tray Quit (never a signal from us): its label, or null.
     // The app's own terminal: only commands the core builds itself (a
     // package the last search found, an app's uninstall plan, the system
@@ -217,28 +238,45 @@ final class CoreService {
     'term.start': (params) async {
       final (argv, command) = await _termCommand(params);
       // Ended terminals nobody closed (the page went away): let them go.
-      for (final id in [for (final e in _terms.entries) if (e.value.ended) e.key]) {
+      for (final id in [
+        for (final e in _terms.entries)
+          if (e.value.ended) e.key,
+      ]) {
         _terms.remove(id)?.close();
       }
       _updatesAt = null; // An install or update changes what is out of date.
-      if (_terms.values.where((t) => !t.ended).length >= 4) throw ServiceError('busy');
+      if (_terms.values.where((t) => !t.ended).length >= 4) {
+        throw ServiceError('busy');
+      }
       final cols = params['cols'], rows = params['rows'];
       final id = 't${++_termCount}';
-      final pty = await PtySession.start(id, argv, session,
-          title: '${params['action']}', command: command,
-          cols: cols is int ? cols : 100, rows: rows is int ? rows : 30);
+      final pty = await PtySession.start(
+        id,
+        argv,
+        session,
+        title: '${params['action']}',
+        command: command,
+        cols: cols is int ? cols : 100,
+        rows: rows is int ? rows : 30,
+      );
       if (pty == null) throw ServiceError('no_pty');
       _terms[id] = pty;
       return {'id': id, 'command': command};
     },
     'term.read': (params) async {
       final pty = _term(params);
-      return {'data': base64Encode(pty.take()), 'ended': pty.ended, 'code': pty.exitCode};
+      return {
+        'data': base64Encode(pty.take()),
+        'ended': pty.ended,
+        'code': pty.exitCode,
+      };
     },
     'term.write': (params) async {
       final pty = _term(params);
       final data = params['data'];
-      if (data is! String || data.length > 64 * 1024) throw ServiceError('bad_params');
+      if (data is! String || data.length > 64 * 1024) {
+        throw ServiceError('bad_params');
+      }
       List<int> bytes;
       try {
         bytes = base64Decode(data);
@@ -266,36 +304,55 @@ final class CoreService {
       // Looked up again: tray menus and their ids change at any time.
       final found = await _tray.quitFor(_app(params));
       if (found == null) throw ServiceError('no_quit');
-      if (!await _tray.click(found.$1, found.$2['id'] as int)) throw ServiceError('quit_failed');
+      if (!await _tray.click(found.$1, found.$2['id'] as int)) {
+        throw ServiceError('quit_failed');
+      }
       return {'clicked': true};
     },
     'apps.admin_launch': (params) async {
       if (!_admin.enabled()) throw ServiceError('not_enabled');
-      if (!await _admin.launch(_app(params))) throw ServiceError('launch_failed');
+      if (!await _admin.launch(_app(params))) {
+        throw ServiceError('launch_failed');
+      }
       return {'started': true};
     },
     'plugins.list': (_) async {
       final list = await _plugins.list();
       _pluginList = {for (final pl in list) pl['plugin_id'] as String: pl};
-      return {'plugins': [for (final pl in list) {...pl, 'behind': ?_pluginUpdates[pl['plugin_id']]}]};
+      return {
+        'plugins': [
+          for (final pl in list)
+            {...pl, 'behind': ?_pluginUpdates[pl['plugin_id']]},
+        ],
+      };
     },
     'plugins.open': (params) async {
-      if (!await _plugins.open(_plugin(params)['plugin_id'] as String)) throw ServiceError('open_failed');
+      if (!await _plugins.open(_plugin(params)['plugin_id'] as String)) {
+        throw ServiceError('open_failed');
+      }
       return {'opened': true};
     },
     'plugins.bar': (params) async {
       final plugin = _plugin(params);
       final section = params['section'];
-      if (section != null && !barSections.contains(section)) throw ServiceError('bad_params');
-      if (!await _plugins.setInBar(plugin['plugin_id'] as String, params['placed'] == true, section as String?)) {
+      if (section != null && !barSections.contains(section)) {
+        throw ServiceError('bad_params');
+      }
+      if (!await _plugins.setInBar(
+        plugin['plugin_id'] as String,
+        params['placed'] == true,
+        section as String?,
+      )) {
         throw ServiceError('bar_failed');
       }
       return {'done': true};
     },
-    'plugins.remove_plan': (params) async => _plugins.removalNote(_plugin(params)['plugin_id'] as String),
+    'plugins.remove_plan': (params) async =>
+        _plugins.removalNote(_plugin(params)['plugin_id'] as String),
     'plugins.remove': (params) async {
       final plugin = _plugin(params);
-      if (plugin['removable'] != true || !await _plugins.remove(plugin['plugin_id'] as String)) {
+      if (plugin['removable'] != true ||
+          !await _plugins.remove(plugin['plugin_id'] as String)) {
         throw ServiceError('remove_failed');
       }
       return {'removed': true};
@@ -303,10 +360,20 @@ final class CoreService {
     // updates.plugin_updates: the user's git checkouts behind origin's
     // default branch, at most every 30 minutes unless forced.
     'plugins.updates': (params) async {
-      final fresh = _pluginUpdatesAt != null && DateTime.now().difference(_pluginUpdatesAt!) < const Duration(minutes: 30);
+      final fresh =
+          _pluginUpdatesAt != null &&
+          DateTime.now().difference(_pluginUpdatesAt!) <
+              const Duration(minutes: 30);
       if (!fresh || params['force'] == true) {
-        final ids = _pluginList.keys.where((id) => Directory(p.join(_plugins.userDir, id, '.git')).existsSync()).take(200);
-        final counts = await Future.wait([for (final id in ids) _plugins.behind(id)]);
+        final ids = _pluginList.keys
+            .where(
+              (id) =>
+                  Directory(p.join(_plugins.userDir, id, '.git')).existsSync(),
+            )
+            .take(200);
+        final counts = await Future.wait([
+          for (final id in ids) _plugins.behind(id),
+        ]);
         _pluginUpdates = {
           for (final (i, id) in ids.indexed)
             if ((counts[i] ?? 0) > 0) id: counts[i]!,
@@ -325,21 +392,66 @@ final class CoreService {
     'window.popup': (params) async {
       final width = params['width'], height = params['height'];
       if (width is! int || height is! int) throw ServiceError('bad_params');
-      if (!(desktop is OmarchyDesktop && _hyprland.available)) return {'placed': false, 'reason': 'not Omarchy'};
+      if (!(desktop is OmarchyDesktop && _hyprland.available)) {
+        return {'placed': false, 'reason': 'not Omarchy'};
+      }
       return _hyprland.placePopup(pid, width, height);
     },
     'updates.check': (params) => _checkUpdates(force: params['force'] == true),
+    'updates.appimage': (params) async {
+      final app = _app(params);
+      final key = appKey(app);
+      if (!_appImageBusy.add(key)) throw ServiceError('busy');
+      try {
+        final release = (_updates['appimages'] as Map?)?[key];
+        if (release is! Map) throw ServiceError('no_update');
+        try {
+          await AppImageUpdates(session).install(app, release);
+        } on Object catch (e) {
+          throw ServiceError('update_failed', '$e');
+        }
+        (_updates['appimages'] as Map).remove(key);
+        _updatesAt = null;
+        _facts.invalidate();
+        await _listApps();
+        return _updatesView();
+      } finally {
+        _appImageBusy.remove(key);
+      }
+    },
+    'updates.appimage_restore': (params) async {
+      final app = _app(params);
+      final key = appKey(app);
+      if (!_appImageBusy.add(key)) throw ServiceError('busy');
+      try {
+        await AppImageUpdates(session).restore(app);
+        _updatesAt = null;
+        _facts.invalidate();
+        await _listApps();
+        return _updatesView();
+      } on Object catch (e) {
+        throw ServiceError('restore_failed', '$e');
+      } finally {
+        _appImageBusy.remove(key);
+      }
+    },
     'updates.flatpak': (params) async {
       final plan = uninstallPlan(_app(params), session);
-      if (plan == null || plan.$1 != 'flatpak') throw ServiceError('bad_params');
-      final (ok, message) = await UpdateCheck(session).runFlatpakUpdate(plan.$2!);
+      if (plan == null || plan.$1 != 'flatpak') {
+        throw ServiceError('bad_params');
+      }
+      final (ok, message) = await UpdateCheck(
+        session,
+      ).runFlatpakUpdate(plan.$2!);
       if (!ok) throw ServiceError('update_failed', message);
       (_updates['flatpaks'] as Map).remove(plan.$2);
       return _updatesView();
     },
     'updates.system': (_) async {
       final command = desktop.systemUpdate();
-      if (command == null || !await startDetached(command, session)) throw ServiceError('no_updater');
+      if (command == null || !await startDetached(command, session)) {
+        throw ServiceError('no_updater');
+      }
       _updatesAt = null; // Check again the next time.
       return {'started': true};
     },
@@ -372,14 +484,25 @@ final class CoreService {
       final gid = groups.addGroup(data, _string(params, 'name'));
       final key = params['key'];
       if (key is String && _apps[key] != null) {
-        groups.place(data, _apps[key]!['desktop_id'] as String, gid, null, _memberIds(data, gid));
+        groups.place(
+          data,
+          _apps[key]!['desktop_id'] as String,
+          gid,
+          null,
+          _memberIds(data, gid),
+        );
       }
       return gid;
     }),
     'groups.rename': (params) => _editGroups(
-      (data) => groups.renameGroup(data, _string(params, 'id'), _string(params, 'name')),
+      (data) => groups.renameGroup(
+        data,
+        _string(params, 'id'),
+        _string(params, 'name'),
+      ),
     ),
-    'groups.delete': (params) => _editGroups((data) => groups.deleteGroup(data, _string(params, 'id'))),
+    'groups.delete': (params) =>
+        _editGroups((data) => groups.deleteGroup(data, _string(params, 'id'))),
     'groups.move': (params) => _editGroups((data) {
       final delta = params['delta'];
       if (delta != 1 && delta != -1) throw ServiceError('bad_params');
@@ -395,7 +518,12 @@ final class CoreService {
     ),
     'groups.toggle': (params) => _editGroups((data) {
       final gid = _string(params, 'id');
-      final foldable = {...groups.groupIds(data), groups.other, groups.running, ...desktop.origins};
+      final foldable = {
+        ...groups.groupIds(data),
+        groups.other,
+        groups.running,
+        ...desktop.origins,
+      };
       if (!foldable.contains(gid)) throw ServiceError('bad_params');
       groups.toggleCollapsed(data, gid);
     }),
@@ -409,11 +537,20 @@ final class CoreService {
       return {'cancelled': true};
     },
     'ask.signin': (params) async {
-      final helper = helpers.where((h) => h.command == params['command']).firstOrNull;
+      final helper = helpers
+          .where((h) => h.command == params['command'])
+          .firstOrNull;
       final terminal = desktop.terminal();
       if (helper == null || terminal == null) throw ServiceError('bad_params');
       // The helper's own sign-in, from the table: no text of the user in it.
-      if (!await startDetached([...terminal, 'sh', '-c', helper.login], session)) throw ServiceError('no_terminal');
+      if (!await startDetached([
+        ...terminal,
+        'sh',
+        '-c',
+        helper.login,
+      ], session)) {
+        throw ServiceError('no_terminal');
+      }
       return {'started': true};
     },
     // A website from Details: only http(s), no control characters, the
@@ -424,18 +561,29 @@ final class CoreService {
       if (query.isEmpty || query.length > 100) throw ServiceError('bad_params');
       final icons = await _iconTheme();
       final q = fold(query).replaceAll(' ', '');
-      final theme = (icons.names().where((n) => fold(n).replaceAll(' ', '').contains(q)).toList()..sort())
-          .take(maxThemeResults)
-          .map((n) => {'name': n, 'file': icons.lookup(n)})
-          .where((t) => t['file'] != null)
-          .toList();
-      final online = await _iconChoices.online(query, app['cli_command'] as String?);
+      final theme =
+          (icons
+                  .names()
+                  .where((n) => fold(n).replaceAll(' ', '').contains(q))
+                  .toList()
+                ..sort())
+              .take(maxThemeResults)
+              .map((n) => {'name': n, 'file': icons.lookup(n)})
+              .where((t) => t['file'] != null)
+              .toList();
+      final online = await _iconChoices.online(
+        query,
+        app['cli_command'] as String?,
+      );
       _iconCandidates
         ..clear()
         ..addEntries(online.map((c) => MapEntry(c.$3, c)));
       return {
         'theme': theme,
-        'online': [for (final c in online) {'collection': collectionNames[c.$1], 'slug': c.$2, 'url': c.$3}],
+        'online': [
+          for (final c in online)
+            {'collection': collectionNames[c.$1], 'slug': c.$2, 'url': c.$3},
+        ],
       };
     },
     'icons.preview': (params) async {
@@ -449,7 +597,9 @@ final class CoreService {
       final overrides = _iconChoices.load();
       if (params['name'] case final String name) {
         final icons = await _iconTheme();
-        if (!icons.names().contains(name) || !_iconChoices.validValue(name)) throw ServiceError('not_found');
+        if (!icons.names().contains(name) || !_iconChoices.validValue(name)) {
+          throw ServiceError('not_found');
+        }
         overrides[id] = name;
       } else {
         final candidate = _iconCandidates[params['url']];
@@ -470,18 +620,25 @@ final class CoreService {
     'open.url': (params) async {
       final url = _string(params, 'url');
       final uri = Uri.tryParse(url);
-      if (uri == null || !(uri.isScheme('http') || uri.isScheme('https')) || uri.host.isEmpty ||
-          url.length > 2000 || url.contains(RegExp(r'[\x00-\x20\x7f]'))) {
+      if (uri == null ||
+          !(uri.isScheme('http') || uri.isScheme('https')) ||
+          uri.host.isEmpty ||
+          url.length > 2000 ||
+          url.contains(RegExp(r'[\x00-\x20\x7f]'))) {
         throw ServiceError('bad_params');
       }
       final opener = session.which('xdg-open');
-      if (opener == null || !await startDetached([opener, url], session)) throw ServiceError('no_opener');
+      if (opener == null || !await startDetached([opener, url], session)) {
+        throw ServiceError('no_opener');
+      }
       return {'started': true};
     },
     'packages.managers': (_) async => _managersView(),
     'packages.search': (params) async {
       final query = _string(params, 'query').trim();
-      if (query.isEmpty || query.length > 100 || query.contains(RegExp(r'[\x00-\x1f]'))) {
+      if (query.isEmpty ||
+          query.length > 100 ||
+          query.contains(RegExp(r'[\x00-\x1f]'))) {
         throw ServiceError('bad_params');
       }
       _found = await _managers.search(query, _enabledManagers());
@@ -492,16 +649,21 @@ final class CoreService {
       final plan = await _installPlan(params);
       final command = plan['argv'] as List<String>;
       if (desktop.terminal() == null) throw ServiceError('no_terminal');
-      if (!await startDetached(command, session)) throw ServiceError('no_terminal');
+      if (!await startDetached(command, session)) {
+        throw ServiceError('no_terminal');
+      }
       return {'started': true};
     },
     'apps.uninstall_plan': (params) async => _uninstallPlan(_app(params)),
     'apps.uninstall': (params) => _uninstall(_app(params)),
     'shortcuts.state': (params) async => shortcuts.view(_app(params), params),
     'shortcuts.set': (params) async => shortcuts.assign(_app(params), params),
-    'shortcuts.remove': (params) async => shortcuts.remove(_app(params), params),
-    'shortcuts.disable': (params) async => shortcuts.disable(_app(params), params),
-    'shortcuts.restore': (params) async => shortcuts.restore(_app(params), params),
+    'shortcuts.remove': (params) async =>
+        shortcuts.remove(_app(params), params),
+    'shortcuts.disable': (params) async =>
+        shortcuts.disable(_app(params), params),
+    'shortcuts.restore': (params) async =>
+        shortcuts.restore(_app(params), params),
     'shortcuts.labels': (_) => shortcuts.labels(),
     'shortcuts.default_mods': (params) async {
       final mods = ShortcutService.mods(params['mods']);
@@ -530,18 +692,27 @@ final class CoreService {
     'dock.move': (params) async {
       final id = _string(params, 'id'), target = _string(params, 'target');
       final ids = dock.pinned();
-      if (!ids.contains(id) || !ids.contains(target)) throw ServiceError('not_found');
-      dock.setPinned(movePinned(ids, id, target, after: params['after'] == true));
+      if (!ids.contains(id) || !ids.contains(target)) {
+        throw ServiceError('not_found');
+      }
+      dock.setPinned(
+        movePinned(ids, id, target, after: params['after'] == true),
+      );
       return {'pinned': dock.pinned()};
     },
     'dock.items': (params) async {
       if (params['rescan'] == true || _listed.isEmpty) {
-        _listed = [for (final a in (await _listApps())['apps'] as List) a as Map<String, dynamic>];
+        _listed = [
+          for (final a in (await _listApps())['apps'] as List)
+            a as Map<String, dynamic>,
+        ];
       }
       final clients = dockClients(await _hyprland.clients());
       _clients = clients;
       final items = dockItems(_listed, dock.pinned(), clients);
-      final active = clients.where((c) => c['focusHistoryID'] == 0).firstOrNull?['address'];
+      final active = clients
+          .where((c) => c['focusHistoryID'] == 0)
+          .firstOrNull?['address'];
       return {
         'items': [
           for (final (app, windows, pinned) in items)
@@ -555,7 +726,10 @@ final class CoreService {
                   if (a is Map) {'id': a['id'], 'name': a['name']},
               ],
               'pinned': pinned,
-              'windows': [for (final w in windows) if (Hyprland.validAddress(w['address'])) w['address']],
+              'windows': [
+                for (final w in windows)
+                  if (Hyprland.validAddress(w['address'])) w['address'],
+              ],
               'new_window_action': hasNewWindowAction(app),
             },
         ],
@@ -568,10 +742,15 @@ final class CoreService {
       final app = _app(params);
       final clients = dockClients(await _hyprland.clients());
       _clients = clients;
-      final windows = [for (final w in dockWindowsOf(app, clients)) if (Hyprland.validAddress(w['address'])) w];
+      final windows = [
+        for (final w in dockWindowsOf(app, clients))
+          if (Hyprland.validAddress(w['address'])) w,
+      ];
       if (windows.isEmpty) return _launch(params, null);
       final active = windows.indexWhere((w) => w['focusHistoryID'] == 0);
-      final target = windows[active >= 0 ? (active + 1) % windows.length : 0]['address'] as String;
+      final target =
+          windows[active >= 0 ? (active + 1) % windows.length : 0]['address']
+              as String;
       if (!await _hyprland.focus(target)) throw ServiceError('focus_failed');
       return {'focused': target};
     },
@@ -581,20 +760,28 @@ final class CoreService {
       _clients = clients;
       var closed = 0;
       for (final w in dockWindowsOf(app, clients)) {
-        if (Hyprland.validAddress(w['address']) && await _hyprland.closeWindow(w['address'] as String)) closed++;
+        if (Hyprland.validAddress(w['address']) &&
+            await _hyprland.closeWindow(w['address'] as String)) {
+          closed++;
+        }
       }
       return {'closed': closed};
     },
     // The dock process (`maprisma-launcher --dock`): a running one re-reads its settings.
     'dock.start': (_) async {
       final state = await _dockState();
-      if (state['available'] != true || (state['settings'] as Map)['dock_enabled'] != true) {
+      if (state['available'] != true ||
+          (state['settings'] as Map)['dock_enabled'] != true) {
         return {'started': false, 'reason': state['reason'] ?? 'off'};
       }
-      return {'started': await startDetached([executable, '--dock'], session)};
+      return {
+        'started': await startDetached([executable, '--dock'], session),
+      };
     },
     'dock.open_manager': (_) async {
-      if (!await startDetached([executable, '--toggle'], session)) throw ServiceError('launch_failed');
+      if (!await startDetached([executable, '--toggle'], session)) {
+        throw ServiceError('launch_failed');
+      }
       return {'started': true};
     },
     'settings.get': (_) async => settings.read(),
@@ -625,14 +812,26 @@ final class CoreService {
       'settings': values,
       'bar': bar,
       'edge': dockEdge(values, bar),
-      'sizes': {'band': band, 'item': item, 'room': room, 'grow': dockGrow(values)},
+      'sizes': {
+        'band': band,
+        'item': item,
+        'room': room,
+        'grow': dockGrow(values),
+      },
       'available': omarchy && library,
       'reason': !omarchy ? 'not_omarchy' : (!library ? 'no_layer_shell' : null),
       'look': look,
-      'indicator_color': dockIndicatorColor(values, look['colors'] as Map? ?? const {}),
+      'indicator_color': dockIndicatorColor(
+        values,
+        look['colors'] as Map? ?? const {},
+      ),
       'corners': settings.read()['corners'],
       // The dock follows these files (the app's settings and icons, the bar's edge).
-      'watch': [store.path('settings.json'), store.path('icons.json'), p.join(session.home, '.config/omarchy/shell.json')],
+      'watch': [
+        store.path('settings.json'),
+        store.path('icons.json'),
+        p.join(session.home, '.config/omarchy/shell.json'),
+      ],
     };
   }
 
@@ -668,7 +867,10 @@ final class CoreService {
 
   void _saveGroups(groups.GroupData page) {
     final data = store.readJson('groups.json');
-    store.writeJson('groups.json', {...(data is Map ? data : const {}), 'apps': page});
+    store.writeJson('groups.json', {
+      ...(data is Map ? data : const {}),
+      'apps': page,
+    });
   }
 
   Map<String, dynamic> _groupsView(groups.GroupData data) => {
@@ -688,11 +890,18 @@ final class CoreService {
   /// group_member_ids: the ids of a group's entries in the order they show.
   List<String> _memberIds(groups.GroupData data, String gid) {
     // All entries, hidden ones too: their places stay when they come back.
-    final section = groups.sections(_list, data).where((s) => s.$1 == gid).firstOrNull;
-    return [for (final a in section?.$2 ?? const <Map>[]) a['desktop_id'] as String];
+    final section = groups
+        .sections(_list, data)
+        .where((s) => s.$1 == gid)
+        .firstOrNull;
+    return [
+      for (final a in section?.$2 ?? const <Map>[]) a['desktop_id'] as String,
+    ];
   }
 
-  Future<Map<String, dynamic>> _editGroups(dynamic Function(groups.GroupData) edit) async {
+  Future<Map<String, dynamic>> _editGroups(
+    dynamic Function(groups.GroupData) edit,
+  ) async {
     final data = _loadGroups();
     Object? result;
     try {
@@ -726,7 +935,12 @@ final class CoreService {
       for (final a in apps)
         if (a['installed_at'] case final num at) a['desktop_id'] as String: at,
     };
-    if (noteSeen(seen, [for (final a in apps) a['desktop_id'] as String], 'apps', installed: installed)) {
+    if (noteSeen(
+      seen,
+      [for (final a in apps) a['desktop_id'] as String],
+      'apps',
+      installed: installed,
+    )) {
       _saveSeen(seen);
     }
     _apps.clear();
@@ -739,7 +953,8 @@ final class CoreService {
         ...app,
         'key': key,
         // icons.apply: the icon chosen by hand, else the entry's own.
-        'icon_file': _chosenIcon(chosen[app['desktop_id']], icons) ??
+        'icon_file':
+            _chosenIcon(chosen[app['desktop_id']], icons) ??
             icons.lookup(app['icon'] as String? ?? '') ??
             icons.lookup('application-x-executable'),
         'icon_chosen': chosen.containsKey(app['desktop_id']),
@@ -768,10 +983,17 @@ final class CoreService {
     ];
     final data = _loadGroups();
     final defaults = desktop.defaultDesktops();
-    final running = params['running'] == true ? (Map app) => _running.contains(appKey(app)) : null;
+    final running = params['running'] == true
+        ? (Map app) => _running.contains(appKey(app))
+        : null;
     final sections = view == 'groups'
         ? groups.sections(entries, data, isRunning: running)
-        : groups.originSections(entries, desktop.origins, (app) => desktop.origin(app, defaults), isRunning: running);
+        : groups.originSections(
+            entries,
+            desktop.origins,
+            (app) => desktop.origin(app, defaults),
+            isRunning: running,
+          );
     return {
       'sections': [
         for (final (id, members) in sections)
@@ -791,17 +1013,40 @@ final class CoreService {
     if (request.length > 2000) throw ServiceError('bad_params');
     final command = _string(params, 'helper');
     final piOnline = await _piOnlineNow();
-    final state = helperStates(session, piOnline: piOnline).where((h) => h['command'] == command).firstOrNull;
-    if (state == null || state['installed'] != true) throw ServiceError('no_helper');
-    final answer = params['answer'] is String ? (params['answer'] as String) : null;
-    final language = params['language'] is String ? params['language'] as String : null;
-    settings.store.writeJson('settings.json', {...settings.raw(), 'ask_helper': command});
+    final state = helperStates(
+      session,
+      piOnline: piOnline,
+    ).where((h) => h['command'] == command).firstOrNull;
+    if (state == null || state['installed'] != true) {
+      throw ServiceError('no_helper');
+    }
+    final answer = params['answer'] is String
+        ? (params['answer'] as String)
+        : null;
+    final language = params['language'] is String
+        ? params['language'] as String
+        : null;
+    settings.store.writeJson('settings.json', {
+      ...settings.raw(),
+      'ask_helper': command,
+    });
     if (_apps.isEmpty) await _listApps();
+    // An Ask AI request must see updates even if the background check is still running.
+    if (RegExp(
+      r'update|upgrade|newer version|aktualisier',
+      caseSensitive: false,
+    ).hasMatch(request)) {
+      await _checkUpdates().timeout(
+        const Duration(seconds: 15),
+        onTimeout: _updatesView,
+      );
+    }
     // Short ids keep the prompt small; they map back to the keys here.
     final keys = _apps.keys.toList();
     final ids = {for (var i = 0; i < keys.length; i++) 'a$i': keys[i]};
     final hidden = loadHidden(store);
     final defaults = desktop.defaultDesktops();
+    final availableFlatpaks = _updatesView()['flatpaks'] as Map;
     // The keys that open each app now (any source), so "remove Super + B" finds its app.
     final keysNow = await shortcuts.allLabels(_apps);
     List<Map> facts(Iterable<String> only) => [
@@ -815,8 +1060,17 @@ final class CoreService {
                   ? '${app['description']}'.substring(0, 80)
                   : app['description'],
               'origin': desktop.origin(app, defaults),
-              if ((_updates['apps'] as Map).containsKey(app['desktop_path'])) 'update': true,
-              if (uninstallPlan(app, session) case (final kind, _) when kind != 'webapp') 'removable': true,
+              if ((_updates['apps'] as Map).containsKey(app['desktop_path']) ||
+                  (_updates['appimages'] as Map).containsKey(e.value) ||
+                  availableFlatpaks.containsKey(e.value))
+                'update': true,
+              if ((_updates['appimage_unknown'] as Map).containsKey(e.value))
+                'update_status': 'unknown',
+              if (uninstallPlan(app, session) case (
+                final kind,
+                _,
+              ) when kind != 'webapp')
+                'removable': true,
               // Hidden apps too (marked), so they can be listed and unhidden.
               if (hidden.contains(app['desktop_id'])) 'hidden': true,
               'shortcuts': ?keysNow[e.value],
@@ -828,28 +1082,50 @@ final class CoreService {
       text = await _ask.run(
         piOnline: piOnline,
         command,
-        askPrompt(request: request, answer: answer, installed: facts(const []), managers: managers, language: language),
+        askPrompt(
+          request: request,
+          answer: answer,
+          installed: facts(const []),
+          managers: managers,
+          language: language,
+        ),
       );
     } on Object catch (e) {
       throw ServiceError('helper_failed', '$e');
     }
     final first = checkAsk(firstJson(text), ids.keys.toSet());
-    List<String> toKeys(Object? list) => [for (final id in (list as List? ?? const [])) ?ids[id]];
+    List<String> toKeys(Object? list) => [
+      for (final id in (list as List? ?? const [])) ?ids[id],
+    ];
     switch (first['action']) {
       case 'search':
         final merged = <Found>[];
         for (final q in first['queries'] as List) {
           for (final f in await _managers.search(q as String, managers)) {
-            if (!merged.any((m) => m['manager'] == f['manager'] && m['package'] == f['package'])) merged.add(f);
+            if (!merged.any(
+              (m) =>
+                  m['manager'] == f['manager'] && m['package'] == f['package'],
+            )) {
+              merged.add(f);
+            }
           }
         }
         // Official repositories first, the AUR last (Antigravity's review, 6b).
-        merged.sort((a, b) => (a['aur'] == true ? 1 : 0).compareTo(b['aur'] == true ? 1 : 0));
+        merged.sort(
+          (a, b) =>
+              (a['aur'] == true ? 1 : 0).compareTo(b['aur'] == true ? 1 : 0),
+        );
         final found = merged.take(maxSearchResults).toList();
         _found = found;
         final already = first['installed'] as List;
         if (found.isEmpty) {
-          return {'action': 'install', 'summary': '', 'picks': [], 'installed': toKeys(already), 'queries': first['queries']};
+          return {
+            'action': 'install',
+            'summary': '',
+            'picks': [],
+            'installed': toKeys(already),
+            'queries': first['queries'],
+          };
         }
         String second;
         try {
@@ -884,29 +1160,51 @@ final class CoreService {
           'action': 'install',
           'summary': picks['summary'],
           'picks': picks['picks'],
-          'installed': toKeys({...already, ...picks['installed'] as List}.toList()),
+          'installed': toKeys(
+            {...already, ...picks['installed'] as List}.toList(),
+          ),
           'queries': first['queries'],
         };
       case 'remove' || 'update' || 'explain':
         return {...first, 'apps': toKeys(first['apps'])};
       // Hide only what shows, unhide only what is hidden; each still needs the user's click.
       case 'hide':
-        return {...first, 'apps': [for (final k in toKeys(first['apps'])) if (!hidden.contains(_apps[k]?['desktop_id'])) k]};
+        return {
+          ...first,
+          'apps': [
+            for (final k in toKeys(first['apps']))
+              if (!hidden.contains(_apps[k]?['desktop_id'])) k,
+          ],
+        };
       case 'unhide':
-        return {...first, 'apps': [for (final k in toKeys(first['apps'])) if (hidden.contains(_apps[k]?['desktop_id'])) k]};
+        return {
+          ...first,
+          'apps': [
+            for (final k in toKeys(first['apps']))
+              if (hidden.contains(_apps[k]?['desktop_id'])) k,
+          ],
+        };
       // Shortcuts: the GUI shows the shortcut card per app; every change is the user's click there.
       case 'shortcuts':
         final apps = toKeys(first['apps']);
         String name(String k) => '${_apps[k]?['name']}'.toLowerCase();
         // None named: every app with a shortcut, by name.
-        return {'action': 'shortcuts', 'apps': apps.isNotEmpty ? apps : ([...keysNow.keys]..sort((a, b) => name(a).compareTo(name(b))))};
+        return {
+          'action': 'shortcuts',
+          'apps': apps.isNotEmpty
+              ? apps
+              : ([...keysNow.keys]..sort((a, b) => name(a).compareTo(name(b)))),
+        };
       case 'remove_shortcut' || 'add_shortcut':
         return {...first, 'apps': toKeys(first['apps'])};
       case 'list_hidden':
         // The core knows: no ids from the helper needed.
         return {
           'action': 'list_hidden',
-          'apps': [for (final e in _apps.entries) if (hidden.contains(e.value['desktop_id'])) e.key],
+          'apps': [
+            for (final e in _apps.entries)
+              if (hidden.contains(e.value['desktop_id'])) e.key,
+          ],
         };
       default:
         return first;
@@ -916,7 +1214,9 @@ final class CoreService {
   /// A chosen icon's file: ours (when still there) or the theme's.
   static String? _chosenIcon(String? chosen, IconTheme icons) {
     if (chosen == null) return null;
-    if (chosen.startsWith('/')) return File(chosen).existsSync() ? chosen : null;
+    if (chosen.startsWith('/')) {
+      return File(chosen).existsSync() ? chosen : null;
+    }
     return icons.lookup(chosen);
   }
 
@@ -934,7 +1234,9 @@ final class CoreService {
   /// How a normal start runs the app (for Hyprland's exec with a rule):
   /// uwsm-app with the desktop file on Omarchy, else the entry's own argv.
   List<String> _startArgv(Map app) {
-    if (app['argv'] case final List argv when argv.isNotEmpty) return [for (final a in argv) '$a'];
+    if (app['argv'] case final List argv when argv.isNotEmpty) {
+      return [for (final a in argv) '$a'];
+    }
     final path = app['desktop_path'] as String? ?? '';
     final uwsm = session.which('uwsm-app');
     if (path.isNotEmpty && uwsm != null) return [uwsm, '--', path];
@@ -944,7 +1246,8 @@ final class CoreService {
   }
 
   List<String> _enabledManagers() =>
-      (settings.read()['package_managers'] as List?)?.cast<String>() ?? _managers.defaults();
+      (settings.read()['package_managers'] as List?)?.cast<String>() ??
+      _managers.defaults();
 
   Map<String, dynamic> _managersView() {
     final there = _managers.installed();
@@ -953,7 +1256,12 @@ final class CoreService {
       'managers': [
         for (final (id, label, _) in managerKinds)
           if (there[id] case final program?)
-            {'id': id, 'label': label, 'program': p.basename(program), 'enabled': enabled.contains(id)},
+            {
+              'id': id,
+              'label': label,
+              'program': p.basename(program),
+              'enabled': enabled.contains(id),
+            },
       ],
     };
   }
@@ -961,9 +1269,14 @@ final class CoreService {
   /// What an install will run: only a package the last search found, of an
   /// enabled manager; the exact command line is shown before it runs.
   Future<Map<String, dynamic>> _installPlan(Map<String, dynamic> params) async {
-    final manager = _string(params, 'manager'), package = _string(params, 'package');
-    final found = _found.where((f) => f['manager'] == manager && f['package'] == package).firstOrNull;
-    if (found == null || !_enabledManagers().contains(manager)) throw ServiceError('not_found');
+    final manager = _string(params, 'manager'),
+        package = _string(params, 'package');
+    final found = _found
+        .where((f) => f['manager'] == manager && f['package'] == package)
+        .firstOrNull;
+    if (found == null || !_enabledManagers().contains(manager)) {
+      throw ServiceError('not_found');
+    }
     // The app's own terminal needs no outside one; packages.install does.
     final terminal = desktop.terminal();
     final argv = _managers.installCommand(manager, found, terminal ?? const []);
@@ -994,16 +1307,24 @@ final class CoreService {
 
   /// A terminal line without the outside terminal's "Press Enter" at the end.
   static List<String> _bare(List<String> argv) => [
-    for (final a in argv) a.replaceAll("; echo; read -r -p 'Press Enter to close. ' _", ''),
+    for (final a in argv)
+      a.replaceAll("; echo; read -r -p 'Press Enter to close. ' _", ''),
   ];
 
   /// What the app's terminal runs for an action, and the line it shows.
-  Future<(List<String>, String)> _termCommand(Map<String, dynamic> params) async {
+  Future<(List<String>, String)> _termCommand(
+    Map<String, dynamic> params,
+  ) async {
     switch (params['action']) {
       case 'install':
-        final manager = _string(params, 'manager'), package = _string(params, 'package');
-        final found = _found.where((f) => f['manager'] == manager && f['package'] == package).firstOrNull;
-        if (found == null || !_enabledManagers().contains(manager)) throw ServiceError('not_found');
+        final manager = _string(params, 'manager'),
+            package = _string(params, 'package');
+        final found = _found
+            .where((f) => f['manager'] == manager && f['package'] == package)
+            .firstOrNull;
+        if (found == null || !_enabledManagers().contains(manager)) {
+          throw ServiceError('not_found');
+        }
         final argv = _managers.installCommand(manager, found, const []);
         if (argv == null) throw ServiceError('not_found');
         return (_bare(argv), _shownCommand(argv));
@@ -1014,11 +1335,19 @@ final class CoreService {
         if (what == null) throw ServiceError('cannot_uninstall');
         List<String>? argv;
         if (plan['kind'] == 'package') {
-          argv = _managers.removeCommand(plan['manager'] as String, what, const []);
-        } else if (plan['kind'] == 'omarchy' && plan['how'] == 'package' && validPackage(what)) {
+          argv = _managers.removeCommand(
+            plan['manager'] as String,
+            what,
+            const [],
+          );
+        } else if (plan['kind'] == 'omarchy' &&
+            plan['how'] == 'package' &&
+            validPackage(what)) {
           // omarchy-remove-launcher-entry runs this in its own terminal.
           argv = ['sh', '-c', 'sudo pacman -Rns -- "\$1"', 'uninstall', what];
-        } else if (plan['kind'] == 'omarchy' && plan['how'] == 'flatpak' && validPackage(what)) {
+        } else if (plan['kind'] == 'omarchy' &&
+            plan['how'] == 'flatpak' &&
+            validPackage(what)) {
           argv = ['sh', '-c', 'flatpak uninstall -- "\$1"', 'uninstall', what];
         }
         // Other kinds (trash, web apps, a Flatpak alone) need no terminal.
@@ -1027,7 +1356,12 @@ final class CoreService {
       case 'system':
         final argv = desktop.systemUpdateInner();
         if (argv == null) throw ServiceError('not_terminal');
-        return (argv, argv.length == 3 && argv[1] == '-c' ? argv[2] : argv.map(p.basename).join(' '));
+        return (
+          argv,
+          argv.length == 3 && argv[1] == '-c'
+              ? argv[2]
+              : argv.map(p.basename).join(' '),
+        );
       default:
         throw ServiceError('bad_params');
     }
@@ -1046,24 +1380,46 @@ final class CoreService {
     // App Manager did), also for Omarchy's web apps and TUIs. Browser-made web
     // apps stay the browser's.
     final remover = session.which('omarchy-remove-launcher-entry');
-    if (desktop is OmarchyDesktop && remover != null && desktopPath.isNotEmpty && plan.$1 != 'webapp') {
+    if (desktop is OmarchyDesktop &&
+        remover != null &&
+        desktopPath.isNotEmpty &&
+        plan.$1 != 'webapp') {
       final how = await _omarchyRemoval(app);
       if (how != null) {
-        if (how.$1 == 'package' && (desktop as OmarchyDesktop).basePackages.contains(how.$2)) warnings.add('omarchy');
-        return {'kind': 'omarchy', 'how': how.$1, 'what': how.$2, 'warnings': warnings};
+        if (how.$1 == 'package' &&
+            (desktop as OmarchyDesktop).basePackages.contains(how.$2)) {
+          warnings.add('omarchy');
+        }
+        return {
+          'kind': 'omarchy',
+          'how': how.$1,
+          'what': how.$2,
+          'warnings': warnings,
+        };
       }
     }
     if (plan.$1 == 'package') {
       if (app['sandboxed'] == true && desktopPath.contains('/snapd/')) {
         final name = p.basename(desktopPath).split('_').first;
-        return {'kind': 'package', 'manager': 'snap', 'what': name, 'warnings': warnings};
+        return {
+          'kind': 'package',
+          'manager': 'snap',
+          'what': name,
+          'warnings': warnings,
+        };
       }
       final owner = await _managers.ownerOf(desktopPath);
       if (owner == null) return {'kind': null};
-      if (desktop is OmarchyDesktop && (desktop as OmarchyDesktop).basePackages.contains(owner.$2)) {
+      if (desktop is OmarchyDesktop &&
+          (desktop as OmarchyDesktop).basePackages.contains(owner.$2)) {
         warnings.add('omarchy');
       }
-      return {'kind': 'package', 'manager': owner.$1, 'what': owner.$2, 'warnings': warnings};
+      return {
+        'kind': 'package',
+        'manager': owner.$1,
+        'what': owner.$2,
+        'warnings': warnings,
+      };
     }
     return {'kind': plan.$1, 'what': plan.$2, 'warnings': warnings};
   }
@@ -1074,19 +1430,30 @@ final class CoreService {
     final path = app['desktop_path'] as String;
     final text = readDesktopFile(path);
     if (text == null) return null;
-    final exec = RegExp(r'^Exec=(.*)$', multiLine: true).firstMatch(text)?[1] ?? '';
+    final exec =
+        RegExp(r'^Exec=(.*)$', multiLine: true).firstMatch(text)?[1] ?? '';
     final name = '${app['name']}';
-    if (RegExp(r'omarchy-launch-webapp|omarchy-webapp-handler').hasMatch(exec)) return ('webapp', name);
-    if (RegExp(r'(^|\s)(\$TERMINAL|xdg-terminal-exec)\s.*-e(\s|$)').hasMatch(exec)) return ('tui', name);
+    if (RegExp(r'omarchy-launch-webapp|omarchy-webapp-handler').hasMatch(exec)) {
+      return ('webapp', name);
+    }
+    if (RegExp(
+      r'(^|\s)(\$TERMINAL|xdg-terminal-exec)\s.*-e(\s|$)',
+    ).hasMatch(exec)) {
+      return ('tui', name);
+    }
     final env = session.environment;
     final userApps = p.join(
-      env['XDG_DATA_HOME']?.isNotEmpty == true ? env['XDG_DATA_HOME']! : p.join(session.home, '.local/share'),
+      env['XDG_DATA_HOME']?.isNotEmpty == true
+          ? env['XDG_DATA_HOME']!
+          : p.join(session.home, '.local/share'),
       'applications',
     );
     if (p.dirname(path) == userApps) return ('own', name);
     final owner = await _managers.ownerOf(path);
     if (owner != null && owner.$1 == 'pacman') return ('package', owner.$2);
-    if (app['sandboxed'] == true && path.contains('/flatpak/')) return ('flatpak', app['desktop_id'] as String);
+    if (app['sandboxed'] == true && path.contains('/flatpak/')) {
+      return ('flatpak', app['desktop_id'] as String);
+    }
     return null;
   }
 
@@ -1099,10 +1466,16 @@ final class CoreService {
         final argv = [remover, app['desktop_id'] as String, '${app['name']}'];
         // Packages and Flatpaks open Omarchy's floating terminal; the rest is done at once.
         if (plan['how'] == 'package' || plan['how'] == 'flatpak') {
-          if (!await startDetached(argv, session)) throw ServiceError('uninstall_failed');
+          if (!await startDetached(argv, session)) {
+            throw ServiceError('uninstall_failed');
+          }
           return {'started': true};
         }
-        final out = await readBoundedText(argv, timeout: const Duration(seconds: 60), environment: session.environment);
+        final out = await readBoundedText(
+          argv,
+          timeout: const Duration(seconds: 60),
+          environment: session.environment,
+        );
         if (out == null) throw ServiceError('uninstall_failed');
         return {'done': true};
       case 'trash':
@@ -1122,8 +1495,16 @@ final class CoreService {
         return {'done': true};
       case 'package':
         final terminal = desktop.terminal();
-        final argv = terminal == null ? null : _managers.removeCommand(plan['manager'] as String, what!, terminal);
-        if (argv == null || !await startDetached(argv, session)) throw ServiceError('no_terminal');
+        final argv = terminal == null
+            ? null
+            : _managers.removeCommand(
+                plan['manager'] as String,
+                what!,
+                terminal,
+              );
+        if (argv == null || !await startDetached(argv, session)) {
+          throw ServiceError('no_terminal');
+        }
         return {'started': true};
       default:
         throw ServiceError('cannot_uninstall');
@@ -1140,6 +1521,12 @@ final class CoreService {
 
   Map<String, dynamic> _updatesView() => {
     'apps': _updates['apps'],
+    'appimages': _updates['appimages'],
+    'appimage_unknown': _updates['appimage_unknown'],
+    'appimage_restorable': [
+      for (final e in _apps.entries)
+        if (AppImageUpdates(session).canRestore(e.value)) e.key,
+    ],
     'flatpaks': {
       for (final e in _apps.entries)
         if (uninstallPlan(e.value, session) case ('flatpak', final id?))
@@ -1150,11 +1537,21 @@ final class CoreService {
 
   /// updates.check, at most every 30 minutes unless forced; one at a time.
   Future<Map<String, dynamic>> _checkUpdates({bool force = false}) {
-    final fresh = _updatesAt != null && DateTime.now().difference(_updatesAt!) < const Duration(minutes: 30);
+    final fresh =
+        _updatesAt != null &&
+        DateTime.now().difference(_updatesAt!) < const Duration(minutes: 30);
     if (fresh && !force) return Future.value(_updatesView());
     return _checking ??= () async {
       try {
-        _updates = await UpdateCheck(session).check([for (final a in _list) a['desktop_path'] as String? ?? '']);
+        final (packageUpdates, appImageUpdates) = await (
+          UpdateCheck(
+            session,
+          ).check([for (final a in _list) a['desktop_path'] as String? ?? '']),
+          AppImageUpdates(session).check(_apps),
+        ).wait;
+        _updates = {...packageUpdates,
+          'appimages': appImageUpdates['updates'],
+          'appimage_unknown': appImageUpdates['unknown']};
         _updatesAt = DateTime.now();
         return _updatesView();
       } finally {
@@ -1163,13 +1560,23 @@ final class CoreService {
     }();
   }
 
-  Future<Map<String, dynamic>> _launch(Map<String, dynamic> params, String? action) async {
+  Future<Map<String, dynamic>> _launch(
+    Map<String, dynamic> params,
+    String? action,
+  ) async {
     final app = _app(params);
     final seen = cleanSeen(store.readJson('seen.json', cap: 512 * 1024));
-    if (openedApp(seen, app['desktop_id'] as String)) _saveSeen(seen); // Opened once: no longer new.
+    if (openedApp(seen, app['desktop_id'] as String)) {
+      _saveSeen(seen); // Opened once: no longer new.
+    }
     final ok = action == null
         ? await desktop.launch(app)
-        : await launchApp(app, session, terminal: desktop.terminal(), action: action);
+        : await launchApp(
+            app,
+            session,
+            terminal: desktop.terminal(),
+            action: action,
+          );
     if (!ok) throw ServiceError('launch_failed');
     return {'started': true};
   }
