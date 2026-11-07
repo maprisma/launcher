@@ -12,7 +12,7 @@ import 'shlex.dart';
 
 const terminalPrograms = {
   'foot', 'footclient', 'alacritty', 'kitty', 'ghostty', 'wezterm', 'xterm',
-  'ptyxis', 'kgx', 'gnome-terminal', 'gnome-terminal-server', 'konsole',
+  'cosmic-term', 'ptyxis', 'kgx', 'gnome-terminal', 'gnome-terminal-server', 'konsole',
 };
 const _shared = {'sh', 'bash', 'env', 'flatpak', 'gtk-launch', 'python', 'python3', 'java'};
 

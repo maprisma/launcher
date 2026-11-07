@@ -14,9 +14,9 @@ A request is `{"id", "protocol": 1, "method", "params"}`, the answer `{"id", "re
 | `apps.sections` | `view` (groups, origin), `keys` (the shown entries, in order) | `sections` [{`id`, `keys`}], plus the groups |
 | `apps.hide` | `key`, `hidden` | `hidden` |
 | `apps.facts` | — | `facts`: {app key: size, package, version, … (details.app_facts)} |
-| `apps.running` | — | `running` (app keys); on Omarchy also `states` {key: `active` (open windows) or `background`} |
-| `apps.windows` | `key` | `windows` (Hyprland clients of the app; empty off Hyprland) |
-| `apps.close` | `key`, `address`? (one window `apps.windows` listed; none: all) | `closed` (how many of the app's windows were asked to close, as their ✕); `not_available` off Hyprland |
+| `apps.running` | — | `running` (app keys); on Omarchy and COSMIC also `states` {key: `active` (open windows) or `background`} |
+| `apps.windows` | `key` | `windows` (the app's Hyprland or COSMIC windows: `address`, `title`, `workspace`; empty on desktops without a window source) |
+| `apps.close` | `key`, `address`? (one window `apps.windows` listed; none: all) | `closed` (how many of the app's windows were asked to close, as their ✕); `not_available` without Hyprland/COSMIC window management |
 | `window.focus` | `address` (one `apps.windows` just listed) | `focused`; `not_found`, `focus_failed` |
 | `apps.open_floating` | `key` | `started` (Hyprland exec with float); `launch_failed` |
 | `apps.open_on_workspace` | `key`, `workspace` (int) | `started`; `bad_params`, `launch_failed` |
@@ -76,3 +76,21 @@ Shortcut levels (`keys[].level`): `free`, `same` (already opens this), `retarget
 app), `launcher` (another app's launcher shortcut: it moves), `custom` (the user's own shortcut), `desktop` (the
 desktop's default: GNOME, COSMIC, Omarchy). Modifiers are SUPER, SHIFT, CTRL, ALT; keys only those of the key map
 (`keyMapRows` in shortcuts.dart); actions only the entry's own.
+
+COSMIC window routes use the bundled `maprisma-launcher-windows` helper (then PATH),
+with bounded output and a deadline. It uses ext-foreign-toplevel-list and COSMIC
+toplevel info/management, waits up to 500 ms for the initial info batch, and
+returns stable opaque identifiers in the existing `address` field. Identifiers
+must be nonempty, at most 512 characters, and contain no control characters.
+Focus accepts only a previously listed id; close re-reads windows and only
+closes those belonging to the requested app.
+
+COSMIC matches app_id case-insensitively against desktop_id (without .desktop),
+StartupWMClass, or the Exec basename. Terminal-command entries never claim
+a terminal window; their running command gives them `background` state.
+`active` means an open window, including unfocused windows on other workspaces.
+The Running card/section and footer Running filter select only `active` when
+states are supplied, while background marks remain in ordinary groups.
+GNOME/generic retain process-based running selection without states. If the
+COSMIC helper is missing or unavailable, states are omitted and process-based
+selection is used until a window snapshot can be obtained.

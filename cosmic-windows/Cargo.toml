@@ -1,0 +1,13 @@
+[package]
+name = "maprisma-launcher-windows"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+serde_json = "1"
+cosmic-client-toolkit = { git = "https://github.com/pop-os/cosmic-protocols", rev = "c0cff4d" }
+sctk = { package = "smithay-client-toolkit", version = "0.20" }
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32", features = ["client", "staging"] }
+libc = "0.2"

@@ -225,3 +225,9 @@ No add-on runs code.
   facts; broad update questions use the core's checked list so a helper cannot say none when updates were
   found. The app menu and Ask AI can install an AppImage update with a backup of the old binary, and cards
   show installed package, Flatpak and AppImage versions. AppImages without update information remain unknown.
+
+- **2026-11-08 — COSMIC windows:** offline Rust toplevel helper, desktop-id /
+  StartupWMClass / executable matching, window lists, focus and close through the
+  existing routes. Running sections and the footer filter use open windows on
+  COSMIC and Omarchy; background process marks remain in groups. GNOME/generic
+  keep process matching. The release bundles the helper beside the app.

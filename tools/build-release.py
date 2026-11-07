@@ -60,6 +60,9 @@ def main():
         bundle = stage / 'build/linux/x64/release/bundle'
         if not (bundle / BINARY).is_file():
             sys.exit(f'no {BINARY} in the bundle')
+        subprocess.run(['cargo', 'build', '--release', '--offline'],
+                       cwd=ROOT / 'cosmic-windows', check=True)
+        shutil.copy2(ROOT / 'cosmic-windows/target/release/maprisma-launcher-windows', bundle)
         top = Path(temp) / f'{BINARY}-{ver}'
         shutil.copytree(bundle, top / 'app', symlinks=True)
         share = ROOT / 'packaging/share'

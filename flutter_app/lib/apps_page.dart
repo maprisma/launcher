@@ -148,8 +148,9 @@ class AppsPageState extends State<AppsPage> {
   /// Running entries (keys), from the core's process scan every few seconds.
   Set<String> running = {};
 
-  /// Omarchy: "active" (open windows) or "background" per running key.
+  /// Omarchy / COSMIC: "active" (open windows) or "background" per running key.
   Map<String, String> runStates = const {};
+  bool windowStatesKnown = false;
 
   /// Updates: {"apps": {desktop path: [package, installed, available]},
   /// "flatpaks": {key: [installed, available]}}.
@@ -278,12 +279,14 @@ class AppsPageState extends State<AppsPage> {
       final changed =
           now.length != running.length ||
           !now.containsAll(running) ||
-          !mapEquals(states, runStates);
+          !mapEquals(states, runStates) ||
+          windowStatesKnown != result.containsKey('states');
       if (!mounted) return;
       if (changed) {
         setState(() {
           running = now;
           runStates = states;
+          windowStatesKnown = result.containsKey('states');
         });
       }
       if (changed || always) await _refreshSections();
@@ -458,11 +461,14 @@ class AppsPageState extends State<AppsPage> {
           ? tr('Update status unknown')
           : null;
 
+  bool inRunningView(Map app) =>
+      windowStatesKnown ? runStates[app['key']] == 'active' : isRunning(app);
+
   bool isRunning(Map app) => running.contains(app['key']);
 
   /// has_mark: whether an entry shows this legend mark.
   bool hasMark(Map app, String mark) => switch (mark) {
-    'running' => isRunning(app),
+    'running' => inRunningView(app),
     'update' => updateNote(app) != null,
     'new' => app['new'] == true,
     'hidden' => app['hidden'] == true,
@@ -623,7 +629,7 @@ class AppsPageState extends State<AppsPage> {
     if (view == AppView.list || sections.isEmpty) {
       // Stable: running apps first, each part in the usual order.
       final ordered = runningFirst
-          ? [...list.where(isRunning), ...list.where((a) => !isRunning(a))]
+          ? [...list.where(inRunningView), ...list.where((a) => !inRunningView(a))]
           : list;
       return [for (final a in ordered) AppRow(a)];
     }
@@ -1516,41 +1522,11 @@ class AppsPageState extends State<AppsPage> {
     }
   }
 
+  /// Updates at once: the core checks the release's SHA-256 and keeps the
+  /// previous version as .bak (Restore takes it back).
   Future<void> _updateAppImage(Map app) async {
     final release = (updates['appimages'] as Map?)?[app['key']];
     if (release is! Map || !mounted) return;
-    final size = int.tryParse('${release['size'] ?? ''}');
-    final approved = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(tr('Review AppImage update')),
-        content: SelectableText(
-          [
-            '${app['name']}',
-            '${release['installed'] == '' ? tr('Version unknown') : release['installed']} → ${release['version'] == '' ? tr('Version unknown') : release['version']}',
-            '',
-            '${tr('GitHub')}: ${release['owner']}/${release['repo']}',
-            '${tr('Tag')}: ${release['tag']}',
-            '${tr('Asset')}: ${release['filename']}',
-            if (size != null) '${tr('Size')}: ${(size / 1048576).toStringAsFixed(1)} MB',
-            '${tr('SHA-256 (GitHub release)')}: ${release['sha256']}',
-            '',
-            '${tr('Previous version saved at')}: ${release['path']}.bak',
-          ].join('\n'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(tr('Cancel')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(tr('Update')),
-          ),
-        ],
-      ),
-    );
-    if (approved != true || !mounted) return;
     _tell(trf('Updating {0}…', [app['name']]));
     try {
       final result = await widget.core('updates.appimage', {'key': app['key']});

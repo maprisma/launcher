@@ -22,6 +22,7 @@ import 'groups.dart' as groups;
 import 'icon_theme.dart';
 import 'icons.dart';
 import 'hyprland.dart';
+import 'cosmic_windows.dart';
 import 'plugins.dart';
 import 'launch.dart';
 import 'newapps.dart';
@@ -80,6 +81,8 @@ final class CoreService {
   List<Found> _found = [];
   late final _ask = AskRunner(session);
   late final _iconChoices = IconChoices(session, store);
+  late final _cosmic = CosmicWindows(session, executable);
+  Map<String, String>? _runStates;
   late final _hyprland = Hyprland(session);
   late final _plugins = ShellPlugins(session);
   late final _admin = Admin(session);
@@ -115,13 +118,18 @@ final class CoreService {
   Map<String, int> _pluginUpdates = {};
   DateTime? _pluginUpdatesAt;
 
-  /// The last window list (Hyprland): only these addresses can be focused.
+  /// The last compositor window list: only these addresses can be focused.
   List<Map> _clients = const [];
 
   /// Change icon: the last search's online candidates, by url (only these
   /// can be previewed or chosen).
   final _iconCandidates = <String, Candidate>{};
-  Map<String, dynamic> _updates = {'apps': {}, 'flatpaks': {}, 'appimages': {}, 'appimage_unknown': {}};
+  Map<String, dynamic> _updates = {
+    'apps': {},
+    'flatpaks': {},
+    'appimages': {},
+    'appimage_unknown': {},
+  };
   final Set<String> _appImageBusy = {};
   DateTime? _updatesAt;
   Future<Map<String, dynamic>>? _checking;
@@ -151,23 +159,51 @@ final class CoreService {
       if (desktop is OmarchyDesktop && _hyprland.available) {
         _clients = await _hyprland.clients();
         final states = _hyprland.states(_apps, _clients, names, exes);
+        _runStates = states;
         _running = states.keys.toSet();
         return {'running': _running.toList(), 'states': states};
       }
+      if (desktop is CosmicDesktop) {
+        final clients = await _cosmic.clients();
+        _clients = clients ?? const [];
+        if (clients != null) {
+          final states = cosmicStates(_apps, clients, names, exes);
+          _runStates = states;
+          _running = states.keys.toSet();
+          return {'running': _running.toList(), 'states': states};
+        }
+      }
+      _runStates = null;
       _running = runningApps(_apps, names, exes);
       return {'running': _running.toList()};
     },
     'apps.windows': (params) async {
       final app = _app(params);
+      if (desktop is CosmicDesktop) {
+        _clients = await _cosmic.clients() ?? const [];
+        return {'windows': _cosmic.windowsOf(app, _clients)};
+      }
       if (!_hyprland.available) return {'windows': const []};
       _clients = await _hyprland.clients();
       return {'windows': _hyprland.windowsOf(app, _clients)};
     },
-    // Close: Hyprland asks each of the app's windows (or the chosen one) to
-    // close (as its ✕); the app may still ask to save. Only windows Hyprland
-    // lists now.
+    // Close: the compositor asks each app window (or the chosen one) to
+    // close as its ✕; the app may still ask to save. Only windows listed now.
     'apps.close': (params) async {
       final app = _app(params);
+      if (desktop is CosmicDesktop) {
+        final clients = await _cosmic.clients();
+        if (clients == null) throw ServiceError('not_available');
+        _clients = clients;
+        var closed = 0;
+        for (final w in _cosmic.windowsOf(app, clients)) {
+          if (params['address'] != null && params['address'] != w['address']) {
+            continue;
+          }
+          if (await _cosmic.closeWindow(w['address'] as String)) closed++;
+        }
+        return {'closed': closed};
+      }
       if (!_hyprland.available) throw ServiceError('not_available');
       _clients = await _hyprland.clients();
       final address = params['address'];
@@ -183,6 +219,14 @@ final class CoreService {
     },
     'window.focus': (params) async {
       final address = _string(params, 'address');
+      if (desktop is CosmicDesktop) {
+        if (!CosmicWindows.validId(address) ||
+            !_clients.any((c) => c['id'] == address)) {
+          throw ServiceError('not_found');
+        }
+        if (!await _cosmic.focus(address)) throw ServiceError('focus_failed');
+        return {'focused': true};
+      }
       // Only a window Hyprland listed just now.
       if (!_clients.any((c) => c['address'] == address)) {
         throw ServiceError('not_found');
@@ -199,7 +243,10 @@ final class CoreService {
     'apps.open_on_workspace': (params) async {
       final workspace = params['workspace'];
       if (workspace is! int) throw ServiceError('bad_params');
-      if (!await _hyprland.execOnWorkspace(_startArgv(_app(params)), workspace)) {
+      if (!await _hyprland.execOnWorkspace(
+        _startArgv(_app(params)),
+        workspace,
+      )) {
         throw ServiceError('launch_failed');
       }
       return {'started': true};
@@ -984,7 +1031,7 @@ final class CoreService {
     final data = _loadGroups();
     final defaults = desktop.defaultDesktops();
     final running = params['running'] == true
-        ? (Map app) => _running.contains(appKey(app))
+        ? (Map app) => inRunningCard(appKey(app), _running, _runStates)
         : null;
     final sections = view == 'groups'
         ? groups.sections(entries, data, isRunning: running)
@@ -1433,7 +1480,9 @@ final class CoreService {
     final exec =
         RegExp(r'^Exec=(.*)$', multiLine: true).firstMatch(text)?[1] ?? '';
     final name = '${app['name']}';
-    if (RegExp(r'omarchy-launch-webapp|omarchy-webapp-handler').hasMatch(exec)) {
+    if (RegExp(
+      r'omarchy-launch-webapp|omarchy-webapp-handler',
+    ).hasMatch(exec)) {
       return ('webapp', name);
     }
     if (RegExp(
@@ -1549,9 +1598,11 @@ final class CoreService {
           ).check([for (final a in _list) a['desktop_path'] as String? ?? '']),
           AppImageUpdates(session).check(_apps),
         ).wait;
-        _updates = {...packageUpdates,
+        _updates = {
+          ...packageUpdates,
           'appimages': appImageUpdates['updates'],
-          'appimage_unknown': appImageUpdates['unknown']};
+          'appimage_unknown': appImageUpdates['unknown'],
+        };
         _updatesAt = DateTime.now();
         return _updatesView();
       } finally {
