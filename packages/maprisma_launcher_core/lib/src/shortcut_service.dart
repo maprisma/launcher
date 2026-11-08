@@ -121,6 +121,9 @@ final class GnomeBackend implements ShortcutBackend {
       previousApplied: [for (final a in previous) a as Map],
       ownPrefix: ownPrefix,
       command: command,
+      // KDE rebinds its own keys and drops a launcher key another action
+      // holds; GNOME and COSMIC keep the reference's behaviour.
+      takeConflicts: settings is KdeSettings,
     );
     store.writeJson(stateFile, saved);
   }

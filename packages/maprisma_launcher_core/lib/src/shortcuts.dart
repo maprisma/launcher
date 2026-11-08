@@ -640,19 +640,52 @@ Future<void> giveBack(KeySettings settings, String where, String accel) async {
   if (!current.any((a) => sameAccel(a, accel))) await settings.setStrv(schema, key, [...current, accel]);
 }
 
+/// The keys other bindings hold that a launcher shortcut of [state] uses,
+/// as {(where, the launcher's accel)}: those bound now, and those taken that
+/// way before ([previous]) while a launcher shortcut still uses their key.
+/// A shortcut only records the binding it took when it was made
+/// (`taken_from`); the desktop can bind its key again later (KDE did, for
+/// "Walk through activities (Reverse)" on Super+Shift+A), and a state moved
+/// from another desktop names bindings that are not there. KDE then drops
+/// the launcher's key without an error.
+Future<Set<(String, String)>> conflictingKeys(
+  Map state,
+  KeySettings settings, {
+  required Set<(String, String)> previous,
+  required String ownPrefix,
+}) async {
+  final accels = [
+    for (final entry in (state['apps'] as Map).values)
+      for (final combo in entry['shortcuts'] as List) accelerator(combo),
+  ];
+  return {
+    for (final bind in [...await readDesktopBinds(settings), ...await readCustomBinds(settings, ownPrefix)])
+      for (final accel in accels)
+        if (sameAccel(accel, bind['accel'])) (bind['where'] as String, accel),
+    for (final item in previous)
+      if (accels.any((accel) => sameAccel(accel, item.$2))) item,
+  };
+}
+
 /// save_and_apply (gnome-launcher), without the state file: write the
 /// launcher's custom keybindings at [ownPrefix]N/, take or give back the keys
 /// of other bindings. Returns the state to save, with `applied`.
 /// [command] is the command line of one shortcut (shortcut_command).
+/// With [takeConflicts], every other binding on a launcher key is taken too
+/// ([conflictingKeys]) and given back when the launcher no longer uses it.
 Future<Map<String, dynamic>> applyGnome(
   Map<String, dynamic> state,
   KeySettings settings, {
   required List<Map> previousApplied,
   required String ownPrefix,
   required String Function(List<String> launch, String action) command,
+  bool takeConflicts = false,
 }) async {
   final previous = {for (final a in previousApplied) ('${a['where']}', '${a['accel']}')};
   final wanted = desiredRemovals(state);
+  if (takeConflicts) {
+    wanted.addAll(await conflictingKeys(state, settings, previous: previous, ownPrefix: ownPrefix));
+  }
   final applied = <Map<String, dynamic>>[];
   int order((String, String) a, (String, String) b) {
     final c = a.$1.compareTo(b.$1);

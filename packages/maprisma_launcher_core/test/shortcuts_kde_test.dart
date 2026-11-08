@@ -256,6 +256,36 @@ void main() {
     expect(fake.keys['kwin:Window Close']!.map((k) => k.first), containsAll([0x08000033, 0x12000041]));
   });
 
+  test('a KDE action holding a launcher key is taken on save and given back later', () async {
+    // As seen live: plasmashell bound Super+Shift+A again, and the app's
+    // shortcut still named the COSMIC binding it once took.
+    await fake.doRegister(['plasmashell', 'previous activity', 'plasmashell', 'Walk through activities (Reverse)']);
+    fake.keys['plasmashell:previous activity'] = [
+      [0x12000041, 0, 0, 0], // Super+Shift+A
+      [0x10000051, 0, 0, 0], // Super+Q stays
+    ];
+    final store = ConfigStore(session);
+    final backend = GnomeBackend(session, store, settings, label: 'KDE Plasma');
+    final app = {
+      'name': 'Claude Code',
+      'launch': ['claude'],
+      'shortcuts': [
+        {...makeCombo(['SUPER', 'SHIFT'], 'A')!, 'taken_from': 'custom:${customBase}cosmic-super-shift-a/'},
+      ],
+    };
+    await backend.save(backend.clean({'apps': {'claude': app}}));
+    expect(fake.keys['plasmashell:previous activity']!.map((k) => k.first), [0x10000051]);
+    final ours = fake.keys.entries.singleWhere((e) => e.key.startsWith('maprisma-launcher-0-'));
+    expect(ours.value.single.first, 0x12000041);
+    // The next save keeps it taken (nothing holds it now, the state knows it).
+    await backend.save(backend.clean({'apps': {'claude': app}, 'applied': backend.clean(store.readJson('shortcuts.json'))['applied']}));
+    expect(fake.keys['plasmashell:previous activity']!.map((k) => k.first), [0x10000051]);
+    // Without the launcher shortcut, KDE's action gets its key back.
+    final reloaded = backend.clean(store.readJson('shortcuts.json'));
+    await backend.save(backend.clean({'apps': <String, dynamic>{}, 'applied': reloaded['applied']}));
+    expect(fake.keys['plasmashell:previous activity']!.map((k) => k.first), containsAll([0x10000051, 0x12000041]));
+  });
+
   test('a key KDE dropped (its service cache not yet updated) is registered again', () async {
     final dropping = _DroppingFake();
     final kde = KdeSettings(session, globalAccel: dropping)..retryPause = Duration.zero;
