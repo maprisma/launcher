@@ -104,6 +104,12 @@ abstract interface class KGlobalAccel {
   );
   Future<void> doRegister(List<String> action);
   Future<void> unregister(String component, String action);
+
+  /// Marks the action present (active) with these keys, as a running app
+  /// does for its own shortcuts. A service shortcut registered at runtime is
+  /// inactive until then: KDE only fires a pressed key for active ones (it
+  /// activates [services] entries itself only when it starts).
+  Future<void> setPresent(List<String> action, List<List<int>> keys);
 }
 
 /// Short-lived connections avoid retaining a session bus after a settings call.
@@ -195,6 +201,18 @@ final class DBusKGlobalAccel implements KGlobalAccel {
   @override
   Future<void> doRegister(List<String> action) async {
     await _call('doRegister', [DBusArray.string(action)]);
+  }
+
+  // setShortcutKeys with SetPresent (2) | NoAutoloading (4).
+  @override
+  Future<void> setPresent(List<String> action, List<List<int>> keys) async {
+    await _call('setShortcutKeys', [
+      DBusArray.string(action),
+      DBusArray(DBusSignature('(ai)'), [
+        for (final sequence in keys) DBusStruct([DBusArray.int32(sequence)]),
+      ]),
+      const DBusUint32(6),
+    ]);
   }
 
   @override
@@ -408,7 +426,14 @@ final class KdeSettings implements KeySettings {
       ]);
       if (code == null) return;
       final taken = await globalAccel.shortcutKeys(_id(c, '_launch'));
-      if (taken.any((k) => k.isNotEmpty && k.first == code)) return;
+      if (taken.any((k) => k.isNotEmpty && k.first == code)) {
+        // Active now, not only after the next login (seen live: a pressed key
+        // did nothing while KDE listed it).
+        await globalAccel.setPresent(id, [
+          [code],
+        ]);
+        return;
+      }
       if (attempt >= 3) {
         throw ServiceError('not_applied', 'KDE did not take the key for $name');
       }

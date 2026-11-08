@@ -33,6 +33,12 @@ base class FakeKGlobalAccel implements KGlobalAccel {
     registrations[id(action)] = action;
   }
 
+  final present = <String>{};
+  @override
+  Future<void> setPresent(List<String> action, List<List<int>> values) async {
+    present.add(id(action));
+  }
+
   @override
   Future<void> unregister(String component, String action) async {
     registrations.remove('$component:$action');
@@ -256,6 +262,7 @@ void main() {
     const path = '${customBase}maprisma-launcher-0/';
     await kde.writeCustom(path, {'name': 'Term', 'command': 'cosmic-term', 'binding': '<Super>Return'});
     expect(dropping.registerCalls, 2); // the first one was dropped
+    expect(dropping.present, hasLength(1)); // and made active, not only listed
     final c = dropping.keys.keys.single;
     expect(dropping.keys[c]!.single.first, 0x10000000 | 0x01000004);
   });
