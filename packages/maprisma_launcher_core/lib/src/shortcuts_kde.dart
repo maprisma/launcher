@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 
 import 'bounded.dart';
 import 'desktop_entries.dart';
+import 'protocol.dart' show ServiceError;
 import 'shortcuts.dart';
 
 const _qtMods = {
@@ -390,17 +391,33 @@ final class KdeSettings implements KeySettings {
     if (temp.existsSync()) temp.deleteSync();
     await temp.writeAsString(text, flush: true);
     await temp.rename(p.join(applications, c));
-    // KDE finds the new file through its service cache: refresh it first.
+    // KDE finds the new file through its service cache: refresh it first. Its
+    // shortcut service looks at that cache again only after a moment, so
+    // several new keys in one go can be dropped without an error (seen live:
+    // of three keys made in the same second only the first took). Each key is
+    // checked and registered again after a pause until KDE has it.
     final sycoca = session.which('kbuildsycoca6');
-    if (sycoca != null) {
-      await readBoundedText([sycoca], maxBytes: 64 * 1024, timeout: const Duration(seconds: 30), environment: session.environment);
-    }
     final id = [c, '_launch', 'Maprisma Launcher', name];
-    await globalAccel.doRegister(id);
-    await globalAccel.setForeignShortcutKeys(id, [
-      if (code != null) [code],
-    ]);
+    for (var attempt = 0; ; attempt++) {
+      if (sycoca != null) {
+        await readBoundedText([sycoca], maxBytes: 64 * 1024, timeout: const Duration(seconds: 30), environment: session.environment);
+      }
+      await globalAccel.doRegister(id);
+      await globalAccel.setForeignShortcutKeys(id, [
+        if (code != null) [code],
+      ]);
+      if (code == null) return;
+      final taken = await globalAccel.shortcutKeys(_id(c, '_launch'));
+      if (taken.any((k) => k.isNotEmpty && k.first == code)) return;
+      if (attempt >= 3) {
+        throw ServiceError('not_applied', 'KDE did not take the key for $name');
+      }
+      await Future<void>.delayed(retryPause);
+    }
   }
+
+  /// The pause before a key KDE dropped is registered again (tests: zero).
+  Duration retryPause = const Duration(milliseconds: 1500);
 
   @override
   Future<void> resetCustom(String path) async {

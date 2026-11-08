@@ -7,7 +7,7 @@ import 'package:maprisma_launcher_core/src/shortcut_service.dart';
 import 'package:maprisma_launcher_core/src/shortcuts.dart';
 import 'package:maprisma_launcher_core/src/shortcuts_kde.dart';
 
-final class FakeKGlobalAccel implements KGlobalAccel {
+base class FakeKGlobalAccel implements KGlobalAccel {
   final registrations = <String, List<String>>{};
   final keys = <String, List<List<int>>>{};
   String id(List<String> a) => '${a[0]}:${a[1]}';
@@ -250,7 +250,36 @@ void main() {
     expect(fake.keys['kwin:Window Close']!.map((k) => k.first), containsAll([0x08000033, 0x12000041]));
   });
 
+  test('a key KDE dropped (its service cache not yet updated) is registered again', () async {
+    final dropping = _DroppingFake();
+    final kde = KdeSettings(session, globalAccel: dropping)..retryPause = Duration.zero;
+    const path = '${customBase}maprisma-launcher-0/';
+    await kde.writeCustom(path, {'name': 'Term', 'command': 'cosmic-term', 'binding': '<Super>Return'});
+    expect(dropping.registerCalls, 2); // the first one was dropped
+    final c = dropping.keys.keys.single;
+    expect(dropping.keys[c]!.single.first, 0x10000000 | 0x01000004);
+  });
+
   test('missing session bus never falls back to process bus', () async {
     expect(await KdeSettings(session).available(), isFalse);
   });
+}
+
+/// kglobalaccel that ignores the first registration of each component, as
+/// KDE does while its service cache does not know the new desktop file yet.
+final class _DroppingFake extends FakeKGlobalAccel {
+  final _seen = <String>{};
+  var registerCalls = 0;
+  @override
+  Future<void> doRegister(List<String> action) async {
+    registerCalls++;
+    if (_seen.add(action[0])) return; // dropped
+    await super.doRegister(action);
+  }
+
+  @override
+  Future<void> setForeignShortcutKeys(List<String> action, List<List<int>> values) async {
+    if (!registrations.containsKey(id(action))) return; // unknown: nothing happens
+    await super.setForeignShortcutKeys(action, values);
+  }
 }
