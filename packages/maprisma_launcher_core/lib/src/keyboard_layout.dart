@@ -30,12 +30,14 @@ const keyRowsByLayout = {'us': usKeyRows, 'de': deKeyRows, 'at': deKeyRows};
 /// The rows for [layout] (an XKB layout name), US for others.
 List<List<String>> keyRowsFor(String layout) => keyRowsByLayout[layout] ?? usKeyRows;
 
-/// The first keyboard layout of the session, as an XKB name ("de"), or "us".
-/// Plasma's own list first (kxkbrc), then COSMIC's xkb_config, then the
-/// system's (localectl: X11 config, vconsole.conf).
-String detectKeyboardLayout(Map<String, String> environment) {
+/// The session's keyboard layout as an XKB name ("de"), or "us". Plasma:
+/// its layout list (kxkbrc), the one in use when there are several (asked
+/// over D-Bus through [kdeLayoutIndex]); COSMIC: its xkb_config; then the
+/// system's (localectl's files), which both use when they have no list.
+String detectKeyboardLayout(Map<String, String> environment, {int? Function()? kdeLayoutIndex}) {
   final home = environment['HOME'] ?? '';
   final config = environment['XDG_CONFIG_HOME'] ?? '$home/.config';
+  final desktop = (environment['XDG_CURRENT_DESKTOP'] ?? '').toUpperCase();
   String? read(String path) {
     try {
       final f = File(path);
@@ -45,20 +47,25 @@ String detectKeyboardLayout(Map<String, String> environment) {
     }
   }
 
-  String? first(String? list) {
-    final name = (list ?? '').split(',').first.trim().toLowerCase();
-    return RegExp(r'^[a-z]{2,8}$').hasMatch(name) ? name : null;
+  String? valid(String? name) {
+    final n = (name ?? '').trim().toLowerCase();
+    return RegExp(r'^[a-z]{2,8}$').hasMatch(n) ? n : null;
   }
 
-  final kxkb = read('$config/kxkbrc');
-  if (kxkb != null) {
-    final m = RegExp(r'^LayoutList=(.*)$', multiLine: true).firstMatch(kxkb);
-    final name = first(m?[1]);
-    if (name != null) return name;
-  }
-  final cosmic = read('$config/cosmic/com.system76.CosmicComp/v1/xkb_config');
-  if (cosmic != null) {
-    final name = first(RegExp(r'layout:\s*"([^"]*)"').firstMatch(cosmic)?[1]);
+  String? first(String? list) => valid((list ?? '').split(',').first);
+
+  if (desktop.contains('KDE')) {
+    final kxkb = read('$config/kxkbrc');
+    final list = kxkb == null ? null : RegExp(r'^LayoutList=(.*)$', multiLine: true).firstMatch(kxkb)?[1];
+    final names = [for (final n in (list ?? '').split(',')) ?valid(n)];
+    if (names.length > 1) {
+      final i = (kdeLayoutIndex ?? _kdeLayoutIndex)();
+      if (i != null && i >= 0 && i < names.length) return names[i];
+    }
+    if (names.isNotEmpty) return names.first;
+  } else if (desktop.contains('COSMIC')) {
+    final cosmic = read('$config/cosmic/com.system76.CosmicComp/v1/xkb_config');
+    final name = first(RegExp(r'layout:\s*"([^"]*)"').firstMatch(cosmic ?? '')?[1]);
     if (name != null) return name;
   }
   final x11 = read('/etc/X11/xorg.conf.d/00-keyboard.conf');
@@ -74,4 +81,14 @@ String detectKeyboardLayout(Map<String, String> environment) {
     if (name != null) return name;
   }
   return 'us';
+}
+
+/// Plasma's layout in use (an index into its list), or null.
+int? _kdeLayoutIndex() {
+  try {
+    final r = Process.runSync('qdbus6', ['org.kde.keyboard', '/Layouts', 'org.kde.KeyboardLayouts.getLayout']);
+    return r.exitCode == 0 ? int.tryParse('${r.stdout}'.trim()) : null;
+  } on ProcessException {
+    return null;
+  }
 }

@@ -27,15 +27,19 @@ void main() {
     }
   });
 
-  test('the layout comes from Plasma, then COSMIC', () {
+  test('the layout comes from the desktop in use, then the system', () {
     final home = Directory.systemTemp.createTempSync('kbd');
     addTearDown(() => home.deleteSync(recursive: true));
-    final env = {'HOME': home.path};
     File('${home.path}/.config/cosmic/com.system76.CosmicComp/v1/xkb_config')
       ..createSync(recursive: true)
       ..writeAsStringSync('(\n    layout: "fr",\n)');
-    expect(detectKeyboardLayout(env), 'fr');
-    File('${home.path}/.config/kxkbrc').writeAsStringSync('[Layout]\nLayoutList=de,us\nUse=true\n');
-    expect(detectKeyboardLayout(env), 'de');
+    expect(detectKeyboardLayout({'HOME': home.path, 'XDG_CURRENT_DESKTOP': 'COSMIC'}), 'fr');
+    final kde = {'HOME': home.path, 'XDG_CURRENT_DESKTOP': 'KDE'};
+    // A COSMIC file left behind does not count on Plasma.
+    expect(detectKeyboardLayout(kde, kdeLayoutIndex: () => null), isNot('fr'));
+    File('${home.path}/.config/kxkbrc').writeAsStringSync('[Layout]\nLayoutList=us,de\nUse=true\n');
+    expect(detectKeyboardLayout(kde, kdeLayoutIndex: () => 1), 'de');
+    expect(detectKeyboardLayout(kde, kdeLayoutIndex: () => 0), 'us');
+    expect(detectKeyboardLayout(kde, kdeLayoutIndex: () => null), 'us');
   });
 }
