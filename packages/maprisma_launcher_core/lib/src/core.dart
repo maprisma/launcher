@@ -31,6 +31,7 @@ import 'origins.dart' show defaultRoles;
 import 'packages.dart';
 import 'running.dart';
 import 'shortcut_service.dart';
+import 'svg_inline.dart';
 import 'pty.dart';
 import 'tray.dart';
 import 'updates.dart';
@@ -624,6 +625,7 @@ final class CoreService {
                 ..sort())
               .take(maxThemeResults)
               .map((n) => {'name': n, 'file': icons.lookup(n)})
+              .map((t) => {...t, if (t['file'] case final String f) 'file': drawableIcon(f, const {}, session)})
               .where((t) => t['file'] != null)
               .toList();
       final online = await _iconChoices.online(
@@ -985,6 +987,10 @@ final class CoreService {
     final defaults = desktop.defaultDesktops();
     final data = _loadGroups();
     final chosen = _iconChoices.load();
+    // Icons that colour themselves by stylesheet (Breeze) are shown from a
+    // copy with the colours inlined: Flutter's SVG renderer ignores <style>.
+    final palette = await desktop.themeColors();
+    String? drawable(String? file) => file == null ? null : drawableIcon(file, palette, session);
     final seen = cleanSeen(store.readJson('seen.json', cap: 512 * 1024));
     final installed = {
       for (final a in apps)
@@ -1008,10 +1014,11 @@ final class CoreService {
         ...app,
         'key': key,
         // icons.apply: the icon chosen by hand, else the entry's own.
-        'icon_file':
-            _chosenIcon(chosen[app['desktop_id']], icons) ??
-            icons.lookup(app['icon'] as String? ?? '') ??
-            icons.lookup('application-x-executable'),
+        'icon_file': drawable(
+          _chosenIcon(chosen[app['desktop_id']], icons) ??
+              icons.lookup(app['icon'] as String? ?? '') ??
+              icons.lookup('application-x-executable'),
+        ),
         'icon_chosen': chosen.containsKey(app['desktop_id']),
         'hidden': hidden.contains(app['desktop_id']),
         'group': groups.groupOf(app, data),
