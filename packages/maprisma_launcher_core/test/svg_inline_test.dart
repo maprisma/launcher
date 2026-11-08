@@ -29,6 +29,16 @@ void main() {
     expect(inlineSvgColors('<svg><path fill="#fff"/></svg>', const {'foreground': '#000000'}), isNull);
   });
 
+  test("Inkscape's svg: element prefix is removed (Flutter skips such elements)", () {
+    const inkscape = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg">'
+        '<svg:g><svg:rect width="1" height="1" style="fill:#123456"/></svg:g></svg>';
+    final out = drawableSvg(inkscape, const {})!;
+    expect(out, contains('<g><rect width="1"'));
+    expect(out, contains('</g></svg>'));
+    expect(out, contains('xmlns:svg=')); // the declaration itself stays
+    expect(drawableSvg('<svg><rect/></svg>', const {}), isNull);
+  });
+
   test('a cached copy only when needed', () {
     final dir = Directory.systemTemp.createTempSync('svg-inline-');
     addTearDown(() => dir.deleteSync(recursive: true));

@@ -1,7 +1,9 @@
-/// Icons that colour themselves through a stylesheet (Breeze's
-/// `.ColorScheme-Text { color: … }` with `fill:currentColor`): Flutter's SVG
-/// renderer ignores `<style>`, so such icons draw as nothing. They are shown
-/// from a cached copy with the colours written into the shapes.
+/// SVG icons Flutter's renderer draws as nothing, shown from a cached copy it
+/// can draw: icons that colour themselves through a stylesheet (Breeze's
+/// `.ColorScheme-Text { color: … }` with `fill:currentColor`; `<style>` is
+/// ignored) get the colours written into the shapes, and namespace-prefixed
+/// elements (Inkscape's `<svg:path>`, skipped without an error) lose the
+/// prefix.
 library;
 
 import 'dart:convert';
@@ -45,15 +47,30 @@ String? inlineSvgColors(String svg, Map<String, String> theme) {
   });
 }
 
-/// The icon file to show for [path]: a cached copy with inlined colours when
-/// it needs one, else [path] itself.
+final _prefixed = RegExp(r'<(/?)svg:([A-Za-z])');
+
+/// [svg] as Flutter can draw it, or null when it can already.
+String? drawableSvg(String svg, Map<String, String> theme) {
+  var text = svg;
+  var changed = false;
+  if (_prefixed.hasMatch(text)) {
+    text = text.replaceAllMapped(_prefixed, (m) => '<${m[1]}${m[2]}');
+    changed = true;
+  }
+  final inlined = inlineSvgColors(text, theme);
+  if (inlined != null) return inlined;
+  return changed ? text : null;
+}
+
+/// The icon file to show for [path]: a cached copy Flutter can draw when it
+/// needs one, else [path] itself.
 String drawableIcon(String path, Map<String, String> theme, Session session) {
   if (!path.endsWith('.svg')) return path;
   final bytes = Posix.instance.readRegular(path, 512 * 1024);
   if (bytes == null) return path;
   final text = utf8.decode(bytes, allowMalformed: true);
-  if (!text.contains('<style') && !text.contains('<STYLE')) return path;
-  final inlined = inlineSvgColors(text, theme);
+  if (!text.contains('<style') && !text.contains('<STYLE') && !text.contains('<svg:')) return path;
+  final inlined = drawableSvg(text, theme);
   if (inlined == null) return path;
   final cache = session.environment['XDG_CACHE_HOME']?.isNotEmpty == true
       ? session.environment['XDG_CACHE_HOME']!
