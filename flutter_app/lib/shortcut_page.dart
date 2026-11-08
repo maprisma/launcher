@@ -20,6 +20,11 @@ final _eventKeys = <LogicalKeyboardKey, String>{
   LogicalKeyboardKey.f7: 'F7', LogicalKeyboardKey.f8: 'F8', LogicalKeyboardKey.f9: 'F9',
   LogicalKeyboardKey.f10: 'F10', LogicalKeyboardKey.f11: 'F11', LogicalKeyboardKey.f12: 'F12',
   LogicalKeyboardKey.enter: 'Return', LogicalKeyboardKey.space: 'space',
+  // German keys: Flutter names a printable key by its character.
+  const LogicalKeyboardKey(0xdf): 'ssharp', const LogicalKeyboardKey(0xfc): 'udiaeresis',
+  const LogicalKeyboardKey(0xf6): 'odiaeresis', const LogicalKeyboardKey(0xe4): 'adiaeresis',
+  const LogicalKeyboardKey(0x2b): 'plus', const LogicalKeyboardKey(0x23): 'numbersign',
+  const LogicalKeyboardKey(0x3c): 'less',
   LogicalKeyboardKey.backspace: 'BackSpace', LogicalKeyboardKey.delete: 'Delete',
   LogicalKeyboardKey.home: 'Home', LogicalKeyboardKey.end: 'End',
   LogicalKeyboardKey.pageUp: 'Page_Up', LogicalKeyboardKey.pageDown: 'Page_Down',
@@ -30,7 +35,8 @@ final _eventKeys = <LogicalKeyboardKey, String>{
   LogicalKeyboardKey.comma: 'comma', LogicalKeyboardKey.period: 'period', LogicalKeyboardKey.slash: 'slash',
 };
 
-/// The key map's layout (shortcuts.dart keyMapRows); the core colours each key.
+/// The US key map, used until the core sends its rows for the session's
+/// keyboard layout (keyboard_layout.dart); the core colours each key.
 const keyRows = [
   ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'minus', 'equal'],
   ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'bracketleft', 'bracketright'],
@@ -160,6 +166,8 @@ class ShortcutPageState extends State<ShortcutPage> {
     'Return': 'Enter', 'space': 'Space', 'BackSpace': 'Backspace', 'Page_Up': 'Page Up', 'Page_Down': 'Page Down',
     'minus': '-', 'equal': '=', 'bracketleft': '[', 'bracketright': ']', 'backslash': r'\', 'semicolon': ';',
     'apostrophe': "'", 'grave': '`', 'comma': ',', 'period': '.', 'slash': '/',
+    'ssharp': 'ß', 'udiaeresis': 'Ü', 'odiaeresis': 'Ö', 'adiaeresis': 'Ä', 'plus': '+', 'numbersign': '#',
+    'less': '<',
   }[name] ?? name;
 
   String comboLabel(List mods, String key) => [for (final m in mods) modNames[m] ?? '$m', keyLabel(key)].join(' + ');
@@ -534,6 +542,10 @@ class ShortcutPageState extends State<ShortcutPage> {
 
   Widget _keyMap(ColorScheme scheme, MarkColors marks) {
     final keys = view['keys'] as List?;
+    // The core's rows for the session's keyboard layout (German: QWERTZ).
+    final rows = [
+      for (final r in view['rows'] as List? ?? keyRows) [for (final k in r as List) '$k'],
+    ];
     if (keys == null) {
       final suggestions = [for (final s in view['suggestions'] as List? ?? const []) s as Map];
       return Wrap(
@@ -556,7 +568,7 @@ class ShortcutPageState extends State<ShortcutPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final row in keyRows)
+        for (final row in rows)
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Wrap(

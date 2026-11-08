@@ -15,6 +15,7 @@ import 'bounded.dart';
 import 'appimage_updates.dart';
 import 'config.dart';
 import 'desktop_entries.dart';
+import 'keyboard_layout.dart';
 import 'desktops.dart';
 import 'dock.dart';
 import 'facts.dart';
@@ -76,7 +77,8 @@ final class CoreService {
   late final _facts = AppFacts(session);
 
   /// Global shortcuts: the desktop's backend (none on generic desktops).
-  late final shortcuts = ShortcutService(backendFor(desktop, store), store);
+  late final shortcuts = ShortcutService(backendFor(desktop, store), store,
+      keyboardLayout: () => detectKeyboardLayout(session.environment));
   late final _managers = Managers(session);
 
   /// The last search's results: only these can be installed.

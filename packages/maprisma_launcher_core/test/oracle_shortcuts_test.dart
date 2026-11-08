@@ -175,7 +175,7 @@ final spec = <String, dynamic>{
       'SUPER + SHIFT + B', 'super, return', 'WIN + code:10', 'HYPER + X', '', 'CTRL + ALT + Delete', 'SUPER+',
       'MOD1 + MOD4 + space',
     ],
-    'keys': [...keyMapKeys.where((k) => !const {'bracketleft', 'bracketright', 'backslash', 'Delete', 'Insert', 'Home', 'End'}.contains(k)), 'ABOVE_TAB', 'Escape', 'page_up', 'a', 'code:38'],
+    'keys': [...{for (final r in keyMapRows) ...r}.where((k) => !const {'bracketleft', 'bracketright', 'backslash', 'Delete', 'Insert', 'Home', 'End'}.contains(k)), 'ABOVE_TAB', 'Escape', 'page_up', 'a', 'code:38'],
     'pairs': [
       [c(['SUPER'], 'A'), c(['SUPER'], 'a')],
       [c(['SUPER'], 'SPACE', 'N'), c(['SUPER'], 'SPACE')],

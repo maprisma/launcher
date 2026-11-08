@@ -11,6 +11,10 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import 'keyboard_layout.dart';
+
+export 'keyboard_layout.dart' show keyRowsFor, detectKeyboardLayout;
+
 import 'posix.dart';
 import 'shlex.dart';
 
@@ -35,16 +39,10 @@ const levelFree = 'free',
 /// The keys the key map offers and the routes accept (keysym names, as GNOME
 /// accelerators, COSMIC's file and Hyprland binds spell them). Nothing else
 /// can be assigned, so no other text ever reaches a desktop's settings.
-const keyMapRows = [
-  ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'minus', 'equal'],
-  ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'bracketleft', 'bracketright'],
-  ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'semicolon', 'apostrophe', 'backslash'],
-  ['grave', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'comma', 'period', 'slash'],
-  ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12'],
-  // launcher.py OTHER_KEYS, then the navigation keys.
-  ['Return', 'space', 'BackSpace', 'Delete', 'Home', 'End', 'Page_Up', 'Page_Down', 'Insert', 'Tab'],
-];
-final keyMapKeys = {for (final row in keyMapRows) ...row};
+const keyMapRows = usKeyRows;
+
+/// Every key any layout's map offers: what the routes accept.
+final keyMapKeys = {for (final rows in keyRowsByLayout.values) for (final row in rows) ...row};
 
 /// The key map's key named [name] in any case ("return" → "Return"), or null.
 String? keyMapKey(Object? name) {
@@ -156,6 +154,9 @@ const _gnomePretty = {
 const _morePretty = {
   'BRACKETLEFT': '[', 'BRACKETRIGHT': ']', 'BACKSLASH': r'\', 'DELETE': 'Delete',
   'INSERT': 'Insert', 'HOME': 'Home', 'END': 'End',
+  // German keys.
+  'SSHARP': 'ß', 'UDIAERESIS': 'Ü', 'ODIAERESIS': 'Ö', 'ADIAERESIS': 'Ä', 'PLUS': '+',
+  'NUMBERSIGN': '#', 'LESS': '<',
 };
 
 /// key_label (gnome-launcher; the Omarchy plugin's lacks Page Up/Down and

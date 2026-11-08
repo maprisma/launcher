@@ -47,6 +47,14 @@ const _qtKeys = {
   'comma': 44,
   'period': 46,
   'slash': 47,
+  // German keys (Qt::Key_* are their Latin-1 codes).
+  'plus': 0x2b,
+  'numbersign': 0x23,
+  'less': 0x3c,
+  'ssharp': 0xdf,
+  'udiaeresis': 0xdc,
+  'odiaeresis': 0xd6,
+  'adiaeresis': 0xc4,
 };
 
 /// A single Qt stroke to GNOME syntax; unknown modifier bits are unsupported.

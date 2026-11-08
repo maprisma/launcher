@@ -363,8 +363,12 @@ ShortcutBackend? _cosmicBackend(Session session, ConfigStore store, String? defa
 }
 
 final class ShortcutService {
-  ShortcutService(this.backend, this.store);
+  ShortcutService(this.backend, this.store, {String Function()? keyboardLayout})
+      : keyboardLayout = keyboardLayout ?? (() => 'us');
   final ShortcutBackend? backend;
+
+  /// The session's keyboard layout ("de"): the key map follows it.
+  final String Function() keyboardLayout;
   final ConfigStore store;
   ShortcutBindings? _bindings;
   Map<String, dynamic>? _state;
@@ -502,6 +506,7 @@ final class ShortcutService {
           },
     ];
     String level(Combo c) => classifyPage(bindings, c, app, picked, editing).$1;
+    final rows = keyRowsFor(keyboardLayout());
     return {
       ...base,
       'available': true,
@@ -510,9 +515,11 @@ final class ShortcutService {
         for (final combo in entry['disabled'] as List)
           {..._shown(combo), 'description': combo['description'] ?? '', 'source': combo['source'] ?? ''},
       ],
+      'rows': rows,
       if (chosen.isNotEmpty)
         'keys': [
-          for (final key in keyMapKeys)
+          for (final row in rows)
+            for (final key in row)
             if (makeCombo(chosen, key) case final combo?)
               () {
                 final (lvl, owner) = classifyPage(bindings, combo, app, picked, editing);
