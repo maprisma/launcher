@@ -58,6 +58,7 @@ class _AskPageState extends State<AskPage> {
 
   /// Flatpaks being updated now (their row shows a spinner).
   final Set<String> updating = {};
+  bool updatingAll = false;
 
   /// Hidden or shown here, by key: the buttons follow at once.
   final Map<String, bool> hiddenNow = {};
@@ -78,17 +79,220 @@ class _AskPageState extends State<AskPage> {
     );
   }
 
+  /// Your own suggestions under the field (setting ask_prompts); null: the
+  /// built-in ones. [editingPrompt]: the one being edited in place.
+  List<String>? ownPrompts;
+  int? editingPrompt;
+  final promptEdit = TextEditingController();
+
+  static const maxPrompts = 12;
+
+  List<String> get builtInPrompts => [
+    tr('Suggest a photo editor'),
+    tr('Find an app to cut videos'),
+    tr('Which installed app opens PDFs?'),
+    tr('What can I update?'),
+  ];
+
+  List<String> get prompts => ownPrompts ?? builtInPrompts;
+
   @override
   void initState() {
     super.initState();
     _loadHelpers();
+    _loadPrompts();
   }
 
   @override
   void dispose() {
     request.dispose();
     _field.dispose();
+    promptEdit.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadPrompts() async {
+    try {
+      final settings = await widget.core('settings.get');
+      final saved = settings['ask_prompts'];
+      if (mounted && saved is List) {
+        setState(() => ownPrompts = saved.cast<String>());
+      }
+    } on ServiceError {
+      // The built-in suggestions stay.
+    }
+  }
+
+  void _say(String text) => ScaffoldMessenger.maybeOf(context)
+    ?..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(text)));
+
+  /// Saves the list (null: back to the built-in suggestions).
+  Future<void> _storePrompts(List<String>? next) async {
+    try {
+      final settings = await widget.core('settings.set', {
+        'key': 'ask_prompts',
+        'value': next,
+      });
+      if (!mounted) return;
+      final saved = settings['ask_prompts'];
+      setState(() {
+        ownPrompts = saved is List ? saved.cast<String>() : null;
+        editingPrompt = null;
+      });
+    } on ServiceError {
+      _say(tr('Could not save the setting'));
+    }
+  }
+
+  static String _tidy(String text) => text.trim();
+
+  static const _tight = VisualDensity(horizontal: -4, vertical: -4);
+
+  /// The bookmark by the field: what you typed becomes a suggestion.
+  Future<void> _savePrompt() async {
+    final text = _tidy(request.text);
+    final list = prompts;
+    if (text.isEmpty) {
+      _say(tr('Write a request first, then save it as a suggestion.'));
+    } else if (list.contains(text)) {
+      _say(tr('That is already a suggestion.'));
+    } else if (list.length >= maxPrompts) {
+      _say(trf('At most {0} suggestions: remove one first.', ['$maxPrompts']));
+    } else {
+      await _storePrompts([...list, text]);
+      if (mounted) _say(tr('Saved as suggestion.'));
+    }
+  }
+
+  void _editPrompt(int index) => setState(() {
+    editingPrompt = index;
+    promptEdit.text = prompts[index];
+    promptEdit.selection = TextSelection.collapsed(
+      offset: promptEdit.text.length,
+    );
+  });
+
+  /// Enter or ✓ saves the edit (empty removes it); Esc cancels.
+  Future<void> _finishEdit(bool save) async {
+    final index = editingPrompt;
+    if (index == null) return;
+    final list = [...prompts];
+    final text = _tidy(promptEdit.text);
+    if (!save || index >= list.length || text == list[index]) {
+      setState(() => editingPrompt = null);
+      return;
+    }
+    if (text.isEmpty) {
+      list.removeAt(index);
+    } else if (list.contains(text)) {
+      _say(tr('That is already a suggestion.'));
+      return;
+    } else {
+      list[index] = text;
+    }
+    await _storePrompts(list);
+  }
+
+  Future<void> _removePrompt(int index) =>
+      _storePrompts([...prompts]..removeAt(index));
+
+  /// One suggestion: click asks with it, ✎ edits it in place, × removes it.
+  Widget _promptChip(int index, String text, ColorScheme scheme) {
+    final shape = StadiumBorder(side: BorderSide(color: scheme.outlineVariant));
+    if (editingPrompt == index) {
+      return Material(
+        shape: shape,
+        color: scheme.surfaceContainerHigh,
+        child: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 320,
+                child: CallbackShortcuts(
+                  bindings: {
+                    const SingleActivator(LogicalKeyboardKey.escape): () =>
+                        _finishEdit(false),
+                  },
+                  child: TextField(
+                    key: const ValueKey('prompt-edit'),
+                    controller: promptEdit,
+                    autofocus: true,
+                    maxLength: 2000,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      border: InputBorder.none,
+                      counterText: '',
+                      hintText: tr('Edit suggestion'),
+                    ),
+                    onSubmitted: (_) => _finishEdit(true),
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: tr('Save'),
+                visualDensity: _tight,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                iconSize: 18,
+                onPressed: () => _finishEdit(true),
+                icon: const Icon(Icons.check),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return Material(
+      shape: shape,
+      color: Colors.transparent,
+      clipBehavior: Clip.antiAlias,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          InkWell(
+            onTap: () {
+              request.text = text;
+              _ask();
+            },
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 6, 2, 6),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 360),
+                child: Tooltip(
+                  message: text,
+                  child: Text(
+                    text.replaceAll('\n', ' '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: tr('Edit suggestion'),
+            visualDensity: _tight,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 30),
+            iconSize: 16,
+            onPressed: () => _editPrompt(index),
+            icon: const Icon(Icons.edit_outlined),
+          ),
+          IconButton(
+            tooltip: tr('Remove suggestion'),
+            visualDensity: _tight,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 30),
+            iconSize: 16,
+            onPressed: () => _removePrompt(index),
+            icon: const Icon(Icons.close),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadHelpers() async {
@@ -247,12 +451,36 @@ class _AskPageState extends State<AskPage> {
     );
   }
 
+  /// Back (button, Esc, Backspace): from an answer to the Ask AI start
+  /// (the words stay in the field), from there out of the page.
+  void _back() {
+    if (result != null || error != null) {
+      setState(() {
+        result = null;
+        error = null;
+        editingPrompt = null;
+      });
+      _field.requestFocus();
+      return;
+    }
+    Navigator.maybePop(context);
+  }
+
+  /// Backspace goes back, except while typing (in the field: once it is
+  /// empty, so deleting the last letter does not leave the page at once).
+  bool _backspaceGoesBack() {
+    final focus = FocusManager.instance.primaryFocus;
+    if (editingPrompt != null) return false;
+    if (focus == _field) return request.text.isEmpty && result != null;
+    return focus?.context?.widget is! EditableText;
+  }
+
   Widget _header(ColorScheme scheme, {required bool ready}) => Padding(
     padding: const EdgeInsets.fromLTRB(8, 10, 16, 4),
     child: Row(
       children: [
         TextButton.icon(
-          onPressed: () => Navigator.maybePop(context),
+          onPressed: _back,
           icon: const Icon(Icons.arrow_back, size: 18),
           label: Text(tr('Back')),
         ),
@@ -399,7 +627,13 @@ class _AskPageState extends State<AskPage> {
         onKeyEvent: (_, event) {
           if (event is KeyDownEvent &&
               event.logicalKey == LogicalKeyboardKey.escape) {
-            Navigator.maybePop(context);
+            _back();
+            return KeyEventResult.handled;
+          }
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.backspace &&
+              _backspaceGoesBack()) {
+            _back();
             return KeyEventResult.handled;
           }
           return KeyEventResult.ignored;
@@ -496,40 +730,26 @@ class _AskPageState extends State<AskPage> {
                               onPressed: _stop,
                               icon: const Icon(Icons.stop_circle_outlined),
                             )
-                          : IconButton(
-                              tooltip: tr('Ask'),
-                              onPressed: () => _ask(),
-                              icon: Icon(Icons.send, color: scheme.primary),
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  tooltip: tr('Save as suggestion'),
+                                  onPressed: _savePrompt,
+                                  icon: const Icon(Icons.bookmark_add_outlined),
+                                ),
+                                IconButton(
+                                  tooltip: tr('Ask'),
+                                  onPressed: () => _ask(),
+                                  icon: Icon(Icons.send, color: scheme.primary),
+                                ),
+                              ],
                             ),
                     ),
                     onSubmitted: (_) => _ask(),
                   ),
                 ),
               ),
-              if (result == null && !asking)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      for (final starter in [
-                        tr('Suggest a photo editor'),
-                        tr('Find an app to cut videos'),
-                        tr('Which installed app opens PDFs?'),
-                        tr('What can I update?'),
-                      ])
-                        ActionChip(
-                          label: Text(starter),
-                          onPressed: () {
-                            request.text = starter;
-                            _ask();
-                          },
-                        ),
-                    ],
-                  ),
-                ),
-              if (result == null && !asking) _shortcutHint(scheme),
               if (asking)
                 Padding(
                   padding: const EdgeInsets.all(16),
@@ -553,9 +773,41 @@ class _AskPageState extends State<AskPage> {
                   child: Text(error!, style: TextStyle(color: scheme.error)),
                 ),
               Expanded(
-                child: result == null
+                child: result != null
+                    ? _result(scheme, result!)
+                    : asking
                     ? const SizedBox.shrink()
-                    : _result(scheme, result!),
+                    // The suggestions and the shortcut card scroll in a small window.
+                    : SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              child: Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  for (final (index, text) in prompts.indexed)
+                                    _promptChip(index, text, scheme),
+                                  if (ownPrompts != null)
+                                    IconButton(
+                                      tooltip: tr(
+                                        'Back to the built-in suggestions',
+                                      ),
+                                      onPressed: () => _storePrompts(null),
+                                      icon: const Icon(Icons.undo, size: 18),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            _shortcutHint(scheme),
+                          ],
+                        ),
+                      ),
               ),
             ],
           ],
@@ -698,7 +950,45 @@ class _AskPageState extends State<AskPage> {
           );
         }
       case 'update':
-        children.add(_section(tr('Update')));
+        // "Update all" on the heading's line, in the column of the row buttons.
+        final updatable = apps.where(
+          (app) => const {
+            'flatpak',
+            'appimage',
+            'package',
+          }.contains(a.updateKind(app)),
+        );
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 8, right: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    tr('Update'),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                if (updatingAll)
+                  const Padding(
+                    padding: EdgeInsets.all(10),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                else
+                  TextButton(
+                    onPressed: updatable.isEmpty || updating.isNotEmpty
+                        ? null
+                        : () => _updateAll(apps),
+                    child: Text(tr('Update all')),
+                  ),
+              ],
+            ),
+          ),
+        );
         for (final app in apps) {
           final key = '${app['key']}';
           children.add(
@@ -884,6 +1174,38 @@ class _AskPageState extends State<AskPage> {
           Padding(padding: const EdgeInsets.only(bottom: 8), child: c),
       ],
     );
+  }
+
+  /// Every app of the list with an update, one after another (each row shows
+  /// its own progress); packages update with the whole system, once, at the end.
+  Future<void> _updateAll(List<Map> apps) async {
+    final a = widget.actions;
+    setState(() => updatingAll = true);
+    var system = false;
+    try {
+      for (final app in apps) {
+        if (!mounted) return;
+        final kind = a.updateKind(app);
+        final key = '${app['key']}';
+        if (kind == 'flatpak' || kind == 'appimage') {
+          setState(() => updating.add(key));
+          try {
+            if (kind == 'flatpak') {
+              await a.update(app);
+            } else {
+              await a.updateAppImage(app);
+            }
+          } finally {
+            if (mounted) setState(() => updating.remove(key));
+          }
+        } else if (kind == 'package') {
+          system = true;
+        }
+      }
+      if (system && mounted) a.updateSystem();
+    } finally {
+      if (mounted) setState(() => updatingAll = false);
+    }
   }
 
   Widget _section(String title) => Padding(

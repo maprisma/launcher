@@ -10,8 +10,14 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   final asked = <Map<String, dynamic>>[];
   var helpersReady = true;
+  List<String>? savedPrompts;
   Future<Map<String, dynamic>> fake(String method, [Map<String, dynamic> params = const {}]) async {
     asked.add({'method': method, ...params});
+    if (method == 'settings.set' && params['key'] == 'ask_prompts') {
+      final value = params['value'];
+      savedPrompts = value == null ? null : List<String>.from(value as List);
+    }
+    if (method == 'settings.get' || method == 'settings.set') return {'ask_prompts': savedPrompts};
     return switch (method) {
       'ask.helpers' => {
         'helpers': [
@@ -184,6 +190,46 @@ void main() {
     expect(done, ['system', 'flatpak Flat', 'appimage Image App']);
   });
 
+  testWidgets('update all: Flatpaks and AppImages one after another, then the system once', (tester) async {
+    final done = <String>[];
+    final flatpak = Completer<void>();
+    final actions = (
+      open: (Map app) {},
+      uninstall: (Map app) async {},
+      update: (Map app) async {
+        done.add('flatpak ${app['name']}');
+        await flatpak.future;
+      },
+      updateAppImage: (Map app) async => done.add('appimage ${app['name']}'),
+      updateSystem: () async => done.add('system'),
+      details: (Map app) async {},
+      setHidden: (Map app, bool hidden) async {},
+      updateKind: (Map app) => switch (app['key']) {
+        'k2' => 'package',
+        'k3' => 'flatpak',
+        'k5' => 'appimage',
+        _ => null,
+      },
+    );
+    await tester.pumpWidget(MaterialApp(home: AskPage(core: fake, apps: apps, actions: actions)));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'what can I update');
+    await tester.tap(find.byTooltip('Ask'));
+    await tester.pumpAndSettle();
+    // On the heading's line, right above the row buttons.
+    final all = find.widgetWithText(TextButton, 'Update all');
+    expect(all, findsOneWidget);
+    expect(tester.getTopLeft(all).dy, lessThan(tester.getTopLeft(find.text('Update system…').first).dy));
+    await tester.tap(all);
+    await tester.pump();
+    expect(done, ['flatpak Flat']);                     // one after another: the Flatpak first
+    expect(find.widgetWithText(TextButton, 'Update all'), findsNothing);   // a spinner while it runs
+    flatpak.complete();
+    await tester.pumpAndSettle();
+    expect(done, ['flatpak Flat', 'appimage Image App', 'system']);   // packages: the system, once, last
+    expect(find.widgetWithText(TextButton, 'Update all'), findsOneWidget);
+  });
+
   testWidgets('hidden apps: listed with Unhide; a click unhides, then the button offers Hide', (tester) async {
     final changed = <String>[];
     final base = actions();
@@ -208,6 +254,91 @@ void main() {
     await tester.pumpAndSettle();
     expect(changed, ['k4 false']);
     expect(find.text('Hide'), findsOneWidget);
+  });
+
+  testWidgets('suggestions: save what you typed, edit one in place (Esc cancels), remove, back to built-in', (tester) async {
+    asked.clear();
+    savedPrompts = null;
+    await tester.pumpWidget(MaterialApp(home: AskPage(core: fake, apps: apps, actions: actions())));
+    await tester.pumpAndSettle();
+    expect(find.text('Suggest a photo editor'), findsOneWidget);
+    expect(find.byTooltip('Back to the built-in suggestions'), findsNothing);
+    await tester.enterText(find.byType(TextField), '  Find a music player ');
+    await tester.tap(find.byTooltip('Save as suggestion'));
+    await tester.pumpAndSettle();
+    expect(savedPrompts, [
+      'Suggest a photo editor', 'Find an app to cut videos', 'Which installed app opens PDFs?',
+      'What can I update?', 'Find a music player',
+    ]);
+    expect(find.text('Find a music player'), findsOneWidget);
+    await tester.tap(find.byTooltip('Save as suggestion'));               // twice: not again
+    await tester.pumpAndSettle();
+    expect(savedPrompts, hasLength(5));
+    expect(find.text('That is already a suggestion.'), findsOneWidget);
+    // Edit: Esc cancels only the edit.
+    await tester.tap(find.byTooltip('Edit suggestion').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('prompt-edit')), 'Find a podcast player');
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('prompt-edit')), findsNothing);
+    expect(find.byType(AskPage), findsOneWidget);
+    expect(savedPrompts!.last, 'Find a music player');
+    await tester.tap(find.byTooltip('Edit suggestion').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('prompt-edit')), 'Find a podcast player');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(savedPrompts!.last, 'Find a podcast player');
+    await tester.tap(find.byTooltip('Remove suggestion').first);
+    await tester.pumpAndSettle();
+    expect(savedPrompts!.first, 'Find an app to cut videos');
+    expect(find.text('Suggest a photo editor'), findsNothing);
+    await tester.tap(find.byTooltip('Back to the built-in suggestions'));
+    await tester.pumpAndSettle();
+    expect(savedPrompts, isNull);
+    expect(find.text('Suggest a photo editor'), findsOneWidget);
+    expect(asked.where((a) => a['method'] == 'ask.run'), isEmpty);
+  });
+
+  testWidgets('back from an answer: Esc, Backspace and Back return to the Ask AI start, then leave', (tester) async {
+    asked.clear();
+    savedPrompts = null;
+    await tester.pumpWidget(MaterialApp(
+      home: Builder(
+        builder: (context) => TextButton(
+          onPressed: () => Navigator.push(context, MaterialPageRoute<void>(
+            builder: (_) => AskPage(core: fake, apps: apps, actions: actions()),
+          )),
+          child: const Text('open'),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    Future<void> answer() async {
+      await tester.tap(find.text('Suggest a photo editor').last);
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Edit suggestion'), findsNothing);       // the answer replaces the start
+    }
+
+    await answer();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byType(AskPage), findsOneWidget);
+    expect(find.byTooltip('Edit suggestion'), findsNWidgets(4));
+    await answer();
+    await tester.tap(find.text('Back'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Edit suggestion'), findsNWidgets(4));
+    await answer();
+    await tester.enterText(find.byType(TextField), '');
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);        // empty field: back
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Edit suggestion'), findsNWidgets(4));
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);           // from the start: out
+    await tester.pumpAndSettle();
+    expect(find.byType(AskPage), findsNothing);
   });
 
   testWidgets('Enter asks; Ctrl+Enter only adds a line; the hint says so', (tester) async {

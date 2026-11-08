@@ -182,8 +182,20 @@ final class Settings {
           : null,
       'screenshot_folder': _folder(data['screenshot_folder']),
       'header_order': headerOrder(data['header_order']),
+      // Ask AI: your own suggestions under the field (null: the built-in ones).
+      'ask_prompts': validPrompts(data['ask_prompts']) ? List<String>.from(data['ask_prompts'] as List) : null,
     };
   }
+
+  static const maxPrompts = 12;
+
+  /// ask_prompts: up to [maxPrompts] distinct, trimmed, non-empty requests
+  /// of at most 2000 characters (the Ask field's limit).
+  static bool validPrompts(Object? value) =>
+      value is List &&
+      value.length <= maxPrompts &&
+      value.every((t) => t is String && t.isNotEmpty && t == t.trim() && t.length <= 2000) &&
+      value.toSet().length == value.length;
 
   /// An absolute folder path, or null (~/Pictures/MaprismaLauncher).
   static String? _folder(Object? value) =>
@@ -257,6 +269,14 @@ final class Settings {
       case 'package_managers':
         if (value is! List || value.any((m) => !managerIds.contains(m))) throw ArgumentError(key);
         stored = [for (final id in managerIds) if (value.contains(id)) id];
+      case 'ask_prompts':
+        // null: back to the built-in suggestions.
+        if (value == null) {
+          store.writeJson('settings.json', {...raw()}..remove(key));
+          return;
+        }
+        if (!validPrompts(value)) throw ArgumentError(key);
+        stored = List<String>.from(value as List);
       case 'screenshot_folder':
         // null: back to the default folder.
         if (value == null) {

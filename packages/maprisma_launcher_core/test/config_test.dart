@@ -95,6 +95,22 @@ void main() {
     expect(settings.raw().containsKey('screenshot_folder'), isFalse);
   });
 
+  test('ask prompts: own list or null for the built-in ones; bad lists refused', () {
+    final settings = Settings(store);
+    expect(settings.read()['ask_prompts'], isNull);
+    settings.set('ask_prompts', ['Find a photo editor', 'What can I update?']);
+    expect(settings.read()['ask_prompts'], ['Find a photo editor', 'What can I update?']);
+    expect(() => settings.set('ask_prompts', ['a', 'a']), throwsArgumentError);
+    expect(() => settings.set('ask_prompts', [' a']), throwsArgumentError);
+    expect(() => settings.set('ask_prompts', ['']), throwsArgumentError);
+    expect(() => settings.set('ask_prompts', [for (var i = 0; i < 13; i++) 'p$i']), throwsArgumentError);
+    expect(() => settings.set('ask_prompts', ['x' * 2001]), throwsArgumentError);
+    store.writeJson('settings.json', {...settings.raw(), 'ask_prompts': [1, 2]});
+    expect(settings.read()['ask_prompts'], isNull);
+    settings.set('ask_prompts', null);
+    expect(settings.raw().containsKey('ask_prompts'), isFalse);
+  });
+
   test('header order: known buttons once, the missing ones appended; bad values refused', () {
     expect(headerOrder(null), headerButtons);
     expect(headerOrder(['settings', 'ask', 'settings', 'nope', 3]),
