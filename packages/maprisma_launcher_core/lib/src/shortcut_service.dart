@@ -114,6 +114,19 @@ final class GnomeBackend implements ShortcutBackend {
   @override
   Future<void> save(Map<String, dynamic> state) async {
     if (!await available()) throw ServiceError('not_available');
+    // One save at a time across processes too: two launcher copies saving
+    // together left KDE keys unregistered (2026-11-08).
+    Directory(store.dir).createSync(recursive: true);
+    final lock = await File(p.join(store.dir, 'shortcuts.lock')).open(mode: FileMode.append);
+    try {
+      await lock.lock(FileLock.blockingExclusive);
+      await _save(state);
+    } finally {
+      await lock.close();
+    }
+  }
+
+  Future<void> _save(Map<String, dynamic> state) async {
     final previous = clean(store.readJson(stateFile))['applied'] as List;
     final saved = await applyGnome(
       state,
@@ -124,6 +137,7 @@ final class GnomeBackend implements ShortcutBackend {
       // KDE rebinds its own keys and drops a launcher key another action
       // holds; GNOME and COSMIC keep the reference's behaviour.
       takeConflicts: settings is KdeSettings,
+      stableSlots: settings is KdeSettings,
     );
     store.writeJson(stateFile, saved);
   }

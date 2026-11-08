@@ -667,6 +667,48 @@ Future<Set<(String, String)>> conflictingKeys(
   };
 }
 
+/// The custom path for each of [desired] (in order) that keeps every
+/// shortcut on the path it had ([existing]: path to its values now): one
+/// with the same command keeps its path, new ones take the lowest free
+/// numbers. On KDE a path's number is part of the component's name, so
+/// numbering by position renamed every later component when one shortcut
+/// was added, and re-registering them all at once crashed KWin (2026-11-08).
+List<String> stableSlotPaths(
+  List<Map<String, String>> desired,
+  Map<String, Map<String, String>> existing,
+  String ownPrefix,
+) {
+  final free = {...existing.keys};
+  final slots = List<String?>.filled(desired.length, null);
+  // Same command and key first, then the same command alone.
+  for (final exact in [true, false]) {
+    for (var i = 0; i < desired.length; i++) {
+      if (slots[i] != null) continue;
+      final match = free
+          .where((path) =>
+              existing[path]!['command'] == desired[i]['command'] &&
+              (!exact || sameAccel(existing[path]!['binding'], desired[i]['binding'])))
+          .toList()
+        ..sort();
+      if (match.isNotEmpty) {
+        slots[i] = match.first;
+        free.remove(match.first);
+      }
+    }
+  }
+  final taken = {...slots.whereType<String>(), ...free};
+  var n = 0;
+  for (var i = 0; i < desired.length; i++) {
+    if (slots[i] != null) continue;
+    while (taken.contains('$customBase$ownPrefix$n/')) {
+      n++;
+    }
+    slots[i] = '$customBase$ownPrefix$n/';
+    taken.add(slots[i]!);
+  }
+  return slots.cast<String>();
+}
+
 /// save_and_apply (gnome-launcher), without the state file: write the
 /// launcher's custom keybindings at [ownPrefix]N/, take or give back the keys
 /// of other bindings. Returns the state to save, with `applied`.
@@ -680,6 +722,7 @@ Future<Map<String, dynamic>> applyGnome(
   required String ownPrefix,
   required String Function(List<String> launch, String action) command,
   bool takeConflicts = false,
+  bool stableSlots = false,
 }) async {
   final previous = {for (final a in previousApplied) ('${a['where']}', '${a['accel']}')};
   final wanted = desiredRemovals(state);
@@ -711,23 +754,45 @@ Future<Map<String, dynamic>> applyGnome(
   final apps = state['apps'] as Map<String, dynamic>;
   final keys = apps.keys.toList();
   mergeSortBy(keys, (k) => (apps[k]['name'] as String).toLowerCase());
-  for (final k in keys) {
-    final entry = apps[k] as Map;
-    for (final combo in entry['shortcuts'] as List) {
+  final desired = <Map<String, String>>[
+    for (final k in keys)
+      for (final combo in (apps[k] as Map)['shortcuts'] as List)
+        () {
+          final entry = apps[k] as Map;
+          final action = combo['action'] as String? ?? '';
+          final label = combo['label'] as String? ?? '';
+          final what = action.isNotEmpty ? '${entry['name']}: ${label.isNotEmpty ? label : action}' : entry['name'] as String;
+          return {
+            'name': cut(what, 120),
+            'command': command([for (final a in entry['launch'] as List) '$a'], action),
+            'binding': accelerator(combo),
+          };
+        }(),
+  ];
+  if (!stableSlots) {
+    for (final values in desired) {
       final path = '$customBase$ownPrefix${written.length}/';
-      final action = combo['action'] as String? ?? '';
-      final label = combo['label'] as String? ?? '';
-      final what = action.isNotEmpty ? '${entry['name']}: ${label.isNotEmpty ? label : action}' : entry['name'] as String;
-      await settings.writeCustom(path, {
-        'name': cut(what, 120),
-        'command': command([for (final a in entry['launch'] as List) '$a'], action),
-        'binding': accelerator(combo),
-      });
+      await settings.writeCustom(path, values);
       written.add(path);
     }
-  }
-  for (final stale in oldOwn) {
-    if (!written.contains(stale)) await settings.resetCustom(stale);
+    for (final stale in oldOwn) {
+      if (!written.contains(stale)) await settings.resetCustom(stale);
+    }
+  } else {
+    final slots = stableSlotPaths(desired, {for (final path in oldOwn) path: await settings.readCustom(path)}, ownPrefix);
+    // Stale ones go first: one of them may still hold a key a new one wants.
+    for (final stale in oldOwn) {
+      if (!slots.contains(stale)) await settings.resetCustom(stale);
+    }
+    for (var i = 0; i < desired.length; i++) {
+      final current = oldOwn.contains(slots[i]) ? await settings.readCustom(slots[i]) : null;
+      final same = current != null &&
+          current['name'] == desired[i]['name'] &&
+          current['command'] == desired[i]['command'] &&
+          sameAccel(current['binding'], desired[i]['binding']);
+      if (!same) await settings.writeCustom(slots[i], desired[i]);
+      written.add(slots[i]);
+    }
   }
   await settings.setCustomPaths([...paths, ...written]);
   await settings.sync();

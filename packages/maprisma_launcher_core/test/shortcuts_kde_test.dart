@@ -293,6 +293,61 @@ void main() {
     expect(fake.keys['plasmashell:previous activity']!.map((k) => k.first), containsAll([0x10000051, 0x12000041]));
   });
 
+  test('KDE components keep their names when a shortcut is added, and an unchanged save touches nothing', () async {
+    final counting = _CountingFake();
+    final kde = KdeSettings(session, globalAccel: counting)..retryPause = Duration.zero;
+    final store = ConfigStore(session);
+    final backend = GnomeBackend(session, store, kde, label: 'KDE Plasma');
+    Map<String, dynamic> app(String name, String key) => {
+      'name': name,
+      'launch': ['echo', name],
+      'shortcuts': [makeCombo(['SUPER', 'SHIFT'], key)],
+    };
+    final apps = {'a': app('Alpha', 'A'), 'z': app('Zulu', 'Z')};
+    await backend.save(backend.clean({'apps': apps}));
+    final before = {...counting.registrations.keys};
+    expect(before, hasLength(2));
+    // "Mike" sorts between them: Zulu keeps its component, Mike gets a new one.
+    counting.unregisters = 0;
+    await backend.save(backend.clean({'apps': {...apps, 'm': app('Mike', 'M')}, 'applied': []}));
+    expect(counting.unregisters, 0);
+    expect(counting.registrations.keys, containsAll(before));
+    expect(counting.registrations, hasLength(3));
+    final files = Directory(settings.applications).listSync().map((f) => f.uri.pathSegments.last).toList()..sort();
+    expect(files, hasLength(3));
+    expect(files.where((f) => f.startsWith('maprisma-launcher-2-')), hasLength(1)); // the new one
+    // The same state again: no file written, nothing registered.
+    counting.registerCalls = 0;
+    await backend.save(backend.clean({'apps': {...apps, 'm': app('Mike', 'M')}, 'applied': []}));
+    expect(counting.registerCalls, 0);
+    // A removed shortcut goes; the others stay as they are.
+    await backend.save(backend.clean({'apps': {'z': app('Zulu', 'Z')}, 'applied': []}));
+    expect(counting.registrations.keys.where(before.contains), hasLength(1));
+    expect(counting.registrations, hasLength(1));
+    expect(File('${store.dir}/shortcuts.lock').existsSync(), isTrue);
+  });
+
+  test('stable slots: same command keeps its path, new ones take the lowest free number', () {
+    const b = customBase;
+    final existing = {
+      '${b}maprisma-launcher-0/': {'command': 'a', 'binding': '<Super>a'},
+      '${b}maprisma-launcher-2/': {'command': 'c', 'binding': '<Super>c'},
+      '${b}maprisma-launcher-3/': {'command': 'c', 'binding': '<Super>x'},
+    };
+    final slots = stableSlotPaths([
+      {'command': 'new', 'binding': '<Super>n'},
+      {'command': 'c', 'binding': '<Super>x'},
+      {'command': 'c', 'binding': '<Super>y'},
+      {'command': 'a', 'binding': '<Super>b'},
+    ], existing, 'maprisma-launcher-');
+    expect(slots, [
+      '${b}maprisma-launcher-1/',
+      '${b}maprisma-launcher-3/', // same command and key
+      '${b}maprisma-launcher-2/', // same command
+      '${b}maprisma-launcher-0/',
+    ]);
+  });
+
   test('a key KDE dropped (its service cache not yet updated) is registered again', () async {
     final dropping = _DroppingFake();
     final kde = KdeSettings(session, globalAccel: dropping)..retryPause = Duration.zero;
@@ -325,5 +380,22 @@ final class _DroppingFake extends FakeKGlobalAccel {
   Future<void> setForeignShortcutKeys(List<String> action, List<List<int>> values) async {
     if (!registrations.containsKey(id(action))) return; // unknown: nothing happens
     await super.setForeignShortcutKeys(action, values);
+  }
+}
+
+/// Counts what a save does to KDE.
+final class _CountingFake extends FakeKGlobalAccel {
+  var registerCalls = 0;
+  var unregisters = 0;
+  @override
+  Future<void> doRegister(List<String> action) async {
+    registerCalls++;
+    await super.doRegister(action);
+  }
+
+  @override
+  Future<void> unregister(String component, String action) async {
+    unregisters++;
+    await super.unregister(component, action);
   }
 }
