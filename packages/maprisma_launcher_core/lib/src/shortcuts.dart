@@ -696,7 +696,10 @@ Future<Map<String, dynamic>> applyGnome(
     await giveBack(settings, where, accel);
   }
   for (final item in (wanted.toList()..sort(order))) {
-    if (previous.contains(item) || await takeKey(settings, item.$1, item.$2)) {
+    // With [takeConflicts] a key taken before is taken again when the
+    // desktop bound it again since (KDE does).
+    final known = previous.contains(item) && !takeConflicts;
+    if (known || await takeKey(settings, item.$1, item.$2) || previous.contains(item)) {
       applied.add({'where': item.$1, 'accel': item.$2});
     }
   }

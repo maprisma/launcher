@@ -280,6 +280,13 @@ void main() {
     // The next save keeps it taken (nothing holds it now, the state knows it).
     await backend.save(backend.clean({'apps': {'claude': app}, 'applied': backend.clean(store.readJson('shortcuts.json'))['applied']}));
     expect(fake.keys['plasmashell:previous activity']!.map((k) => k.first), [0x10000051]);
+    // KDE binds it again: the next save takes it again.
+    fake.keys['plasmashell:previous activity'] = [
+      [0x12000041, 0, 0, 0],
+      [0x10000051, 0, 0, 0],
+    ];
+    await backend.save(backend.clean({'apps': {'claude': app}, 'applied': backend.clean(store.readJson('shortcuts.json'))['applied']}));
+    expect(fake.keys['plasmashell:previous activity']!.map((k) => k.first), [0x10000051]);
     // Without the launcher shortcut, KDE's action gets its key back.
     final reloaded = backend.clean(store.readJson('shortcuts.json'));
     await backend.save(backend.clean({'apps': <String, dynamic>{}, 'applied': reloaded['applied']}));
