@@ -23,6 +23,7 @@ import 'icon_theme.dart';
 import 'icons.dart';
 import 'hyprland.dart';
 import 'cosmic_windows.dart';
+import 'kde_windows.dart';
 import 'plugins.dart';
 import 'launch.dart';
 import 'newapps.dart';
@@ -82,6 +83,13 @@ final class CoreService {
   late final _ask = AskRunner(session);
   late final _iconChoices = IconChoices(session, store);
   late final _cosmic = CosmicWindows(session, executable);
+
+  /// The windows of COSMIC or KDE Plasma (null elsewhere: Omarchy has Hyprland's).
+  late final ToplevelWindows? _toplevels = switch (desktop) {
+    CosmicDesktop() => _cosmic,
+    KdeDesktop() => KdeWindows(session),
+    _ => null,
+  };
   Map<String, String>? _runStates;
   late final _hyprland = Hyprland(session);
   late final _plugins = ShellPlugins(session);
@@ -163,8 +171,8 @@ final class CoreService {
         _running = states.keys.toSet();
         return {'running': _running.toList(), 'states': states};
       }
-      if (desktop is CosmicDesktop) {
-        final clients = await _cosmic.clients();
+      if (_toplevels case final windows?) {
+        final clients = await windows.clients();
         _clients = clients ?? const [];
         if (clients != null) {
           final states = cosmicStates(_apps, clients, names, exes);
@@ -179,9 +187,9 @@ final class CoreService {
     },
     'apps.windows': (params) async {
       final app = _app(params);
-      if (desktop is CosmicDesktop) {
-        _clients = await _cosmic.clients() ?? const [];
-        return {'windows': _cosmic.windowsOf(app, _clients)};
+      if (_toplevels case final windows?) {
+        _clients = await windows.clients() ?? const [];
+        return {'windows': windows.windowsOf(app, _clients)};
       }
       if (!_hyprland.available) return {'windows': const []};
       _clients = await _hyprland.clients();
@@ -191,16 +199,16 @@ final class CoreService {
     // close as its ✕; the app may still ask to save. Only windows listed now.
     'apps.close': (params) async {
       final app = _app(params);
-      if (desktop is CosmicDesktop) {
-        final clients = await _cosmic.clients();
+      if (_toplevels case final windows?) {
+        final clients = await windows.clients();
         if (clients == null) throw ServiceError('not_available');
         _clients = clients;
         var closed = 0;
-        for (final w in _cosmic.windowsOf(app, clients)) {
+        for (final w in windows.windowsOf(app, clients)) {
           if (params['address'] != null && params['address'] != w['address']) {
             continue;
           }
-          if (await _cosmic.closeWindow(w['address'] as String)) closed++;
+          if (await windows.closeWindow(w['address'] as String)) closed++;
         }
         return {'closed': closed};
       }
@@ -219,12 +227,12 @@ final class CoreService {
     },
     'window.focus': (params) async {
       final address = _string(params, 'address');
-      if (desktop is CosmicDesktop) {
+      if (_toplevels case final windows?) {
         if (!CosmicWindows.validId(address) ||
             !_clients.any((c) => c['id'] == address)) {
           throw ServiceError('not_found');
         }
-        if (!await _cosmic.focus(address)) throw ServiceError('focus_failed');
+        if (!await windows.focus(address)) throw ServiceError('focus_failed');
         return {'focused': true};
       }
       // Only a window Hyprland listed just now.

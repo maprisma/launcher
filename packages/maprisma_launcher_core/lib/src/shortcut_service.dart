@@ -19,6 +19,7 @@ import 'protocol.dart';
 import 'shlex.dart';
 import 'shortcuts.dart';
 import 'shortcuts_hypr.dart';
+import 'shortcuts_kde.dart';
 
 const stateFile = 'shortcuts.json';
 
@@ -344,6 +345,8 @@ ShortcutBackend? backendFor(Desktop desktop, ConfigStore store, {String? cosmicD
     favorites: () => gnomeFavorites(desktop.session),
   ),
   CosmicDesktop() => _cosmicBackend(desktop.session, store, cosmicDefaults),
+  // KDE Plasma: kglobalaccel behind the same KeySettings (shortcuts_kde.dart).
+  KdeDesktop() => GnomeBackend(desktop.session, store, KdeSettings(desktop.session), label: 'KDE Plasma'),
   _ => null,
 };
 

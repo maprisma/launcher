@@ -1,0 +1,23 @@
+Found six concrete bugs:
+
+1. **[P1] KDE shortcut ownership is lost when state is reloaded.**  
+   [shortcut_service.dart:349](/mnt/Data/Projects/maprisma-launcher-kde/packages/maprisma_launcher_core/lib/src/shortcut_service.dart:349) wires KDE into `GnomeBackend`, whose state cleaner only accepts GNOME/COSMIC locations. For example, `kwin:Window Close` fails `cleanWhere()`. Assign Alt+F4 to an app: the first save removes KWin’s binding, but the next state load discards both `taken_from` and the corresponding `applied` record. Removing the launcher shortcut then **never restores Alt+F4**. KDE foreign custom paths containing `.desktop` also fail this validator.
+
+2. **[P1] New custom shortcuts can silently fail registration.**  
+   [shortcuts_kde.dart:377](/mnt/Data/Projects/maprisma-launcher-kde/packages/maprisma_launcher_core/lib/src/shortcuts_kde.dart:377) immediately calls `doRegister` after creating the desktop file in `applications/`. KDE resolves that name through its service cache, falling back only to `kglobalaccel/`. If its cache has not incorporated the new file, registration finds no service; the subsequent key assignment also does nothing. Both D-Bus calls can return successfully, so Maprisma reports a saved shortcut that does not work. There is no cache synchronization, registration verification, or retry. [KDE implementation](https://github.com/KDE/kglobalacceld/blob/master/src/globalshortcutsregistry.cpp)
+
+3. **[P1] Reusing a numbered shortcut file can launch the previous app.**  
+   [shortcuts_kde.dart:377](/mnt/Data/Projects/maprisma-launcher-kde/packages/maprisma_launcher_core/lib/src/shortcuts_kde.dart:377) replaces the file and re-registers its existing component. KDE retains the component’s original `KService`; `doRegister` updates labels rather than replacing that service. Its service-cache refresh also preserves components whose desktop files still exist. Reproduction: save a shortcut for app B, then add alphabetically earlier app A. `applyGnome` reuses `maprisma-launcher-0.desktop` for A, but that component can still launch **B’s cached Exec**, including after the service-cache refresh. [Registry implementation](https://github.com/KDE/kglobalacceld/blob/master/src/globalshortcutsregistry.cpp), [launch implementation](https://github.com/KDE/kglobalacceld/blob/master/src/kserviceactioncomponent.cpp)
+
+4. **[P2] Read-only foreign shortcuts are exposed as editable shortcuts.**  
+   [shortcuts_kde.dart:323](/mnt/Data/Projects/maprisma-launcher-kde/packages/maprisma_launcher_core/lib/src/shortcuts_kde.dart:323) returns foreign `_launch` actions through the ordinary custom-shortcut interface. `GnomeBindings` consequently offers takeover, editing, and disabling. Assigning an occupied foreign shortcut reaches `takeKey()` → `writeCustom()`, which throws the read-only exception at [shortcuts_kde.dart:359](/mnt/Data/Projects/maprisma-launcher-kde/packages/maprisma_launcher_core/lib/src/shortcuts_kde.dart:359). The operation fails as `not_applied`. Read-only ownership needs to reach the shared classification/UI logic.
+
+5. **[P2] A timed-out KWin operation can still close or focus a window afterward.**  
+   [kde_windows.dart:34](/mnt/Data/Projects/maprisma-launcher-kde/packages/maprisma_launcher_core/lib/src/kde_windows.dart:34) imposes a five-second timeout without cancelling `kdeWm`. Focus/close perform two separately timed bridge requests: state lookup, then mutation. If lookup takes four seconds and mutation setup takes another two, Maprisma reports failure at five seconds, but the window closes or gains focus at six seconds. The mutation needs the remaining overall deadline, including checks before execution.
+
+6. **[P2] Installer Exec escaping is incomplete for both desktop entries.**  
+   [tools/install-local:126](/mnt/Data/Projects/maprisma-launcher-kde/tools/install-local:126) applies argument quoting but omits the preceding desktop-value escaping layer and literal-percent escaping. With a home directory containing a backslash, decoding consumes a required escape and changes the executable path; `%f` in the path becomes a field code. Both the normal and Toggle entries can therefore fail to launch. Literal backslashes require four backslashes in the file, and literal percentages require `%%`. [Desktop Entry specification](https://specifications.freedesktop.org/desktop-entry/latest/exec-variables.html)
+
+I found no concrete COSMIC behavior regression in the four refactored routes, or additional bugs in the colour parsing, Discover invocation, Qt conversion, unsupported-key merge, or D-Bus method signatures.
+
+No files changed. Tests were not run under the read-only sandbox; findings come from tracing the implementation and checking KDE’s source.

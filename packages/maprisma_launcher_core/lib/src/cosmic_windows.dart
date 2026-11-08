@@ -52,7 +52,49 @@ bool inRunningCard(
   Map<String, String>? states,
 ) => states == null ? running.contains(key) : states[key] == 'active';
 
-final class CosmicWindows {
+/// An app's windows, by workspace, the active one first.
+List<Map<String, dynamic>> toplevelWindowsOf(Map app, List<Map> clients) {
+  final windows = clients
+      .where((w) => CosmicWindows.validId(w['id']) && cosmicWindowMatches(w, app))
+      .toList();
+  windows.sort((a, b) {
+    final ws = (a['workspace'] as int? ?? 1 << 30).compareTo(
+      b['workspace'] as int? ?? 1 << 30,
+    );
+    return ws != 0
+        ? ws
+        : (b['active'] == true ? 1 : 0).compareTo(
+            a['active'] == true ? 1 : 0,
+          );
+  });
+  return [
+    for (final w in windows)
+      {
+        'address': w['id'],
+        'title': '${w['title'] ?? ''}'.substring(
+          0,
+          '${w['title'] ?? ''}'.length.clamp(0, 120),
+        ),
+        'workspace': w['workspace'],
+      },
+  ];
+}
+
+
+/// A compositor's windows as `{id, app_id, title, workspace, active}`
+/// (COSMIC through its helper, KDE Plasma through KWin scripts).
+abstract class ToplevelWindows {
+  /// Null: the desktop cannot list windows now.
+  Future<List<Map>?> clients();
+  Future<bool> focus(String id);
+  Future<bool> closeWindow(String id);
+
+  static bool validId(Object? id) => CosmicWindows.validId(id);
+
+  List<Map<String, dynamic>> windowsOf(Map app, List<Map> clients) => toplevelWindowsOf(app, clients);
+}
+
+final class CosmicWindows extends ToplevelWindows {
   CosmicWindows(this.session, this.executable);
   final Session session;
   final String executable;
@@ -82,6 +124,7 @@ final class CosmicWindows {
     }
   }
 
+  @override
   Future<List<Map>?> clients() async {
     final value = await _run(['list']);
     if (value?['available'] != true || value?['windows'] is! List) return null;
@@ -91,35 +134,10 @@ final class CosmicWindows {
         .toList();
   }
 
-  List<Map<String, dynamic>> windowsOf(Map app, List<Map> clients) {
-    final windows = clients
-        .where((w) => validId(w['id']) && cosmicWindowMatches(w, app))
-        .toList();
-    windows.sort((a, b) {
-      final ws = (a['workspace'] as int? ?? 1 << 30).compareTo(
-        b['workspace'] as int? ?? 1 << 30,
-      );
-      return ws != 0
-          ? ws
-          : (b['active'] == true ? 1 : 0).compareTo(
-              a['active'] == true ? 1 : 0,
-            );
-    });
-    return [
-      for (final w in windows)
-        {
-          'address': w['id'],
-          'title': '${w['title'] ?? ''}'.substring(
-            0,
-            '${w['title'] ?? ''}'.length.clamp(0, 120),
-          ),
-          'workspace': w['workspace'],
-        },
-    ];
-  }
-
+  @override
   Future<bool> focus(String id) async =>
       validId(id) && (await _run(['activate', id]))?['done'] == true;
+  @override
   Future<bool> closeWindow(String id) async =>
       validId(id) && (await _run(['close', id]))?['done'] == true;
 }

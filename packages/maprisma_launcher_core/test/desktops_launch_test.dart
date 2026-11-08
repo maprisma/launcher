@@ -110,7 +110,8 @@ void main() {
     Desktop d(Map<String, String> env) => detectDesktop(Session(environment: {'HOME': '/', ...env}));
     expect(d({'XDG_CURRENT_DESKTOP': 'ubuntu:GNOME'}).name, 'gnome');
     expect(d({'XDG_CURRENT_DESKTOP': 'COSMIC'}).name, 'cosmic');
-    expect(d({'XDG_CURRENT_DESKTOP': 'KDE'}).name, 'generic');
+    expect(d({'XDG_CURRENT_DESKTOP': 'KDE'}).name, 'kde');
+    expect(d({'XDG_CURRENT_DESKTOP': 'XFCE'}).name, 'generic');
     expect(d({'XDG_CURRENT_DESKTOP': 'KDE', 'MAPRISMA_LAUNCHER_DESKTOP': 'gnome'}).name, 'gnome');
     expect(
       d({'HYPRLAND_INSTANCE_SIGNATURE': 'x', 'OMARCHY_PATH': '/nonexistent'}).name,

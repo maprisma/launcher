@@ -119,6 +119,21 @@ trap 'rm -rf -- "$stage"' EXIT
 
 ln -sfn "$lib/maprisma-launcher" "$HOME/.local/bin/maprisma-launcher"
 install -Dm644 "$src"/share/applications/*.desktop -t "$HOME/.local/share/applications"
+# Exec with the full path, quoted per the desktop entry spec: KDE Plasma
+# starts apps with its own PATH, which has no ~/.local/bin.
+apps="$HOME/.local/share/applications"
+exe="$HOME/.local/bin/maprisma-launcher"
+exe=${exe//\\/\\\\}; exe=${exe//\"/\\\"}; exe=${exe//\`/\\\`}; exe=${exe//\$/\\\$}
+# …then the desktop file value layer: every backslash doubled again, % as %%.
+exe=${exe//\\/\\\\}; exe=${exe//\%/%%}
+entry="$src/share/applications/com.maprisma.Launcher.desktop"
+if [[ -f $entry ]]; then
+  { grep -v '^Exec=' "$entry"; printf 'Exec="%s"\n' "$exe"; } > "$apps/com.maprisma.Launcher.desktop"
+  # A hidden entry that shows or hides the window (panel icons, launchers).
+  { grep -vE '^(Exec|Comment(\[[^]]*\])?|NoDisplay)=' "$entry"
+    printf 'Comment=Show or hide Maprisma Launcher\nNoDisplay=true\nExec="%s" --toggle\n' "$exe"; } \
+    > "$apps/com.maprisma.Launcher.Toggle.desktop"
+fi
 install -Dm644 "$src"/share/icons/hicolor/scalable/apps/*.svg -t "$HOME/.local/share/icons/hicolor/scalable/apps"
 update-desktop-database "$HOME/.local/share/applications" >/dev/null 2>&1 || true
 

@@ -261,7 +261,8 @@ const cosmicSchema = 'cosmic.shortcuts';
 const cosmicUserPrefix = 'cosmic-'; // Paths of the user's own commands in COSMIC.
 
 final _whereRe = RegExp(
-  r'^(?:(?:org\.gnome\.[a-z.-]{1,80}|cosmic\.shortcuts):[a-z0-9-]{1,80}|custom:' +
+  // KDE: kde/<kglobalaccel component>:<action> (names with spaces, dots, colons in the action).
+  r'^(?:(?:org\.gnome\.[a-z.-]{1,80}|cosmic\.shortcuts):[a-z0-9-]{1,80}|kde/[A-Za-z0-9._ -]{1,120}:[^\x00-\x1f\x7f]{1,160}|custom:' +
       RegExp.escape(customBase) +
       r'[A-Za-z0-9_-]{1,64}/)$',
 );

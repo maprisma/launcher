@@ -117,6 +117,9 @@ Desktop detectDesktop(Session session) {
   if (wanted == 'gnome' || wanted == null && current.contains('gnome')) {
     return GnomeDesktop(session);
   }
+  if (wanted == 'kde' || wanted == null && current.contains('kde')) {
+    return KdeDesktop(session);
+  }
   return GenericDesktop(session);
 }
 
@@ -448,6 +451,92 @@ final class CosmicDesktop extends Desktop {
     if (value == null || value.isEmpty) return 'Cosmic';
     return value.replaceAll('"', '');
   }
+}
+
+// --- KDE Plasma ------------------------------------------------------------------
+
+/// The value of [key] in [group] of a KDE ini file (nested groups as
+/// `Colors:Header][Inactive`), or null.
+String? kdeIniValue(String text, String group, String key) {
+  String? current, found;
+  for (final raw in const LineSplitter().convert(text)) {
+    final line = raw.trim();
+    if (line.startsWith('[') && line.endsWith(']')) {
+      current = line.substring(1, line.length - 1);
+    } else if (current == group) {
+      final eq = line.indexOf('=');
+      if (eq > 0 && line.substring(0, eq).trim() == key) found = line.substring(eq + 1).trim();
+    }
+  }
+  return found;
+}
+
+/// A KDE colour "r,g,b" (or "r,g,b,a") as #rrggbb, or null.
+String? kdeColor(String? value) {
+  if (value == null) return null;
+  final parts = value.split(',').map((v) => int.tryParse(v.trim())).toList();
+  if ((parts.length != 3 && parts.length != 4) || parts.any((v) => v == null || v < 0 || v > 255)) return null;
+  String hex(int v) => v.toRadixString(16).padLeft(2, '0');
+  return '#${hex(parts[0]!)}${hex(parts[1]!)}${hex(parts[2]!)}';
+}
+
+final class KdeDesktop extends Desktop {
+  KdeDesktop(super.session);
+  @override
+  String get name => 'kde';
+
+  String get _kdeglobals {
+    final config = session.environment['XDG_CONFIG_HOME']?.isNotEmpty == true
+        ? session.environment['XDG_CONFIG_HOME']!
+        : p.join(session.home, '.config');
+    final bytes = Posix.instance.readRegular(p.join(config, 'kdeglobals'), 1024 * 1024);
+    return bytes == null ? '' : utf8.decode(bytes, allowMalformed: true);
+  }
+
+  static bool _dark(String hex) {
+    final v = int.parse(hex.substring(1), radix: 16);
+    final r = (v >> 16) & 255, g = (v >> 8) & 255, b = v & 255;
+    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 < 0.5;
+  }
+
+  /// Plasma's colour scheme as kdeglobals has it: the window for background
+  /// and text, the accent (Plasma's own, else the focus decoration, else the
+  /// selection), the view's negative/neutral/positive for red/yellow/green.
+  @override
+  Future<Map<String, String>> themeColors() async {
+    final text = _kdeglobals;
+    String? c(String group, String key) => kdeColor(kdeIniValue(text, group, key));
+    final bg = c('Colors:Window', 'BackgroundNormal');
+    final base = {...(bg == null || _dark(bg) ? GnomeDesktop.dark : GnomeDesktop.light)};
+    return {
+      ...base,
+      'accent': c('General', 'AccentColor') ?? c('Colors:View', 'DecorationFocus') ?? c('Colors:Selection', 'BackgroundNormal') ?? '#3daee9',
+      'background': ?bg,
+      'foreground': ?c('Colors:Window', 'ForegroundNormal'),
+      'selection': ?c('Colors:Selection', 'BackgroundNormal'),
+      'muted': ?c('Colors:Window', 'ForegroundInactive'),
+      'red': ?c('Colors:View', 'ForegroundNegative'),
+      'yellow': ?c('Colors:View', 'ForegroundNeutral'),
+      'green': ?c('Colors:View', 'ForegroundPositive'),
+    };
+  }
+
+  /// Breeze's window corners.
+  @override
+  Future<int?> windowRounding() async => 8;
+
+  @override
+  Future<String?> iconTheme() async => kdeIniValue(_kdeglobals, 'Icons', 'Theme') ?? 'breeze';
+
+  /// Discover's update page first.
+  @override
+  List<String>? systemUpdate() {
+    final discover = session.which('plasma-discover');
+    return discover != null ? [discover, '--mode', 'update'] : super.systemUpdate();
+  }
+
+  @override
+  List<String>? systemUpdateInner() => session.which('plasma-discover') != null ? null : super.systemUpdateInner();
 }
 
 // --- Any other desktop ---------------------------------------------------------
