@@ -30,9 +30,30 @@ class MarkColors extends ThemeExtension<MarkColors> {
   MarkColors lerp(MarkColors? other, double t) => other ?? this;
 }
 
-MarkColors markColors(BuildContext context) =>
-    Theme.of(context).extension<MarkColors>() ??
-    const MarkColors(running: Color(0xff3a944a), update: Color(0xffed5b00), fresh: Color(0xffc88800));
+MarkColors markColors(BuildContext context) => Theme.of(context).extension<MarkColors>() ?? _defaultMarks;
+
+const _defaultMarks = MarkColors(running: Color(0xff3a944a), update: Color(0xffed5b00), fresh: Color(0xffc88800));
+
+/// The palette's green, orange and yellow as marks. They tell states apart
+/// (free / desktop default / yours), so a palette where two of them look
+/// alike (e.g. a KDE scheme whose "positive" is the orange accent) falls back
+/// to the default trio as a whole.
+MarkColors markColorsFrom(Map colors) {
+  final marks = MarkColors(
+    running: hexColor(colors, 'green') ?? _defaultMarks.running,
+    update: hexColor(colors, 'orange') ?? _defaultMarks.update,
+    fresh: hexColor(colors, 'yellow') ?? _defaultMarks.fresh,
+  );
+  bool alike(Color a, Color b) {
+    final ha = HSLColor.fromColor(a), hb = HSLColor.fromColor(b);
+    final hue = (ha.hue - hb.hue).abs();
+    return (hue > 180 ? 360 - hue : hue) < 18 && (ha.lightness - hb.lightness).abs() < .25;
+  }
+  final distinct = !alike(marks.running, marks.update) &&
+      !alike(marks.running, marks.fresh) &&
+      !alike(marks.update, marks.fresh);
+  return distinct ? marks : _defaultMarks;
+}
 
 double corners(BuildContext context) => Theme.of(context).extension<Corners>()?.radius ?? 12;
 
@@ -81,11 +102,7 @@ ThemeData appTheme(Brightness platform, Map colors, double radius) {
     scaffoldBackgroundColor: scheme.surface,
     extensions: [
       Corners(radius),
-      MarkColors(
-        running: hexColor(colors, 'green') ?? const Color(0xff3a944a),
-        update: hexColor(colors, 'orange') ?? const Color(0xffed5b00),
-        fresh: hexColor(colors, 'yellow') ?? const Color(0xffc88800),
-      ),
+      markColorsFrom(colors),
     ],
     cardTheme: CardThemeData(
       color: scheme.surfaceContainerLow,
