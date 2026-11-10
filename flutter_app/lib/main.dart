@@ -1,11 +1,11 @@
 import 'dart:async';
 
-import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:maprisma_launcher_core/maprisma_launcher_core.dart' show saveScreenshotNote, saveScreenshotTo, screenshotFolder;
 
 import 'apps_page.dart';
 import 'backend.dart';
@@ -149,43 +149,66 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
     }
   }
 
-  /// F12: a picture of this window and a note (window_shots.dart).
-  final _windowShots = WindowShots.fromEnvironment(Platform.environment);
+  /// F12: a picture of this window and a note (window_shots.dart, the core's screenshot.dart).
   final _shotArea = GlobalKey();
   final _navigator = GlobalKey<NavigatorState>();
+  final _messenger = GlobalKey<ScaffoldMessengerState>();
   bool _shooting = false;
 
+  /// F12 without Ctrl, Shift, Alt or Super, wherever the keyboard is (also in a dialog).
   bool _shotKey(KeyEvent event) {
     if (event is! KeyDownEvent || event.logicalKey != LogicalKeyboardKey.f12) return false;
+    final keys = HardwareKeyboard.instance;
+    if (keys.isControlPressed || keys.isShiftPressed || keys.isAltPressed || keys.isMetaPressed) return false;
     if (settings['screenshot_key'] == false) return false;
     // Never while the app's terminal runs: sudo may be asking for the
     // password, and the note's field would take the rest of it.
     if (TerminalPage.running.value > 0) return false;
-    unawaited(_takeShot());
+    unawaited(takeScreenshot());
     return true;
   }
 
-  Future<void> _takeShot() async {
+  void _toast(String text) =>
+      _messenger.currentState?.showSnackBar(SnackBar(content: Text(text), duration: const Duration(seconds: 6)));
+
+  /// The window as it is now into a PNG (it draws itself: no screenshot program), then the
+  /// dialog for a note. F12 again while the note is asked for takes no second picture.
+  Future<void> takeScreenshot() async {
     final context = _navigator.currentContext;
-    final area = _shotArea.currentContext?.findRenderObject();
-    if (context == null || _shooting || area is! RenderRepaintBoundary) return;
+    if (context == null || _shooting) return;
     _shooting = true;
+    String path;
     try {
+      final area = _shotArea.currentContext?.findRenderObject();
+      if (area is! RenderRepaintBoundary || !area.hasSize || area.size.isEmpty) throw NoPicture();
       final time = DateTime.now();
       final image = await area.toImage(pixelRatio: MediaQuery.devicePixelRatioOf(context));
-      final data = await image.toByteData(format: ui.ImageByteFormat.png);
-      image.dispose();
-      if (data == null) return;
-      final path = await _windowShots.saveTo(
+      final ByteData? data;
+      try {
+        data = await image.toByteData(format: ui.ImageByteFormat.png);
+      } finally {
+        image.dispose();
+      }
+      if (data == null) throw NoPicture();
+      path = saveScreenshotTo(
         settings['screenshot_folder'] as String?,
+        screenshotFolder(),
         data.buffer.asUint8List(),
-        time,
+        at: time,
       );
+    } on Object catch (e) {
+      _shooting = false;
+      _toast(trf('The screenshot could not be saved: {0}', [shotError(e)]));
+      return;
+    }
+    try {
       if (!context.mounted) return;
-      final note = await showDialog<String>(context: context, builder: (_) => ShotNote(path));
-      await _windowShots.note(path, note ?? '');
-    } catch (_) {
-      // A picture must never disturb the app.
+      final note = await showDialog<String>(context: context, builder: (_) => ScreenshotNoteDialog(path: path));
+      try {
+        saveScreenshotNote(path, note ?? '');
+      } on Object catch (e) {
+        _toast(trf('The note could not be saved: {0}', [shotError(e)]));
+      }
     } finally {
       _shooting = false;
     }
@@ -264,6 +287,7 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
       valueListenable: I18n.changed,
       builder: (context, _, _) => MaterialApp(
         navigatorKey: _navigator,
+        scaffoldMessengerKey: _messenger,
         // The picture F12 takes: the whole window, dialogs included.
         builder: (context, child) => RepaintBoundary(key: _shotArea, child: child),
         title: 'Maprisma Launcher',

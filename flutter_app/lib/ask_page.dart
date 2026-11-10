@@ -199,7 +199,10 @@ class _AskPageState extends State<AskPage> {
 
   /// One suggestion: click asks with it, ✎ edits it in place, × removes it.
   Widget _promptChip(int index, String text, ColorScheme scheme) {
-    final shape = StadiumBorder(side: BorderSide(color: scheme.outlineVariant));
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(cornerSizes(context).control),
+      side: BorderSide(color: scheme.outlineVariant),
+    );
     if (editingPrompt == index) {
       return Material(
         shape: shape,
@@ -552,7 +555,7 @@ class _AskPageState extends State<AskPage> {
                         ),
                         decoration: BoxDecoration(
                           color: scheme.surfaceContainerHigh,
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(cornerSizes(context).small),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -651,6 +654,7 @@ class _AskPageState extends State<AskPage> {
                     Text(tr('Helper:')),
                     const SizedBox(width: 8),
                     DropdownButton<String>(
+                      borderRadius: BorderRadius.circular(corners(context)),
                       value: helper,
                       underline: const SizedBox.shrink(),
                       items: [

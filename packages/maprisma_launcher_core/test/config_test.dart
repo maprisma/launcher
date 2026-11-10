@@ -95,6 +95,18 @@ void main() {
     expect(settings.raw().containsKey('screenshot_folder'), isFalse);
   });
 
+  test('corners: slightly rounded is new, the old values stay, unknown ones are windows', () {
+    final settings = Settings(store);
+    expect(settings.read()['corners'], 'windows');
+    for (final value in ['slight', 'windows', 'rounded', 'square']) {
+      settings.set('corners', value);
+      expect(settings.read()['corners'], value);
+    }
+    expect(() => settings.set('corners', 'pill'), throwsArgumentError);
+    store.writeJson('settings.json', {...settings.raw(), 'corners': 'pill'});
+    expect(settings.read()['corners'], 'windows');
+  });
+
   test('ask prompts: own list or null for the built-in ones; bad lists refused', () {
     final settings = Settings(store);
     expect(settings.read()['ask_prompts'], isNull);

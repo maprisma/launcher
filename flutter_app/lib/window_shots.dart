@@ -1,68 +1,38 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:maprisma_launcher_core/maprisma_launcher_core.dart';
 
 import 'i18n.dart';
 
-/// F12: a picture of App Manager's own window and its note (as Maprisma's
-/// WindowShots), in ~/Pictures/MaprismaLauncher or the folder chosen in Settings,
-/// while the setting screenshot_key is on (default).
-final class WindowShots {
-  WindowShots(this.folder);
-  final String folder;
+/// F12: a picture of Maprisma Launcher's own window and its note (as Maprisma Playground's), in
+/// ~/Pictures/MaprismaLauncher (XDG_PICTURES_DIR) or the folder chosen in Settings, while the
+/// setting screenshot_key is on (default). The files themselves: the core's screenshot.dart
+/// (a private folder, new 0600 files, never over an older one).
 
-  static WindowShots fromEnvironment(Map<String, String> environment) =>
-      WindowShots('${environment['HOME'] ?? ''}/Pictures/MaprismaLauncher');
+/// Why a picture or a note could not be saved, in the system's own words.
+String shotError(Object error) => switch (error) {
+  FileSystemException(:final osError?) => osError.message,
+  FileSystemException(:final message) => message,
+  _ => '$error',
+};
 
-  /// maprisma-launcher-2026-11-03-08-26-31.png, then -2 within the same second.
-  String pathFor(DateTime time) {
-    String two(int n) => '$n'.padLeft(2, '0');
-    final stem =
-        'maprisma-launcher-${time.year}-${two(time.month)}-${two(time.day)}'
-        '-${two(time.hour)}-${two(time.minute)}-${two(time.second)}';
-    var path = '$folder/$stem.png';
-    for (var n = 2; File(path).existsSync(); n++) {
-      path = '$folder/$stem-$n.png';
-    }
-    return path;
-  }
-
-  Future<String> save(Uint8List png, DateTime time) async {
-    await Directory(folder).create(recursive: true);
-    final path = pathFor(time);
-    await File(path).writeAsBytes(png, flush: true);
-    return path;
-  }
-
-  /// Into the folder chosen in Settings; a folder that cannot be written
-  /// loses no picture, it goes to the default one.
-  Future<String> saveTo(String? chosen, Uint8List png, DateTime time) async {
-    if (chosen == null) return save(png, time);
-    try {
-      return await WindowShots(chosen).save(png, time);
-    } on FileSystemException {
-      return save(png, time);
-    }
-  }
-
-  /// The note goes next to its picture, with the same name; no note, no file.
-  Future<void> note(String picture, String text) async {
-    if (text.trim().isEmpty) return;
-    final stem = picture.substring(0, picture.length - '.png'.length);
-    await File('$stem.txt').writeAsString('${text.trim()}\n', flush: true);
-  }
+/// The window drew nothing to take a picture of.
+final class NoPicture implements Exception {
+  @override
+  String toString() => tr('The window drew nothing.');
 }
 
-/// After F12: where the picture went, and an optional note.
-class ShotNote extends StatefulWidget {
-  const ShotNote(this.path, {super.key});
+/// "Screenshot saved": where, and a field for what is wrong. Done, Enter, Esc and a click beside it
+/// all close it with the text typed (the field's controller lives and goes with the dialog).
+class ScreenshotNoteDialog extends StatefulWidget {
+  const ScreenshotNoteDialog({super.key, required this.path});
   final String path;
   @override
-  State<ShotNote> createState() => _ShotNoteState();
+  State<ScreenshotNoteDialog> createState() => _ScreenshotNoteDialogState();
 }
 
-class _ShotNoteState extends State<ShotNote> {
+class _ScreenshotNoteDialogState extends State<ScreenshotNoteDialog> {
   final _note = TextEditingController();
 
   @override
@@ -71,23 +41,36 @@ class _ShotNoteState extends State<ShotNote> {
     super.dispose();
   }
 
+  void _done() => Navigator.pop(context, _note.text);
+
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    content: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SelectableText(trf('Screenshot saved: {0}', [widget.path])),
-        const SizedBox(height: 12),
-        TextField(
-          key: const ValueKey('screenshot-note'),
-          controller: _note,
-          autofocus: true,
-          decoration: InputDecoration(labelText: tr('What is wrong? (optional)')),
-          onSubmitted: (text) => Navigator.pop(context, text),
+  Widget build(BuildContext context) => PopScope<String>(
+    canPop: false,
+    onPopInvokedWithResult: (didPop, _) {
+      if (!didPop) _done(); // Esc or a click beside it: the note is kept too
+    },
+    child: AlertDialog(
+      title: Text(tr('Screenshot saved'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+      content: SizedBox(
+        width: 460,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SelectableText(trf('Saved as {0}', [homeShort(widget.path)])),
+            const SizedBox(height: 12),
+            TextField(
+              key: const ValueKey('screenshot-note'),
+              controller: _note,
+              autofocus: true,
+              maxLength: screenshotNoteLimit,
+              decoration: InputDecoration(hintText: tr('What is wrong? (optional)'), counterText: ''),
+              onSubmitted: (_) => _done(),
+            ),
+          ],
         ),
-      ],
+      ),
+      actions: [TextButton(onPressed: _done, child: Text(tr('Done')))],
     ),
-    actions: [TextButton(onPressed: () => Navigator.pop(context, _note.text), child: Text(tr('Done')))],
   );
 }

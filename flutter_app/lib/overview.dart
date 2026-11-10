@@ -228,7 +228,7 @@ extension Overview on AppsPageState {
         message: [app['name'], marksNote(app)].where((t) => '$t'.isNotEmpty).join('\n'),
         waitDuration: const Duration(milliseconds: 500),
         child: InkWell(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(cornerSizes(context).control),
           onTap: () => _launch(app),
           child: Center(child: marked(app, size)),
         ),
@@ -652,7 +652,7 @@ class FooterItem extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final color = on ? scheme.primary : scheme.onSurfaceVariant;
     return InkWell(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(cornerSizes(context).control),
       onTap: onTap,
       onSecondaryTapDown: onSecondaryTap == null ? null : (d) => onSecondaryTap!(d.globalPosition),
       child: Container(
@@ -660,7 +660,7 @@ class FooterItem extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 4),
         decoration: BoxDecoration(
           color: on ? scheme.primary.withValues(alpha: .12) : null,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(cornerSizes(context).control),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

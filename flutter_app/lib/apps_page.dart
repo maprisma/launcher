@@ -2066,7 +2066,7 @@ class AppsPageState extends State<AppsPage> {
     final heading = Padding(
       padding: const EdgeInsets.only(top: 6),
       child: InkWell(
-        borderRadius: BorderRadius.circular(corners(context).clamp(0, 8)),
+        borderRadius: BorderRadius.circular(cornerSizes(context).control),
         onTap: () => _toggleGroup(row.id),
         onSecondaryTapDown: own
             ? (d) => _groupMenu(row.id, d.globalPosition)
@@ -2191,7 +2191,7 @@ class AppsPageState extends State<AppsPage> {
         selectedTileColor: scheme.secondaryContainer,
         selectedColor: scheme.onSurface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(corners(context).clamp(0, 10)),
+          borderRadius: BorderRadius.circular(cornerSizes(context).control),
         ),
         leading: Tooltip(message: marksNote(app), child: marked(app, size)),
         title: Text(

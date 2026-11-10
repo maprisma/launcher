@@ -160,7 +160,7 @@ final class Settings {
               return chosen.isEmpty ? [...wideLayouts] : chosen;
             })()
           : [...wideLayouts],
-      'corners': const ['windows', 'rounded', 'square'].contains(corners)
+      'corners': const ['windows', 'slight', 'rounded', 'square'].contains(corners)
           ? corners
           : 'windows',
       'icon_sizes': iconSizes(data),
@@ -256,7 +256,7 @@ final class Settings {
         final chosen = wideLayouts.where(value.contains).toList();
         stored = chosen.isEmpty ? [...wideLayouts] : chosen;
       case 'corners':
-        if (!const ['windows', 'rounded', 'square'].contains(value)) throw ArgumentError(key);
+        if (!const ['windows', 'slight', 'rounded', 'square'].contains(value)) throw ArgumentError(key);
         stored = value;
       case 'window_mode':
         if (!const ['auto', 'popup', 'window'].contains(value)) throw ArgumentError(key);

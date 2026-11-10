@@ -683,6 +683,7 @@ class ShortcutPageState extends State<ShortcutPage> {
               child: Tooltip(
                 message: tr('Open the app, or one of its own actions such as a private window'),
                 child: DropdownButton<String>(
+                  borderRadius: BorderRadius.circular(corners(context)),
                   key: const ValueKey('shortcut-action'),
                   isExpanded: true,
                   value: action,

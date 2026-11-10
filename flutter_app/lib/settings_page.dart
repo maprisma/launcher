@@ -3,11 +3,12 @@ import 'dart:math' as math;
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:maprisma_launcher_core/maprisma_launcher_core.dart' show homeShort, screenshotFolder;
 
 import 'backend.dart';
 import 'core_call.dart';
 import 'i18n.dart';
-import 'theme.dart' show corners;
+import 'theme.dart' show corners, cornerSizes, roundedRadius, slightRadius;
 import 'main.dart' show PopupGuard;
 
 /// launcher_core's choices per setting.
@@ -325,7 +326,7 @@ class _SettingsPageState extends State<SettingsPage> {
     isExpanded: true,
     isDense: true,
     underline: const SizedBox.shrink(),
-    borderRadius: BorderRadius.circular(8),
+    borderRadius: BorderRadius.circular(corners(context)),
     items: [for (final (v, label) in choices) DropdownMenuItem(value: v, child: Text(label))],
     onChanged: (v) => v == null ? null : onChanged(v),
   );
@@ -394,7 +395,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (_scroll.hasClients) _scroll.jumpTo(0);
     }
 
-    final rounded = RoundedRectangleBorder(borderRadius: BorderRadius.circular(corners(context).clamp(6, 16)));
+    final rounded = RoundedRectangleBorder(borderRadius: BorderRadius.circular(cornerSizes(context).control));
     Widget find(double side) => Padding(
       padding: EdgeInsets.fromLTRB(side, 4, side, 8),
       child: Align(
@@ -415,7 +416,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       icon: const Icon(Icons.close, size: 18),
                       onPressed: () => setState(_find.clear),
                     ),
-              border: const OutlineInputBorder(),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(cornerSizes(context).control)),
             ),
           ),
         ),
@@ -666,11 +667,12 @@ class _SettingsPageState extends State<SettingsPage> {
                   _row(
                     tr('Corners'),
                     tr(
-                      'Corners of the window, its folders and cards. “Like windows” follows the desktop\'s rounded corners.',
+                      "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.",
                     ),
                     _dropdown<String>(settings['corners'] as String? ?? 'windows', [
                       ('windows', rounding == null ? tr('Like windows') : trf('Like windows ({0} px)', [rounding])),
-                      ('rounded', tr('Rounded')),
+                      ('slight', trf('Slightly rounded ({0} px)', [slightRadius])),
+                      ('rounded', trf('Rounded ({0} px)', [roundedRadius])),
                       ('square', tr('Square')),
                     ], (v) => _set('corners', v)),
                   ),
@@ -788,13 +790,13 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   _row(
                     tr('Screenshots go to'),
-                    settings['screenshot_folder'] as String? ?? '~/Pictures/MaprismaLauncher',
+                    settings['screenshot_folder'] as String? ?? homeShort(screenshotFolder()),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         Flexible(
                           child: Text(
-                            settings['screenshot_folder'] as String? ?? '~/Pictures/MaprismaLauncher',
+                            settings['screenshot_folder'] as String? ?? homeShort(screenshotFolder()),
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(color: scheme.onSurfaceVariant),
                           ),

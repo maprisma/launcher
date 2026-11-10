@@ -32,3 +32,4 @@ export 'src/dock.dart';
 export 'src/shortcuts.dart';
 export 'src/shortcuts_hypr.dart';
 export 'src/shortcut_service.dart';
+export 'src/screenshot.dart';

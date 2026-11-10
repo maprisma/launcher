@@ -137,7 +137,7 @@ extension HeaderBar on AppsPageState {
       padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(corners(context).clamp(4, 14)),
+        borderRadius: BorderRadius.circular(cornerSizes(context).control),
         border: Border.all(color: scheme.outlineVariant),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: buttons),
@@ -240,7 +240,7 @@ extension HeaderBar on AppsPageState {
           padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
           decoration: BoxDecoration(
             color: scheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(corners(context).clamp(4, 14)),
+            borderRadius: BorderRadius.circular(cornerSizes(context).control),
             border: Border.all(color: candidates.isNotEmpty ? scheme.primary : scheme.outlineVariant),
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: children),

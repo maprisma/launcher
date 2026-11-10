@@ -488,7 +488,16 @@ void main() {
     final pictures = shots.listSync().where((f) => f.path.endsWith('.png')).toList();
     expect(pictures, hasLength(1));
     expect(p.basename(pictures.single.path), startsWith('maprisma-launcher-'));
-    expect(find.textContaining('Screenshot saved: '), findsOneWidget);
+    expect(find.text('Screenshot saved'), findsOneWidget);
+    expect((File(pictures.single.path).statSync().mode & 0x1ff), 0x180);
+    expect((shots.statSync().mode & 0x1ff), 0x1c0);
+    // F12 again while the note is asked for: no second picture, no second dialog.
+    await tester.sendKeyEvent(LogicalKeyboardKey.f12);
+    for (var i = 0; i < 4; i++) {
+      await settle(tester);
+    }
+    expect(shots.listSync().where((f) => f.path.endsWith('.png')), hasLength(1));
+    expect(find.byKey(const ValueKey('screenshot-note')), findsOneWidget);
     await tester.enterText(find.byKey(const ValueKey('screenshot-note')), 'Writer is cut off');
     await tester.tap(find.text('Done'));
     for (var i = 0; i < 4; i++) {
@@ -497,6 +506,34 @@ void main() {
     final note = File(pictures.single.path.replaceFirst(RegExp(r'\.png$'), '.txt'));
     expect(note.readAsStringSync(), 'Writer is cut off\n');
 
+    // Esc keeps the note too; the second picture gets a name of its own.
+    await tester.sendKeyEvent(LogicalKeyboardKey.f12);
+    for (var i = 0; i < 6; i++) {
+      await settle(tester);
+    }
+    await tester.enterText(find.byKey(const ValueKey('screenshot-note')), 'Second');
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    for (var i = 0; i < 4; i++) {
+      await settle(tester);
+    }
+    expect(find.byKey(const ValueKey('screenshot-note')), findsNothing);
+    final notes = shots.listSync().whereType<File>().where((f) => f.path.endsWith('.txt')).toList();
+    expect(notes.map((f) => f.readAsStringSync()).toSet(), {'Writer is cut off\n', 'Second\n'});
+    expect(note.readAsStringSync(), 'Writer is cut off\n');
+    expect(shots.listSync().where((f) => f.path.endsWith('.png')), hasLength(2));
+
+    // F12 with a modifier (Ctrl+F12, Shift+F12 …) is not ours.
+    for (final modifier in [LogicalKeyboardKey.controlLeft, LogicalKeyboardKey.shiftLeft, LogicalKeyboardKey.altLeft]) {
+      await tester.sendKeyDownEvent(modifier);
+      await tester.sendKeyEvent(LogicalKeyboardKey.f12);
+      await tester.sendKeyUpEvent(modifier);
+      for (var i = 0; i < 4; i++) {
+        await settle(tester);
+      }
+    }
+    expect(shots.listSync().where((f) => f.path.endsWith('.png')), hasLength(2));
+    expect(find.byKey(const ValueKey('screenshot-note')), findsNothing);
+
     // While the app's terminal runs (sudo may want the password): no picture, no note field.
     TerminalPage.running.value++;
     await tester.sendKeyEvent(LogicalKeyboardKey.f12);
@@ -504,7 +541,7 @@ void main() {
       await settle(tester);
     }
     TerminalPage.running.value--;
-    expect(shots.listSync().where((f) => f.path.endsWith('.png')), hasLength(1));
+    expect(shots.listSync().where((f) => f.path.endsWith('.png')), hasLength(2));
     expect(find.byKey(const ValueKey('screenshot-note')), findsNothing);
 
     // Off in Settings: F12 does nothing.
@@ -515,8 +552,8 @@ void main() {
     for (var i = 0; i < 4; i++) {
       await settle(tester);
     }
-    expect(shots.listSync().where((f) => f.path.endsWith('.png')), hasLength(1));
-    expect(find.textContaining('Screenshot saved: '), findsNothing);
+    expect(shots.listSync().where((f) => f.path.endsWith('.png')), hasLength(2));
+    expect(find.text('Screenshot saved'), findsNothing);
   });
 
   testWidgets('Uninstall…: your own entry goes to the trash after the question', (tester) async {

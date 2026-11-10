@@ -7,6 +7,7 @@ import 'app_icon.dart';
 import 'backend.dart';
 import 'core_call.dart';
 import 'i18n.dart';
+import 'theme.dart';
 
 /// Change icon (launcher.py open_icon_page / search_icons): installed theme
 /// icons at once, online candidates as their previews arrive (six at a
@@ -97,7 +98,7 @@ class _IconPageState extends State<IconPage> {
   Widget _tile(String? file, String caption, VoidCallback onTap) => Tooltip(
     message: caption,
     child: InkWell(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(cornerSizes(context).control),
       onTap: onTap,
       child: SizedBox(
         width: 96,
