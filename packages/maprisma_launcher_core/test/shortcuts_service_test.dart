@@ -438,6 +438,75 @@ void main() {
     });
   });
 
+  group('Hyprland without Omarchy (Caelestia) with a fake hyprctl', () {
+    late Fixture f;
+    late String hypr;
+    setUp(() async {
+      f = Fixture('generic', extra: {'HYPRLAND_INSTANCE_SIGNATURE': 'test_signature'});
+      writeExec(p.join(f.bin, 'hyprctl'), fakeHyprctl);
+      File(p.join(f.bin, 'binds.txt')).writeAsStringSync(
+        'bind\n\tmodmask: 64\n\tsubmap: \n\tkey: Return\n\tdescription: \n',
+      );
+      hypr = p.join(f.home.path, '.config/hypr');
+      Directory(hypr).createSync(recursive: true);
+      File(p.join(hypr, 'hyprland.lua')).writeAsStringSync('require("hyprland.keybinds")\n');
+      await f.call('apps.list');
+    });
+    tearDown(() => f.dispose());
+
+    test('plain hl.bind with the desktop file\'s command; require in Caelestia\'s user file', () async {
+      final user = p.join(f.home.path, '.config/caelestia/hypr-user.lua');
+      Directory(p.dirname(user)).createSync(recursive: true);
+      File(user).writeAsStringSync('-- mine\n');
+      final state = await f.call('shortcuts.state', {'key': f.firefox, 'mods': ['SUPER'], 'fresh': true});
+      expect(state['available'], isTrue);
+      expect(state['desktop'], 'Hyprland');
+
+      await f.call('shortcuts.set', {'key': f.firefox, 'mods': ['SUPER', 'ALT'], 'combo_key': 'F'});
+      await f.call('shortcuts.set', {'key': f.firefox, 'mods': ['SUPER', 'ALT'], 'combo_key': 'P', 'action': 'new-private-window'});
+      await f.call('shortcuts.set', {'key': f.files, 'mods': ['SUPER', 'ALT'], 'combo_key': 'N'});
+      final lua = File(p.join(hypr, 'maprisma-launcher-shortcuts.lua')).readAsStringSync();
+      expect(lua, isNot(contains('o.bind')));
+      expect(lua, isNot(contains('uwsm-app')));
+      expect(lua, contains('hl.unbind("SUPER + ALT + F")\n'
+          'hl.bind("SUPER + ALT + F", hl.dsp.exec_cmd("firefox"), { description = "Firefox" })'));
+      expect(lua, contains('hl.dsp.exec_cmd("firefox --private-window")'));
+      // The desktop file's Path: the command runs there.
+      expect(lua, contains('hl.dsp.exec_cmd("${p.join(f.bin, 'env')} -C ${f.home.path} nautilus --new-window")'));
+      expect(File(user).readAsStringSync(), endsWith('\nrequire("maprisma-launcher-shortcuts")\n'));
+      expect(RegExp('maprisma-launcher-shortcuts').allMatches(File(user).readAsStringSync()), hasLength(1));
+      expect(File(p.join(hypr, 'hyprland.lua')).readAsStringSync(), 'require("hyprland.keybinds")\n');
+      expect((await f.call('shortcuts.labels'))['labels'], {
+        f.firefox: ['Super + Alt + F', 'Super + Alt + P'],
+        f.files: ['Super + Alt + N'],
+      });
+    });
+
+    test('two-step shortcuts (from an older state) run the command without uwsm-app', () {
+      final state = {
+        'apps': {
+          f.firefox: {
+            'name': 'Firefox',
+            'launch': [f.firefox],
+            'disabled': [],
+            'shortcuts': [
+              {'mods': ['SUPER', 'ALT'], 'key': 'B', 'then': 'F'},
+            ],
+          },
+        },
+      };
+      final lua = renderLua(state, (path) => path, plainCommand: (launch, action) => 'firefox');
+      expect(lua, contains('hl.exec_cmd("firefox")'));
+      expect(lua, isNot(contains('uwsm-app')));
+    });
+
+    test('without Caelestia the require line goes into hyprland.lua', () async {
+      await f.call('shortcuts.set', {'key': f.firefox, 'mods': ['SUPER', 'ALT'], 'combo_key': 'F'});
+      expect(File(p.join(hypr, 'hyprland.lua')).readAsStringSync(),
+          endsWith('require("maprisma-launcher-shortcuts")\n'));
+    });
+  });
+
   test('generic desktops are read-only', () async {
     final f = Fixture('generic');
     addTearDown(f.dispose);

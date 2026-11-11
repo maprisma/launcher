@@ -533,7 +533,15 @@ String submapName(Map first, LuaNames names) =>
 /// render_lua: the generated module. Turned-off bindings are unbound before
 /// any shortcut is bound, so a key turned off for one app and given to
 /// another stays bound; two-step shortcuts get a submap each.
-String renderLua(Map state, String Function(String) desktopArg, {LuaNames names = const LuaNames()}) {
+///
+/// [plainCommand] is for Hyprland without Omarchy (no `o.bind`, no uwsm-app): the
+/// command line of a shortcut, run through `hl.dsp.exec_cmd`.
+String renderLua(
+  Map state,
+  String Function(String) desktopArg, {
+  LuaNames names = const LuaNames(),
+  String Function(List<String> launch, String action)? plainCommand,
+}) {
   final lines = <String>[
     '-- Managed by ${names.header}.',
     '-- Edit shortcuts from the launcher; manual changes here are overwritten.',
@@ -559,22 +567,28 @@ String renderLua(Map state, String Function(String) desktopArg, {LuaNames names 
     final launch = entry['launch'] as List;
     for (final combo in shortcuts) {
       final action = combo['action'] as String? ?? '';
-      final command = shortcutLaunch(launch, action, desktopArg).map(shlexQuote).join(' ');
+      final plain = plainCommand?.call([for (final a in launch) '$a'], action);
+      final command = plain ?? shortcutLaunch(launch, action, desktopArg).map(shlexQuote).join(' ');
       if ((combo['then'] ?? '') != '') {
-        // Plugins and tray icons run directly; uwsm-app is for apps.
-        final line = runsDirectly(launch) ? command : 'uwsm-app -- $command';
+        // Plugins and tray icons run directly; uwsm-app is for apps (Omarchy only).
+        final line = plain != null || runsDirectly(launch) ? command : 'uwsm-app -- $command';
         final first = leader(combo);
         sequences.putIfAbsent(comboId(first), () => (first, [])).$2.add((entry, combo, line));
         continue;
       }
-      final dispatcher = runsDirectly(launch) ? luaQuoted(command) : '{ launch = ${luaQuoted(command)} }';
       final what = action.isNotEmpty ? '${entry['name']}: $action' : entry['name'] as String;
       final replaces = combo['replaces'] as String? ?? '';
       final note = replaces.isNotEmpty ? ' (replaces: $replaces)' : '';
       lines
         ..add(luaComment('$what$note'))
-        ..add('hl.unbind(${luaQuoted(comboString(combo))})')
-        ..add('o.bind(${luaQuoted(comboString(combo))}, ${luaQuoted(entry['name'])}, $dispatcher)');
+        ..add('hl.unbind(${luaQuoted(comboString(combo))})');
+      if (plain != null) {
+        lines.add('hl.bind(${luaQuoted(comboString(combo))}, hl.dsp.exec_cmd(${luaQuoted(plain)}), '
+            '{ description = ${luaQuoted(cut(what, 160))} })');
+      } else {
+        final dispatcher = runsDirectly(launch) ? luaQuoted(command) : '{ launch = ${luaQuoted(command)} }';
+        lines.add('o.bind(${luaQuoted(comboString(combo))}, ${luaQuoted(entry['name'])}, $dispatcher)');
+      }
     }
     lines.add('');
   }

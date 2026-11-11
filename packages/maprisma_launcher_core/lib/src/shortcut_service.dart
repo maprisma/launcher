@@ -89,27 +89,8 @@ final class GnomeBackend implements ShortcutBackend {
   /// file's own Exec (or its action's) as the app starts it, in a terminal
   /// when it asks for one; an argv entry as it is. The reference ran its
   /// bounded Python helper here; there is no Python on the target system.
-  String command(List<String> launch, String action) {
-    if (launch.length == 1 && launch[0].endsWith('.desktop')) {
-      final found = desktopCommand(launch[0], session, action: action.isEmpty ? null : action);
-      if (found == null) throw ServiceError('launch_failed', launch[0]);
-      var argv = found.argv;
-      if (found.terminal) {
-        final terminal = defaultTerminal(session);
-        if (terminal == null) throw ServiceError('no_terminal');
-        argv = [...terminal, ...argv];
-      }
-      final env = session.which('env');
-      if (found.cwd != null && env != null) argv = [env, '-C', found.cwd!, ...argv];
-      return _checked(shlexJoin(argv));
-    }
-    return _checked(shlexJoin(launch));
-  }
+  String command(List<String> launch, String action) => shortcutCommand(session, launch, action);
 
-  static String _checked(String line) {
-    if (line.contains(RegExp(r'[\x00-\x1f\x7f]'))) throw ServiceError('launch_failed');
-    return line;
-  }
 
   @override
   Future<void> save(Map<String, dynamic> state) async {
@@ -143,6 +124,31 @@ final class GnomeBackend implements ShortcutBackend {
   }
 }
 
+/// shortcut_command: the command line a desktop runs for a shortcut (GNOME,
+/// COSMIC and plain Hyprland): the desktop file's own Exec (or its action's) as
+/// the app starts it, in a terminal when it asks for one; an argv entry as it is.
+String shortcutCommand(Session session, List<String> launch, String action) {
+  if (launch.length == 1 && launch[0].endsWith('.desktop')) {
+    final found = desktopCommand(launch[0], session, action: action.isEmpty ? null : action);
+    if (found == null) throw ServiceError('launch_failed', launch[0]);
+    var argv = found.argv;
+    if (found.terminal) {
+      final terminal = defaultTerminal(session);
+      if (terminal == null) throw ServiceError('no_terminal');
+      argv = [...terminal, ...argv];
+    }
+    final env = session.which('env');
+    if (found.cwd != null && env != null) argv = [env, '-C', found.cwd!, ...argv];
+    return _checkedLine(shlexJoin(argv));
+  }
+  return _checkedLine(shlexJoin(launch));
+}
+
+String _checkedLine(String line) {
+  if (line.contains(RegExp(r'[\x00-\x1f\x7f]'))) throw ServiceError('launch_failed');
+  return line;
+}
+
 /// gsettings on the user's session bus (argv only, bounded).
 KeySettings gsettingsProgram(Session session, {Runner? run}) {
   final runner = run ?? sessionRun(session);
@@ -174,19 +180,34 @@ CosmicSettings cosmicSettings(Session session, ConfigStore store, {String? defau
 
 // --- Omarchy (Hyprland) ----------------------------------------------------------------
 
+/// Omarchy's Hyprland, or ([omarchy] false) any other Hyprland with a Lua config
+/// (Caelestia and the like): there the module binds with `hl.bind` and
+/// `hl.dsp.exec_cmd`, as Omarchy's `o.bind` and uwsm-app are missing.
 final class HyprBackend implements ShortcutBackend {
-  HyprBackend(this.session, this.store, {Runner? run}) : run = run ?? sessionRun(session);
+  HyprBackend(this.session, this.store, {Runner? run, this.omarchy = true}) : run = run ?? sessionRun(session);
   final Session session;
   final ConfigStore store;
   final Runner run;
+  final bool omarchy;
   @override
-  String get label => 'Omarchy';
+  String get label => omarchy ? 'Omarchy' : 'Hyprland';
 
   static const module = 'maprisma-launcher-shortcuts';
   String get hyprDir => p.join(session.home, '.config/hypr');
   String get luaFile => p.join(hyprDir, '$module.lua');
-  String get mainFile => p.join(hyprDir, 'hyprland.lua');
-  static const requireLine = 'require("hypr.$module")';
+
+  /// Where the require line goes: Omarchy's hyprland.lua; on Caelestia its user
+  /// file (loaded last, kept by Caelestia's updates); else hyprland.lua.
+  String get mainFile {
+    if (!omarchy) {
+      final caelestia = p.join(session.home, '.config/caelestia/hypr-user.lua');
+      if (File(caelestia).existsSync()) return caelestia;
+    }
+    return p.join(hyprDir, 'hyprland.lua');
+  }
+
+  /// Omarchy puts ~/.config on Lua's path, Hyprland itself ~/.config/hypr.
+  String get requireLine => omarchy ? 'require("hypr.$module")' : 'require("$module")';
   String get omarchyRoot => session.environment['OMARCHY_PATH']?.isNotEmpty == true
       ? session.environment['OMARCHY_PATH']!
       : '/usr/share/omarchy';
@@ -332,7 +353,14 @@ final class HyprBackend implements ShortcutBackend {
     final oldState = File(store.path(stateFile)).existsSync() ? store.readJson(stateFile) : null;
     final oldLua = File(luaFile).existsSync() ? _read(luaFile) ?? '' : null;
     final before = await configErrors();
-    writeTextAtomic(luaFile, renderLua(state, desktopArg));
+    writeTextAtomic(
+      luaFile,
+      renderLua(
+        state,
+        desktopArg,
+        plainCommand: omarchy ? null : (launch, action) => shortcutCommand(session, launch, action),
+      ),
+    );
     ensureRequired();
     store.writeJson(stateFile, state);
     final errors = await configErrors();
@@ -354,6 +382,9 @@ final class HyprBackend implements ShortcutBackend {
 /// The backend of a desktop, or null where shortcuts cannot be written.
 ShortcutBackend? backendFor(Desktop desktop, ConfigStore store, {String? cosmicDefaults}) => switch (desktop) {
   OmarchyDesktop() => HyprBackend(desktop.session, store),
+  // Hyprland without Omarchy (Caelestia and the like): plain hl.bind.
+  GenericDesktop() when (desktop.session.environment['HYPRLAND_INSTANCE_SIGNATURE'] ?? '').isNotEmpty =>
+    HyprBackend(desktop.session, store, omarchy: false),
   GnomeDesktop() => GnomeBackend(
     desktop.session,
     store,
