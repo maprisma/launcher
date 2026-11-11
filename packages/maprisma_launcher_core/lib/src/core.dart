@@ -451,9 +451,7 @@ final class CoreService {
     'window.popup': (params) async {
       final width = params['width'], height = params['height'];
       if (width is! int || height is! int) throw ServiceError('bad_params');
-      if (!(desktop is OmarchyDesktop && _hyprland.available)) {
-        return {'placed': false, 'reason': 'not Omarchy'};
-      }
+      if (!_hyprland.available) return {'placed': false, 'reason': 'not Hyprland'};
       return _hyprland.placePopup(pid, width, height);
     },
     'updates.check': (params) => _checkUpdates(force: params['force'] == true),

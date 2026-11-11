@@ -172,7 +172,8 @@ final class Settings {
       // F12 saves a picture of the window (as in Maprisma); on by default.
       'screenshot_key': data['screenshot_key'] != false,
       'ai_enabled': data['ai_enabled'] != false,
-      // auto: a popup on Omarchy (as the old App Manager), a window elsewhere.
+      // auto: a popup on Hyprland (Omarchy as the old App Manager, Caelestia as the other
+      // Maprisma windows), a window elsewhere.
       'window_mode': const ['auto', 'popup', 'window'].contains(data['window_mode']) ? data['window_mode'] : 'auto',
       // In popup mode, clicking outside hides the window (on by default).
       'close_outside': data['close_outside'] != false,

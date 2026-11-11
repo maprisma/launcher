@@ -99,7 +99,7 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
   /// card, and goes away with Esc or a click elsewhere.
   bool get popup {
     final mode = settings['window_mode'] as String? ?? 'auto';
-    return mode == 'popup' || (mode == 'auto' && look['desktop'] == 'omarchy');
+    return mode == 'popup' || (mode == 'auto' && (look['desktop'] == 'omarchy' || look['hyprland'] == true));
   }
 
   /// Whether clicking outside the popup hides it (Settings › Close on click outside).
@@ -127,7 +127,51 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
     });
   }
 
+  /// While the popup is placed (shown at GTK's default size, then resized to the saved one), a
+  /// size change is not the user's: it is not saved.
+  bool _placing = false;
+  Timer? _sizeSave, _placed;
+
   Future<void> _placePopup() async {
+    _placed?.cancel();
+    _placing = true;
+    try {
+      await _placePopupNow();
+    } finally {
+      _placed = Timer(const Duration(milliseconds: 700), () => _placing = false);
+    }
+  }
+
+  /// The popup resized by hand (a border drag): its size is saved, so it opens at it next time.
+  @override
+  void didChangeMetrics() {
+    super.didChangeMetrics();
+    if (!popup || _placing) return;
+    _sizeSave?.cancel();
+    _sizeSave = Timer(const Duration(milliseconds: 800), _saveSize);
+  }
+
+  Future<void> _saveSize() async {
+    if (!popup || _placing || !mounted) return;
+    final view = WidgetsBinding.instance.platformDispatcher.views.firstOrNull;
+    if (view == null || view.devicePixelRatio <= 0) return;
+    final w = (view.physicalSize.width / view.devicePixelRatio).round();
+    final h = (view.physicalSize.height / view.devicePixelRatio).round();
+    if (w < 420 || h < 300) return; // hidden or not laid out yet
+    final old = settings['size'];
+    if (old is List && old.length == 2 && old[0] is int && old[1] is int &&
+        ((old[0] as int) - w).abs() <= 2 && ((old[1] as int) - h).abs() <= 2) {
+      return;
+    }
+    try {
+      final fresh = await widget.core('settings.set', {'key': 'size', 'value': [w, h]});
+      if (mounted) setState(() => settings = Map<String, dynamic>.from(fresh));
+    } on Object {
+      // not saved: the next resize tries again
+    }
+  }
+
+  Future<void> _placePopupNow() async {
     _syncGrab();
     if (!popup) return;
     windowChannel.invokeMethod('decorated', false).ignore();
@@ -250,6 +294,8 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
   @override
   void dispose() {
     _blurHide?.cancel();
+    _sizeSave?.cancel();
+    _placed?.cancel();
     shownAgain.removeListener(_reloadLook);
     shownAgain.removeListener(_placePopup);
     windowFocused.removeListener(_onFocus);

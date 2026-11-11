@@ -95,6 +95,8 @@ abstract class Desktop {
 
   Future<Map<String, dynamic>> look() async => {
     'desktop': name,
+    // any Hyprland session (Omarchy or not): the window can be a popup there
+    'hyprland': (session.environment['HYPRLAND_INSTANCE_SIGNATURE'] ?? '').isNotEmpty,
     'colors': await themeColors(),
     'rounding': await windowRounding(),
     'icon_theme': await iconTheme(),
