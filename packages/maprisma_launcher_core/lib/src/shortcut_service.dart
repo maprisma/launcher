@@ -345,6 +345,15 @@ final class HyprBackend implements ShortcutBackend {
     );
   }
 
+  /// A shortcut's command line on plain Hyprland. The launcher's own entry
+  /// shows or hides the window (--toggle): a second plain start would only
+  /// bring the window back, never hide it.
+  String plainCommand(List<String> launch, String action) {
+    final line = shortcutCommand(session, launch, action);
+    final own = launch.length == 1 && p.basename(launch[0]) == 'com.maprisma.Launcher.desktop';
+    return own && action.isEmpty ? '$line --toggle' : line;
+  }
+
   /// save_and_apply: the state, the module, a reload; on a new
   /// configuration error the previous files come back and the error is raised.
   @override
@@ -358,7 +367,7 @@ final class HyprBackend implements ShortcutBackend {
       renderLua(
         state,
         desktopArg,
-        plainCommand: omarchy ? null : (launch, action) => shortcutCommand(session, launch, action),
+        plainCommand: omarchy ? null : plainCommand,
       ),
     );
     ensureRequired();

@@ -500,6 +500,14 @@ void main() {
       expect(lua, isNot(contains('uwsm-app')));
     });
 
+    test("the launcher's own shortcut toggles it", () {
+      final own = p.join(f.home.path, 'data/applications/com.maprisma.Launcher.desktop');
+      File(own).writeAsStringSync('[Desktop Entry]\nType=Application\nName=Maprisma Launcher\nExec=firefox\n');
+      final backend = HyprBackend(Session(environment: f.env), f.core.store, omarchy: false);
+      expect(backend.plainCommand([own], ''), 'firefox --toggle');
+      expect(backend.plainCommand([f.firefox], ''), 'firefox');
+    });
+
     test('without Caelestia the require line goes into hyprland.lua', () async {
       await f.call('shortcuts.set', {'key': f.firefox, 'mods': ['SUPER', 'ALT'], 'combo_key': 'F'});
       expect(File(p.join(hypr, 'hyprland.lua')).readAsStringSync(),
