@@ -545,8 +545,45 @@ final class GenericDesktop extends Desktop {
   GenericDesktop(super.session);
   @override
   String get name => 'generic';
+
+  /// On Hyprland with Caelestia (no Omarchy): Caelestia's colour scheme
+  /// (XDG_STATE_HOME/caelestia/scheme.json, Material names), so the Launcher
+  /// follows the theme in use, as Maprisma Manager and Playground do.
   @override
-  Future<Map<String, String>> themeColors() async => {};
+  Future<Map<String, String>> themeColors() async {
+    final env = session.environment;
+    final hyprland = (env['XDG_CURRENT_DESKTOP'] ?? '').toUpperCase().split(':').contains('HYPRLAND');
+    if (!hyprland) return {};
+    final stateHome = env['XDG_STATE_HOME'];
+    final state = stateHome != null && p.isAbsolute(stateHome) ? stateHome : p.join(session.home, '.local', 'state');
+    final file = File(p.join(state, 'caelestia', 'scheme.json'));
+    Object? data;
+    try {
+      if (!file.existsSync() || file.lengthSync() > 256 * 1024) return {};
+      data = jsonDecode(file.readAsStringSync());
+    } on Object {
+      return {};
+    }
+    final colours = data is Map ? data['colours'] : null;
+    if (colours is! Map) return {};
+    String? c(String key) {
+      final v = colours[key];
+      return v is String && RegExp(r'^[0-9a-fA-F]{6}$').hasMatch(v) ? '#${v.toLowerCase()}' : null;
+    }
+
+    final out = {
+      'accent': c('primary'),
+      'background': c('surface') ?? c('background'),
+      'foreground': c('onSurface'),
+      'muted': c('outline'),
+      'selection': c('surfaceContainerHighest'),
+      'red': c('error') ?? c('red'),
+      'yellow': c('yellow'),
+      'orange': c('peach'),
+      'green': c('green'),
+    };
+    return {for (final e in out.entries) if (e.value != null) e.key: e.value!};
+  }
   @override
   Future<int?> windowRounding() async => null;
   @override
