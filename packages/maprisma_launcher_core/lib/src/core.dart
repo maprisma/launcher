@@ -166,8 +166,9 @@ final class CoreService {
     'apps.facts': (_) async => {'facts': await _facts.all(_apps)},
     'apps.running': (_) async {
       final (names, exes) = processNames();
-      // Omarchy knows the windows: "active" (open windows) or "background".
-      if (desktop is OmarchyDesktop && _hyprland.available) {
+      // Hyprland (Omarchy or any other) knows the windows: "active" (open
+      // windows) or "background".
+      if (_hyprland.available) {
         _clients = await _hyprland.clients();
         final states = _hyprland.states(_apps, _clients, names, exes);
         _runStates = states;
