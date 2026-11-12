@@ -29,6 +29,9 @@ struct _MyApplication {
   GtkWindow* dock_window;
   FlMethodChannel* dock_channel;
   int exit_code;
+  // When the window last stepped aside by the app's "hide" (a click outside the popup, Esc,
+  // a start): a bar click that caused it must not bring the window straight back.
+  gint64 hidden_at;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
@@ -213,6 +216,59 @@ static gboolean focus_changed_cb(GtkWidget* widget, GdkEventFocus* event, gpoint
   return FALSE;
 }
 
+// --- the window's size (Maprisma layout rule 5a) ---------------------------------
+
+// The monitor the window is on, else the largest one (the window is not placed yet).
+static GdkMonitor* size_monitor(GtkWindow* window) {
+  GdkDisplay* display = gtk_widget_get_display(GTK_WIDGET(window));
+  GdkWindow* gdk_window = gtk_widget_get_window(GTK_WIDGET(window));
+  if (gdk_window != nullptr && gtk_widget_get_mapped(GTK_WIDGET(window))) {
+    GdkMonitor* at = gdk_display_get_monitor_at_window(display, gdk_window);
+    if (at != nullptr) return at;
+  }
+  GdkMonitor* best = nullptr;
+  gint best_area = 0;
+  for (gint i = 0; i < gdk_display_get_n_monitors(display); i++) {
+    GdkMonitor* monitor = gdk_display_get_monitor(display, i);
+    GdkRectangle area;
+    gdk_monitor_get_workarea(monitor, &area);
+    if (area.width * area.height > best_area) {
+      best = monitor;
+      best_area = area.width * area.height;
+    }
+  }
+  return best;
+}
+
+// "size" [width, height]: the saved size, at most the screen's work area, at least 420 x 320.
+static void resize_clamped(GtkWindow* window, gint width, gint height) {
+  GdkMonitor* monitor = size_monitor(window);
+  if (monitor != nullptr) {
+    GdkRectangle area;
+    gdk_monitor_get_workarea(monitor, &area);
+    if (area.width > 0) width = MIN(width, area.width);
+    if (area.height > 0) height = MIN(height, area.height);
+  }
+  gtk_window_resize(window, MAX(width, 420), MAX(height, 320));
+}
+
+// "geometry": {width, height, free}; free = shown and neither maximized, fullscreen nor tiled
+// (only a size the user gave it is saved).
+static FlValue* window_geometry(GtkWindow* window) {
+  gint width = 0, height = 0;
+  gtk_window_get_size(window, &width, &height);
+  GdkWindow* gdk_window = gtk_widget_get_window(GTK_WIDGET(window));
+  GdkWindowState state = gdk_window != nullptr ? gdk_window_get_state(gdk_window) : (GdkWindowState)0;
+  gboolean free = gtk_widget_get_visible(GTK_WIDGET(window)) &&
+                  (state & (GDK_WINDOW_STATE_MAXIMIZED | GDK_WINDOW_STATE_FULLSCREEN |
+                            GDK_WINDOW_STATE_TILED)) == 0;
+  FlValue* map = fl_value_new_map();
+  fl_value_set_string_take(map, "width", fl_value_new_int(width));
+  fl_value_set_string_take(map, "height", fl_value_new_int(height));
+  fl_value_set_string_take(map, "free", fl_value_new_bool(free));
+  return map;
+}
+
 // "titlebar": GTK draws the title bar, so it takes the app's light or dark.
 static void window_call_cb(FlMethodChannel* channel, FlMethodCall* call,
                            gpointer user_data) {
@@ -250,8 +306,26 @@ static void window_call_cb(FlMethodChannel* channel, FlMethodCall* call,
     self->window_focused = FALSE;
     GtkWindow* window = gtk_application_get_active_window(
         GTK_APPLICATION(g_application_get_default()));
-    if (window != nullptr) gtk_widget_hide(GTK_WIDGET(window));
+    if (window != nullptr && gtk_widget_get_visible(GTK_WIDGET(window))) {
+      gtk_widget_hide(GTK_WIDGET(window));
+      self->hidden_at = g_get_monotonic_time();
+    }
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else if (g_strcmp0(fl_method_call_get_name(call), "size") == 0) {
+    FlValue* args = fl_method_call_get_args(call);
+    GtkWindow* window = gtk_application_get_active_window(GTK_APPLICATION(self));
+    if (window != nullptr && args != nullptr && fl_value_get_type(args) == FL_VALUE_TYPE_LIST &&
+        fl_value_get_length(args) == 2 &&
+        fl_value_get_type(fl_value_get_list_value(args, 0)) == FL_VALUE_TYPE_INT &&
+        fl_value_get_type(fl_value_get_list_value(args, 1)) == FL_VALUE_TYPE_INT) {
+      resize_clamped(window, (gint)fl_value_get_int(fl_value_get_list_value(args, 0)),
+                     (gint)fl_value_get_int(fl_value_get_list_value(args, 1)));
+    }
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else if (g_strcmp0(fl_method_call_get_name(call), "geometry") == 0) {
+    GtkWindow* window = gtk_application_get_active_window(GTK_APPLICATION(self));
+    g_autoptr(FlValue) geometry = window != nullptr ? window_geometry(window) : fl_value_new_null();
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(geometry));
   } else {
     response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
   }
@@ -264,8 +338,10 @@ static void first_frame_cb(MyApplication* self, FlView* view) {
   notify_shown(self);
 }
 
-// The "toggle" action (appmanager --toggle, the bar icon): the window hides
-// when it is shown and focused, else it is shown and focused.
+// The "toggle" action (maprisma-launcher --toggle: the bar icon, the applet, a shortcut): a
+// shown window hides, focused or not (a click on the bar may take the focus first); a hidden one
+// is shown and focused. The popup hides itself on a click outside, which the bar click also is:
+// when it just did, the toggle leaves it hidden instead of bringing it straight back.
 static void toggle_activated(GSimpleAction* action, GVariant* parameter,
                              gpointer user_data) {
   MyApplication* self = MY_APPLICATION(user_data);
@@ -275,18 +351,20 @@ static void toggle_activated(GSimpleAction* action, GVariant* parameter,
     g_application_activate(G_APPLICATION(self));
     return;
   }
-  if (gtk_widget_get_visible(GTK_WIDGET(window)) &&
-      gtk_window_is_active(window)) {
+  if (gtk_widget_get_visible(GTK_WIDGET(window))) {
     release_focus_grab(self);
     self->window_focused = FALSE;
     gtk_widget_hide(GTK_WIDGET(window));
     return;
   }
+  const gboolean just_hidden =
+      self->hidden_at != 0 && g_get_monotonic_time() - self->hidden_at < 600 * G_TIME_SPAN_MILLISECOND;
+  self->hidden_at = 0;
+  if (just_hidden) return;
   gtk_widget_show(GTK_WIDGET(window));
   gtk_window_present(window);
   notify_shown(self);
 }
-
 
 // --- the dock -----------------------------------------------------------------
 //

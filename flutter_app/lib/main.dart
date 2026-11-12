@@ -12,6 +12,8 @@ import 'apps_page.dart';
 import 'backend.dart';
 import 'core_call.dart';
 import 'dock_app.dart';
+import 'esc_close.dart';
+import 'window_size.dart';
 import 'window_shots.dart';
 import 'i18n.dart';
 
@@ -72,6 +74,11 @@ Future<void> main(List<String> args) async {
   // Omarchy: the dock comes up with the app when it is switched on (a running
   // one only re-reads its settings); the bar widget starts it with the shell.
   if (look['desktop'] == 'omarchy') backend.call('dock.start').ignore();
+  // Rule 5a: the window opens at the size the user left it (popup mode places its own).
+  if (!isPopup(settings, look)) {
+    final size = parseWindowSize(settings['window_size']);
+    if (size != null) windowChannel.invokeMethod('size', [size.$1, size.$2]).ignore();
+  }
   windowChannel.setMethodCallHandler((call) async {
     if (call.method == 'shown') shownAgain.value++;
     if (call.method == 'focus') windowFocused.value = true;
@@ -79,6 +86,12 @@ Future<void> main(List<String> args) async {
     if (call.method == 'outside') clickedOutside.value++;
   });
   runApp(MaprismaLauncherApp(core: backend.call, look: look, settings: settings));
+}
+
+/// Popup mode (Settings › Window): on Omarchy and Hyprland by default.
+bool isPopup(Map settings, Map look) {
+  final mode = settings['window_mode'] as String? ?? 'auto';
+  return mode == 'popup' || (mode == 'auto' && (look['desktop'] == 'omarchy' || look['hyprland'] == true));
 }
 
 class MaprismaLauncherApp extends StatefulWidget {
@@ -98,10 +111,20 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
   /// Popup mode (Settings › Window): on Omarchy by default the window floats
   /// centred at the saved size without a title bar, as the old App Manager's
   /// card, and goes away with Esc or a click elsewhere.
-  bool get popup {
-    final mode = settings['window_mode'] as String? ?? 'auto';
-    return mode == 'popup' || (mode == 'auto' && (look['desktop'] == 'omarchy' || look['hyprland'] == true));
-  }
+  bool get popup => isPopup(settings, look);
+
+  /// Esc that no page took: leave a field, Back on a side page, hide on the list (rule 5a).
+  late final _esc = EscFallback(onClose: () => windowChannel.invokeMethod('hide').ignore());
+
+  /// Outside popup mode the window's size is saved half a second after the last resize.
+  late final _windowSize = WindowSizeKeeper(
+    saved: parseWindowSize(widget.settings['window_size']),
+    geometry: () => windowChannel.invokeMethod<Object?>('geometry'),
+    save: (w, h) async {
+      final fresh = await widget.core('settings.set', {'key': 'window_size', 'value': [w, h]});
+      if (mounted) setState(() => settings = Map<String, dynamic>.from(fresh));
+    },
+  );
 
   /// Whether clicking outside the popup hides it (Settings › Close on click outside).
   bool get closeOutside => settings['close_outside'] != false;
@@ -147,7 +170,8 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
   @override
   void didChangeMetrics() {
     super.didChangeMetrics();
-    if (!popup || _placing) return;
+    if (!popup) return _windowSize.resized();
+    if (_placing) return;
     _sizeSave?.cancel();
     _sizeSave = Timer(const Duration(milliseconds: 800), _saveSize);
   }
@@ -290,6 +314,7 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
     clickedOutside.addListener(_onOutside);
     PopupGuard.changed.addListener(_syncGrab);
     HardwareKeyboard.instance.addHandler(_shotKey);
+    _esc.attach();
     WidgetsBinding.instance.addPostFrameCallback((_) => _placePopup());
     _syncTitlebar();
   }
@@ -307,6 +332,8 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
     clickedOutside.removeListener(_onOutside);
     PopupGuard.changed.removeListener(_syncGrab);
     HardwareKeyboard.instance.removeHandler(_shotKey);
+    _esc.detach();
+    _windowSize.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -358,9 +385,10 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
       valueListenable: I18n.changed,
       builder: (context, _, _) => MaterialApp(
         navigatorKey: _navigator,
+        navigatorObservers: [_esc],
         scaffoldMessengerKey: _messenger,
         // The picture F12 takes: the whole window, dialogs included.
-        builder: (context, child) => RepaintBoundary(key: _shotArea, child: child),
+        builder: (context, child) => RepaintBoundary(key: _shotArea, child: _esc.wrap(child!)),
         title: 'Maprisma Launcher',
         debugShowCheckedModeBanner: false,
         theme: appTheme(MediaQuery.platformBrightnessOf(context), look['colors'] as Map? ?? {}, radius),

@@ -169,6 +169,8 @@ final class Settings {
       'filter_field': data['filter_field'] != false,
       'language': languageCodes.contains(data['language']) ? data['language'] : 'auto',
       'size': _size(data['size']),
+      // The window's size outside popup mode (GTK's, title bar included), as the user left it.
+      'window_size': _size(data['window_size']),
       // F12 saves a picture of the window (as in Maprisma); on by default.
       'screenshot_key': data['screenshot_key'] != false,
       'ai_enabled': data['ai_enabled'] != false,
@@ -297,7 +299,7 @@ final class Settings {
         }
         if (!languageCodes.contains(value)) throw ArgumentError(key);
         stored = value;
-      case 'size':
+      case 'size' || 'window_size':
         stored = _size(value);
         if (stored == null) throw ArgumentError(key);
       case 'icon_size':

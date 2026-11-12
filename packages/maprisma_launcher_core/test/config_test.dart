@@ -81,6 +81,13 @@ void main() {
     expect(settings.read()['icon_sizes'], defaultIconSizes);
     expect(settings.raw()['dock_pinned'], ['x']);
     expect(settings.read()['size'], [900, 700]);
+    // The window's own size (rule 5a) is kept apart from the popup's; a broken one is no size.
+    expect(settings.read()['window_size'], isNull);
+    settings.set('window_size', [1000, 720]);
+    expect(settings.read()['window_size'], [1000, 720]);
+    expect(() => settings.set('window_size', [1000]), throwsArgumentError);
+    store.writeJson('settings.json', {...settings.raw(), 'window_size': ['x', 3]});
+    expect(settings.read()['window_size'], isNull);
     expect(settings.read()['screenshot_key'], isTrue);
     expect(settings.read()['close_outside'], isTrue);
     expect(settings.read()['screenshot_folder'], isNull);
