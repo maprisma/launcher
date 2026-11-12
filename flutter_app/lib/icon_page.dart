@@ -103,12 +103,12 @@ class _IconPageState extends State<IconPage> {
       child: SizedBox(
         width: 96,
         child: Padding(
-          padding: const EdgeInsets.all(6),
+          padding: const EdgeInsets.all(8),
           child: Column(
             children: [
               AppIcon(file, size: 48),
               const SizedBox(height: 4),
-              Text(caption, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11)),
+              Text(caption, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.labelSmall),
             ],
           ),
         ),
@@ -131,7 +131,7 @@ class _IconPageState extends State<IconPage> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 10, 16, 4),
+              padding: const EdgeInsets.fromLTRB(8, 12, 16, 4),
               child: Row(
                 children: [
                   TextButton.icon(
@@ -182,12 +182,12 @@ class _IconPageState extends State<IconPage> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 2, 20, 4),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
               child: Row(
                 children: [
                   if (searching) const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
                   if (searching) const SizedBox(width: 8),
-                  Text(status, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                  Text(status, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
                 ],
               ),
             ),

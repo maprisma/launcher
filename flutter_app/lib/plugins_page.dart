@@ -196,11 +196,11 @@ class _PluginsPageState extends State<PluginsPage> {
           children: [
             Flexible(child: Text('${plugin['name']}', overflow: TextOverflow.ellipsis)),
             if ('${plugin['version'] ?? ''}'.isNotEmpty) ...[
-              const SizedBox(width: 6),
-              Text('${plugin['version']}', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+              const SizedBox(width: 8),
+              Text('${plugin['version']}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
             ],
             if (behindBy != null) ...[
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               Tooltip(
                 message: trn('{0} new commit', '{0} new commits', behindBy),
                 child: Icon(Icons.arrow_circle_up, size: 16, color: markColors(context).update),
@@ -247,7 +247,7 @@ class _PluginsPageState extends State<PluginsPage> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 10, 16, 4),
+              padding: const EdgeInsets.fromLTRB(8, 12, 16, 4),
               child: Row(
                 children: [
                   TextButton.icon(

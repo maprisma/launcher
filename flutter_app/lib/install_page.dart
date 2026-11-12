@@ -77,7 +77,7 @@ class _InstallPageState extends State<InstallPage> {
       children: [
         if (!widget.embedded)
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 10, 16, 4),
+            padding: const EdgeInsets.fromLTRB(8, 12, 16, 4),
             child: Row(
               children: [
                 TextButton.icon(
@@ -113,14 +113,14 @@ class _InstallPageState extends State<InstallPage> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 2, 20, 6),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
           child: Align(
             alignment: Alignment.centerLeft,
             child: Text(
               enabled.isEmpty
                   ? tr('No package manager is enabled (Settings › Package managers).')
                   : trf('Searches: {0}', [enabled]),
-              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ),
         ),
@@ -142,7 +142,7 @@ class _InstallPageState extends State<InstallPage> {
                       subtitle: Text('${f['description'] ?? ''}', maxLines: 2, overflow: TextOverflow.ellipsis),
                       leading: Chip(
                         visualDensity: VisualDensity.compact,
-                        label: Text(_managerLabel('${f['manager']}'), style: const TextStyle(fontSize: 11)),
+                        label: Text(_managerLabel('${f['manager']}'), style: Theme.of(context).textTheme.labelSmall),
                         backgroundColor: aur ? markColors(context).update.withValues(alpha: .2) : null,
                       ),
                       trailing: f['installed'] == true
@@ -211,7 +211,7 @@ void tell(String text) => ScaffoldMessenger.of(context)
           const SizedBox(height: 4),
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: scheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(6)),
+            decoration: BoxDecoration(color: scheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(cornerSizes(context).control)),
             child: SelectableText('${plan['command']}', style: const TextStyle(fontFamily: 'monospace')),
           ),
           if (plan['aur'] == true) ...[
@@ -220,7 +220,7 @@ void tell(String text) => ScaffoldMessenger.of(context)
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: markColors(context).update.withValues(alpha: .15),
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(cornerSizes(context).control),
               ),
               child: Text(
                 tr(

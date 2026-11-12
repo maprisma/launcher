@@ -517,7 +517,7 @@ class AppsPageState extends State<AppsPage> {
                   Flexible(child: Text(text)),
                   if (markFilter == id)
                     const Padding(
-                      padding: EdgeInsets.only(left: 6),
+                      padding: EdgeInsets.only(left: 8),
                       child: Icon(Icons.check, size: 16),
                     ),
                 ],
@@ -1247,13 +1247,13 @@ class AppsPageState extends State<AppsPage> {
           children: [
             Text(text),
             for (final w in warnings) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.error
                       .withValues(alpha: .15),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(cornerSizes(context).control),
                 ),
                 child: Text(
                   w == 'default'
@@ -1871,8 +1871,7 @@ class AppsPageState extends State<AppsPage> {
                 query.isEmpty
                     ? tr('Maprisma Launcher')
                     : trf('Filter: {0}', [query]),
-                style: const TextStyle(
-                  fontSize: 16,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1898,7 +1897,7 @@ class AppsPageState extends State<AppsPage> {
               },
             ),
           ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         ConstrainedBox(
           constraints: BoxConstraints(maxWidth: cardMax),
           child: SingleChildScrollView(
@@ -1906,7 +1905,7 @@ class AppsPageState extends State<AppsPage> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (viewCard != null) ...[viewCard, const SizedBox(width: 6)],
+                if (viewCard != null) ...[viewCard, const SizedBox(width: 8)],
                 _headerCard(),
               ],
             ),
@@ -2018,9 +2017,8 @@ class AppsPageState extends State<AppsPage> {
   }
 
   Widget _narrowFooter() {
-    final muted = TextStyle(
+    final muted = Theme.of(context).textTheme.bodySmall?.copyWith(
       color: Theme.of(context).colorScheme.onSurfaceVariant,
-      fontSize: 12,
     );
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 8, 4),
@@ -2064,7 +2062,7 @@ class AppsPageState extends State<AppsPage> {
     final scheme = Theme.of(context).colorScheme;
     final own = !row.id.startsWith('o-') && row.id != '_running';
     final heading = Padding(
-      padding: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.only(top: 8),
       child: InkWell(
         borderRadius: BorderRadius.circular(cornerSizes(context).control),
         onTap: () => _toggleGroup(row.id),
@@ -2084,7 +2082,7 @@ class AppsPageState extends State<AppsPage> {
                 size: 18,
                 color: scheme.onSurfaceVariant,
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               if (isNewGroup(row.id)) ...[
                 Tooltip(
                   message: tr('New group: drag apps onto it to fill it.'),
@@ -2218,14 +2216,14 @@ class CountChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(cornerSizes(context).pill),
       ),
       child: Text(
         '$count',
-        style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
       ),
     );
   }

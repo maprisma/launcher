@@ -9,6 +9,7 @@ import 'package:maprisma_launcher/apps_page.dart';
 import 'package:maprisma_launcher/i18n.dart';
 import 'package:maprisma_launcher/install_page.dart';
 import 'package:maprisma_launcher/terminal_page.dart';
+import 'package:maprisma_launcher/theme.dart' show Corners;
 import 'package:flutter/gestures.dart' show PointerDeviceKind, kSecondaryButton;
 import 'package:maprisma_launcher/main.dart' show MaprismaLauncherApp, clickedOutside, windowChannel, windowFocused;
 import 'package:maprisma_launcher_core/maprisma_launcher_core.dart';
@@ -954,5 +955,45 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(windowCalls.where((c) => c.$1 == 'hide'), isEmpty);
     windowFocused.value = true;
+  });
+
+  testWidgets('the desktop look: palette, Hyprland rounding, and a theme change while running', (tester) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    var look = <String, dynamic>{
+      'desktop': 'generic',
+      'colors': {'background': '#231a13', 'accent': '#e78a4e', 'foreground': '#e8d5b7'},
+      'rounding': 15,
+    };
+    var lookCalls = 0;
+    Future<Map<String, dynamic>> withLook(String method, [Map<String, dynamic> params = const {}]) async {
+      if (method != 'desktop.look') return call(method, params);
+      lookCalls++;
+      return look;
+    }
+
+    await tester.pumpWidget(MaprismaLauncherApp(core: withLook, look: look));
+    await settle(tester);
+    ThemeData theme() => Theme.of(tester.element(find.byType(AppsPage)));
+    expect(theme().colorScheme.surface, const Color(0xff231a13));
+    expect(theme().colorScheme.primary, const Color(0xffe78a4e));
+    expect(theme().colorScheme.onPrimary, Colors.white);
+    expect(theme().extension<Corners>()!.radius, 15);
+
+    // Maprisma Theme switches the scheme: the window follows within a few seconds.
+    look = {
+      'desktop': 'generic',
+      'colors': {'background': '#fafafb', 'accent': '#a6e3a1', 'foreground': '#323233'},
+      'rounding': 4,
+    };
+    final before = lookCalls;
+    await tester.pump(const Duration(seconds: 6));
+    await settle(tester);
+    expect(lookCalls, greaterThan(before));
+    expect(theme().colorScheme.surface, const Color(0xfffafafb));
+    expect(theme().colorScheme.primary, const Color(0xffa6e3a1));
+    expect(theme().colorScheme.onPrimary, Colors.black);
+    expect(theme().extension<Corners>()!.radius, 4);
   });
 }

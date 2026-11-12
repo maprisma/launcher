@@ -50,7 +50,7 @@ class _ScreenshotNoteDialogState extends State<ScreenshotNoteDialog> {
       if (!didPop) _done(); // Esc or a click beside it: the note is kept too
     },
     child: AlertDialog(
-      title: Text(tr('Screenshot saved'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+      title: Text(tr('Screenshot saved'), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
       content: SizedBox(
         width: 460,
         child: Column(

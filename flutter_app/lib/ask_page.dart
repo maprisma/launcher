@@ -261,7 +261,7 @@ class _AskPageState extends State<AskPage> {
               _ask();
             },
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 6, 2, 6),
+              padding: const EdgeInsets.fromLTRB(16, 8, 4, 8),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 360),
                 child: Tooltip(
@@ -379,8 +379,8 @@ class _AskPageState extends State<AskPage> {
   /// The hint card: what Ask AI can do with keyboard shortcuts.
   Widget _shortcutHint(ColorScheme scheme) => Container(
     key: const ValueKey('ask-shortcut-hint'),
-    margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+    margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+    padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
     decoration: BoxDecoration(
       color: scheme.surfaceContainerLow,
       borderRadius: BorderRadius.circular(corners(context)),
@@ -395,8 +395,7 @@ class _AskPageState extends State<AskPage> {
             const SizedBox(width: 8),
             Text(
               tr('Manage shortcuts for an app'),
-              style: const TextStyle(
-                fontSize: 12.5,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -407,12 +406,12 @@ class _AskPageState extends State<AskPage> {
           tr(
             'List the keys that open your apps, remove one, or add a new one with the shortcut card.',
           ),
-          style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
         ),
         const SizedBox(height: 8),
         Wrap(
-          spacing: 6,
-          runSpacing: 6,
+          spacing: 8,
+          runSpacing: 8,
           children: [
             ActionChip(
               avatar: const Icon(Icons.list, size: 16),
@@ -479,7 +478,7 @@ class _AskPageState extends State<AskPage> {
   }
 
   Widget _header(ColorScheme scheme, {required bool ready}) => Padding(
-    padding: const EdgeInsets.fromLTRB(8, 10, 16, 4),
+    padding: const EdgeInsets.fromLTRB(8, 12, 16, 4),
     child: Row(
       children: [
         TextButton.icon(
@@ -509,9 +508,9 @@ class _AskPageState extends State<AskPage> {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       Padding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
           decoration: BoxDecoration(
             color: scheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(corners(context)),
@@ -534,24 +533,23 @@ class _AskPageState extends State<AskPage> {
                         tr(
                           'To get app suggestions from an AI, connect an AI helper:',
                         ),
-                        style: const TextStyle(
-                          fontSize: 12.5,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
-                  runSpacing: 6,
+                  runSpacing: 8,
                   children: [
                     for (final h in helpers)
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
-                          vertical: 3,
+                          vertical: 4,
                         ),
                         decoration: BoxDecoration(
                           color: scheme.surfaceContainerHigh,
@@ -561,23 +559,21 @@ class _AskPageState extends State<AskPage> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(Icons.smart_toy_outlined, size: 14),
-                            const SizedBox(width: 5),
+                            const SizedBox(width: 4),
                             Text(
                               '${h['name']}',
-                              style: const TextStyle(
-                                fontSize: 12,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            const SizedBox(width: 6),
+                            const SizedBox(width: 8),
                             Text(
                               h['installed'] != true
                                   ? tr('Not installed')
                                   : h['signed_in'] == true
                                   ? tr('Ready')
                                   : tr('Installed — needs sign-in'),
-                              style: TextStyle(
-                                fontSize: 11.5,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: scheme.onSurfaceVariant,
                               ),
                             ),
@@ -586,7 +582,7 @@ class _AskPageState extends State<AskPage> {
                       ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
               ],
               Row(
                 children: [
@@ -603,8 +599,7 @@ class _AskPageState extends State<AskPage> {
                       tr(
                         'Without AI, Install apps searches the packages by name.',
                       ),
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
@@ -672,7 +667,7 @@ class _AskPageState extends State<AskPage> {
                                     message: tr('On this PC'),
                                     child: const Icon(Icons.computer, size: 16),
                                   ),
-                                  const SizedBox(width: 6),
+                                  const SizedBox(width: 8),
                                 ],
                                 Text(
                                   '${h['name']}${h['signed_in'] == true ? '' : ' (${tr('needs sign-in')})'}',
@@ -690,8 +685,7 @@ class _AskPageState extends State<AskPage> {
                       child: Text(
                         '${chosen?['local'] == true ? trf('Runs on this PC with {0}: no tokens, nothing leaves the computer.', [chosen?['name'] ?? '']) : trf('Uses your {0} plan or tokens, only when you click Ask.', [chosen?['name'] ?? ''])} '
                         '${tr('Enter asks, Ctrl+Enter: new line.')}',
-                        style: TextStyle(
-                          fontSize: 12,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -791,8 +785,8 @@ class _AskPageState extends State<AskPage> {
                                 horizontal: 16,
                               ),
                               child: Wrap(
-                                spacing: 6,
-                                runSpacing: 6,
+                                spacing: 8,
+                                runSpacing: 8,
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   for (final (index, text) in prompts.indexed)
@@ -885,8 +879,7 @@ class _AskPageState extends State<AskPage> {
                       Text('${pick['reason']}'),
                     Text(
                       '${pick['description'] ?? ''}',
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
                       maxLines: 2,
@@ -898,7 +891,7 @@ class _AskPageState extends State<AskPage> {
                   visualDensity: VisualDensity.compact,
                   label: Text(
                     aur ? 'AUR' : '${pick['manager']}',
-                    style: const TextStyle(fontSize: 11),
+                    style: Theme.of(context).textTheme.labelSmall,
                   ),
                   backgroundColor: aur
                       ? markColors(context).update.withValues(alpha: .2)
@@ -1109,7 +1102,7 @@ class _AskPageState extends State<AskPage> {
           children.add(
             Text(
               tr('Click ✕ at a shortcut to remove it.'),
-              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
             ),
           );
         }
@@ -1142,8 +1135,8 @@ class _AskPageState extends State<AskPage> {
         children.add(const SizedBox(height: 8));
         children.add(
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               for (final choice in (r['choices'] as List? ?? const []))
                 ActionChip(
@@ -1156,7 +1149,7 @@ class _AskPageState extends State<AskPage> {
         children.add(
           Text(
             tr('Choosing asks the helper once more.'),
-            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
           ),
         );
       default:

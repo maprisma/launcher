@@ -266,7 +266,7 @@ class _TerminalPageState extends State<TerminalPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(8, 10, 16, 4),
+                padding: const EdgeInsets.fromLTRB(8, 12, 16, 4),
                 child: Row(
                   children: [
                     TextButton.icon(
@@ -299,11 +299,11 @@ class _TerminalPageState extends State<TerminalPage> {
                   child: SelectableText(
                     command,
                     maxLines: 1,
-                    style: TextStyle(fontFamily: 'monospace', fontSize: 12, color: scheme.onSurfaceVariant),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(fontFamily: 'monospace', color: scheme.onSurfaceVariant),
                   ),
                 ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                 child: Row(
                   children: [
                     if (statusIcon != null)
@@ -312,7 +312,7 @@ class _TerminalPageState extends State<TerminalPage> {
                       const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(statusText, style: TextStyle(color: statusColor, fontSize: 12.5)),
+                      child: Text(statusText, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: statusColor)),
                     ),
                   ],
                 ),
@@ -320,7 +320,7 @@ class _TerminalPageState extends State<TerminalPage> {
               Expanded(
                 child: Container(
                   margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                  padding: const EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: scheme.surfaceContainerLowest,
                     borderRadius: BorderRadius.circular(corners(context).clamp(0, 12)),

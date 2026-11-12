@@ -586,8 +586,46 @@ final class GenericDesktop extends Desktop {
     };
     return {for (final e in out.entries) if (e.value != null) e.key: e.value!};
   }
+  /// On Hyprland: its window corners (`hyprctl -j getoption decoration:rounding`, 0–64),
+  /// asked at most every 30 s (the look is re-read every few seconds); elsewhere unknown.
   @override
-  Future<int?> windowRounding() async => null;
+  Future<int?> windowRounding() async {
+    final env = session.environment;
+    if ((env['HYPRLAND_INSTANCE_SIGNATURE'] ?? '').isEmpty) return null;
+    final now = clock();
+    final last = _roundingAt;
+    if (last != null && now.difference(last) < roundingTtl) return _rounding;
+    final hyprctl = session.which('hyprctl');
+    final text = hyprctl == null
+        ? null
+        : await readBoundedText(
+            [hyprctl, '-j', 'getoption', 'decoration:rounding'],
+            maxBytes: 4096,
+            timeout: const Duration(seconds: 2),
+            environment: env,
+          );
+    _roundingAt = now;
+    return _rounding = parseHyprRounding(text);
+  }
+
+  /// How long a `hyprctl` answer about the corners is kept.
+  static const roundingTtl = Duration(seconds: 30);
+
+  /// The time for [roundingTtl]; tests set their own.
+  DateTime Function() clock = DateTime.now;
+  DateTime? _roundingAt;
+  int? _rounding;
+
+  /// `{"int": n}` of `hyprctl -j getoption decoration:rounding` as 0–64, null when unreadable.
+  static int? parseHyprRounding(String? text) {
+    try {
+      final value = (jsonDecode(text ?? '') as Map)['int'];
+      return value is int ? value.clamp(0, 64) : null;
+    } on Object {
+      return null;
+    }
+  }
+
   @override
   Future<String?> iconTheme() async {
     final theme = await _gsetting(session, 'org.gnome.desktop.interface', 'icon-theme');

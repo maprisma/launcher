@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'dart:ui' as ui;
 
@@ -284,6 +285,8 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
     shownAgain.addListener(_reloadLook);
     shownAgain.addListener(_placePopup);
     windowFocused.addListener(_onFocus);
+    windowFocused.addListener(_focusLook);
+    _lookTimer = Timer.periodic(const Duration(seconds: 5), (_) => _lookTick());
     clickedOutside.addListener(_onOutside);
     PopupGuard.changed.addListener(_syncGrab);
     HardwareKeyboard.instance.addHandler(_shotKey);
@@ -299,6 +302,8 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
     shownAgain.removeListener(_reloadLook);
     shownAgain.removeListener(_placePopup);
     windowFocused.removeListener(_onFocus);
+    windowFocused.removeListener(_focusLook);
+    _lookTimer?.cancel();
     clickedOutside.removeListener(_onOutside);
     PopupGuard.changed.removeListener(_syncGrab);
     HardwareKeyboard.instance.removeHandler(_shotKey);
@@ -309,11 +314,31 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
   @override
   void didChangePlatformBrightness() => _reloadLook();
 
-  /// A theme switch while hidden shows when the window comes back.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _reloadLook();
+  }
+
+  /// Maprisma Theme can change the scheme at any time: the look is read again every few
+  /// seconds while the window is up (a hidden popup waits until it is shown again).
+  Timer? _lookTimer;
+
+  void _lookTick() {
+    if (popup && !windowFocused.value) return;
+    _reloadLook();
+  }
+
+  void _focusLook() {
+    if (windowFocused.value) _reloadLook();
+  }
+
+  /// A theme switch while hidden shows when the window comes back; the window
+  /// is rebuilt only when the look changed.
   Future<void> _reloadLook() async {
     try {
       final fresh = await widget.core('desktop.look');
-      if (mounted) setState(() => look = fresh);
+      if (!mounted || jsonEncode(fresh) == jsonEncode(look)) return;
+      setState(() => look = fresh);
       _syncTitlebar();
     } on Object {
       // The old look stays.

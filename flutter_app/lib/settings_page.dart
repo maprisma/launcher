@@ -92,7 +92,7 @@ class _SettingsPageState extends State<SettingsPage> {
       return [
         _row(tr('Show dock'), why, Text(tr('Not available'), key: const ValueKey('dock-unavailable'))),
         Padding(
-          padding: const EdgeInsets.only(bottom: 6),
+          padding: const EdgeInsets.only(bottom: 8),
           child: Text(why, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
         ),
       ];
@@ -283,7 +283,7 @@ class _SettingsPageState extends State<SettingsPage> {
     label,
     tip,
     Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: LayoutBuilder(
         builder: (context, box) => Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -300,10 +300,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     Text(label),
                     if (tip.isNotEmpty && tip != label)
                       Padding(
-                        padding: const EdgeInsets.only(top: 2, bottom: 2),
+                        padding: const EdgeInsets.only(top: 4, bottom: 4),
                         child: Text(
                           tip,
-                          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                         ),
                       ),
                   ],
@@ -444,11 +444,11 @@ class _SettingsPageState extends State<SettingsPage> {
                   for (final (section, members) in shown) ...[
                     if (query.isNotEmpty)
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Text(section.title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(section.title, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
                       ),
                     ...members,
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 24),
                   ],
                   // Narrow: no list on the left, so Reset is under the rows.
                   if (reset)
@@ -485,7 +485,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   children: [
                     for (final (section, _) in sections)
                       Padding(
-                        padding: const EdgeInsets.only(right: 6),
+                        padding: const EdgeInsets.only(right: 8),
                         child: ChoiceChip(
                           key: ValueKey('settings-section-${section.id}'),
                           avatar: Icon(section.icon, size: 16),
@@ -574,7 +574,7 @@ class _SettingsPageState extends State<SettingsPage> {
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(4, 10, 16, 4),
+                padding: const EdgeInsets.fromLTRB(4, 12, 16, 4),
                 child: Row(
                   children: [
                     TextButton.icon(
@@ -682,7 +682,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       'Which layouts the view buttons in the header offer, left of the other buttons. At least one stays on; with only one, they are hidden.',
                     ),
                     Wrap(
-                      spacing: 6,
+                      spacing: 8,
                       children: [
                         for (final (id, name) in layouts)
                           FilterChip(
@@ -750,7 +750,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         'Which package managers Install apps (and later Ask AI) may use. The AUR is off until you choose it: community build scripts, not checked by the distribution.',
                       ),
                       Wrap(
-                        spacing: 6,
+                        spacing: 8,
                         runSpacing: 4,
                         alignment: WrapAlignment.end,
                         children: [

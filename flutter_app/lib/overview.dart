@@ -90,7 +90,7 @@ extension Overview on AppsPageState {
           const SizedBox(width: 4),
           Text(groupName(wantedFilter), style: const TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(width: 8),
-          Text(tr('Esc goes back'), style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+          Text(tr('Esc goes back'), style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
         ],
       ),
     );
@@ -162,7 +162,7 @@ extension Overview on AppsPageState {
       ),
     );
     final name = Padding(
-      padding: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.only(top: 8),
       child: Text.rich(
         TextSpan(
           children: [
@@ -170,7 +170,7 @@ extension Overview on AppsPageState {
               WidgetSpan(
                 alignment: PlaceholderAlignment.middle,
                 child: Padding(
-                  padding: const EdgeInsets.only(right: 3),
+                  padding: const EdgeInsets.only(right: 4),
                   child: Icon(Icons.star_rounded, size: 14, color: markColors(context).fresh),
                 ),
               ),
@@ -180,7 +180,7 @@ extension Overview on AppsPageState {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
       ),
     );
     final tile = Tooltip(
@@ -287,7 +287,7 @@ extension Overview on AppsPageState {
           borderRadius: radius,
           onTap: () => _launch(app),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+            padding: const EdgeInsets.fromLTRB(12, 12, 4, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -309,20 +309,20 @@ extension Overview on AppsPageState {
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Text(
                   '${app['name']}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Expanded(
                   child: Text(
                     description,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
                   ),
                 ),
                 // Size and where it comes from (Uwe: more facts on the cards).
@@ -331,14 +331,14 @@ extension Overview on AppsPageState {
                     facts,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
                   ),
                 if (app['hidden'] == true)
                   Row(
                     children: [
                       Icon(Icons.visibility_off, size: 13, color: scheme.onSurfaceVariant),
                       const SizedBox(width: 4),
-                      Text(tr('Hidden'), style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant)),
+                      Text(tr('Hidden'), style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
                     ],
                   ),
               ],
@@ -380,7 +380,7 @@ extension Overview on AppsPageState {
                     maxLines: 2,
                     textAlign: TextAlign.center,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12.5, height: 1.2),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.2),
                   ),
                 ],
               ),
@@ -457,7 +457,7 @@ extension Overview on AppsPageState {
     if (isFront) _columns = columns;
     final selected = isFront ? selectedKey : null;
     final header = Padding(
-      padding: const EdgeInsets.fromLTRB(14, 8, 4, 6),
+      padding: const EdgeInsets.fromLTRB(16, 8, 4, 8),
       child: Row(
         children: [
           if (isNewGroup(gid))
@@ -470,14 +470,14 @@ extension Overview on AppsPageState {
               groupName(gid),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
           const SizedBox(width: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
-            decoration: BoxDecoration(color: scheme.secondaryContainer, borderRadius: BorderRadius.circular(10)),
-            child: Text('${members.length}', style: TextStyle(fontSize: 11.5, color: scheme.onSecondaryContainer)),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+            decoration: BoxDecoration(color: scheme.secondaryContainer, borderRadius: BorderRadius.circular(cornerSizes(context).pill)),
+            child: Text('${members.length}', style: Theme.of(context).textTheme.labelSmall?.copyWith(color: scheme.onSecondaryContainer)),
           ),
           const Spacer(),
           if (_ownGroup(gid))
@@ -674,7 +674,7 @@ class FooterItem extends StatelessWidget {
                     WidgetSpan(
                       alignment: PlaceholderAlignment.middle,
                       child: Padding(
-                        padding: const EdgeInsets.only(right: 3),
+                        padding: const EdgeInsets.only(right: 4),
                         child: Icon(Icons.star_rounded, size: 14, color: markColors(context).fresh),
                       ),
                     ),
@@ -683,7 +683,7 @@ class FooterItem extends StatelessWidget {
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11.5, color: on ? scheme.primary : scheme.onSurface),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: on ? scheme.primary : scheme.onSurface),
             ),
           ],
         ),
@@ -897,21 +897,21 @@ class _CubeOverviewState extends State<_CubeOverview> with TickerProviderStateMi
           borderRadius: radius,
           onTap: widget.onFlip,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.swap_vert, size: 17, color: scheme.primary),
-                const SizedBox(width: 5),
+                const SizedBox(width: 4),
                 Icon(
                   widget.byOrigin ? Icons.inventory_2_outlined : Icons.folder_outlined,
                   size: 16,
                   color: scheme.onSurfaceVariant,
                 ),
-                const SizedBox(width: 5),
+                const SizedBox(width: 4),
                 Text(
                   widget.byOrigin ? tr('Origin') : tr('Groups'),
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: scheme.onSurface),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600, color: scheme.onSurface),
                 ),
               ],
             ),

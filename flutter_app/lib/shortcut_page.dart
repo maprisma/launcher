@@ -384,16 +384,15 @@ class ShortcutPageState extends State<ShortcutPage> {
       children: [
         for (final part in label.split(' + '))
           Container(
-            padding: EdgeInsets.symmetric(horizontal: large ? 10 : 6, vertical: large ? 5 : 2),
+            padding: EdgeInsets.symmetric(horizontal: large ? 12 : 8, vertical: large ? 4 : 2),
             decoration: BoxDecoration(
               border: Border.all(color: scheme.outlineVariant),
-              borderRadius: BorderRadius.circular(5),
+              borderRadius: BorderRadius.circular(cornerSizes(context).small),
               color: scheme.surfaceContainerHighest.withValues(alpha: dim ? .3 : 1),
             ),
             child: Text(
               part,
-              style: TextStyle(
-                fontSize: large ? 14 : 12,
+              style: (large ? Theme.of(context).textTheme.bodyMedium : Theme.of(context).textTheme.bodySmall)?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: dim ? scheme.onSurfaceVariant : scheme.onSurface,
               ),
@@ -410,9 +409,9 @@ class ShortcutPageState extends State<ShortcutPage> {
     final marked = !changing && (widget.highlight ?? '').isNotEmpty && plain(s['label']) == plain(widget.highlight);
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(cornerSizes(context).control),
         color: marked ? scheme.errorContainer.withValues(alpha: .35) : null,
         border: Border.all(
           color: changing
@@ -433,16 +432,16 @@ class ShortcutPageState extends State<ShortcutPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     caps('${s['label']}', dim: dim),
-                    const SizedBox(height: 3),
-                    Text(note, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                    const SizedBox(height: 4),
+                    Text(note, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
                   ],
                 ),
               ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: Text(tag, style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(tag, style: Theme.of(context).textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
           ),
           if (onChange != null)
             IconButton(
@@ -549,8 +548,8 @@ class ShortcutPageState extends State<ShortcutPage> {
     if (keys == null) {
       final suggestions = [for (final s in view['suggestions'] as List? ?? const []) s as Map];
       return Wrap(
-        spacing: 6,
-        runSpacing: 6,
+        spacing: 8,
+        runSpacing: 8,
         children: [
           for (final s in suggestions)
             ActionChip(
@@ -584,17 +583,17 @@ class ShortcutPageState extends State<ShortcutPage> {
                         message: keyTip(comboLabel(mods, name), info),
                         child: InkWell(
                           key: ValueKey('key-$name'),
-                          borderRadius: BorderRadius.circular(5),
+                          borderRadius: BorderRadius.circular(cornerSizes(context).small),
                           onTap: () => pick(name),
                           child: Container(
                             constraints: const BoxConstraints(minWidth: 30),
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(5),
+                              borderRadius: BorderRadius.circular(cornerSizes(context).small),
                               color: color.withValues(alpha: picked ? .55 : .18),
                               border: Border.all(color: picked ? scheme.onSurface : color, width: picked ? 2 : 1),
                             ),
-                            child: Text(keyLabel(name), textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
+                            child: Text(keyLabel(name), textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
                           ),
                         ),
                       );
@@ -609,7 +608,7 @@ class ShortcutPageState extends State<ShortcutPage> {
   Widget _legend(ColorScheme scheme, MarkColors marks) {
     Widget item(String text, Color color) => Padding(
       padding: const EdgeInsets.only(right: 12),
-      child: Text('● $text', style: TextStyle(fontSize: 12, color: color)),
+      child: Text('● $text', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: color)),
     );
     return Tooltip(
       message: tr('Taken keys can be rebound; the original works again when you remove the shortcut.'),
@@ -624,7 +623,7 @@ class ShortcutPageState extends State<ShortcutPage> {
   }
 
   Widget _section(String text) => Padding(
-    padding: const EdgeInsets.fromLTRB(0, 12, 0, 6),
+    padding: const EdgeInsets.fromLTRB(0, 12, 0, 8),
     child: Text(text, style: const TextStyle(fontWeight: FontWeight.w700)),
   );
 
@@ -701,9 +700,9 @@ class ShortcutPageState extends State<ShortcutPage> {
             ),
           ],
         ),
-      const SizedBox(height: 6),
+      const SizedBox(height: 8),
       Wrap(
-        spacing: 6,
+        spacing: 8,
         children: [
           for (final m in modOrder)
             FilterChip(
@@ -738,7 +737,7 @@ class ShortcutPageState extends State<ShortcutPage> {
                   : Row(
                       children: [
                         if (mods.isNotEmpty) caps(mods.map((m) => modNames[m]).join(' + '), large: true),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 8),
                         Text(tr('select a key'), style: TextStyle(color: scheme.onSurfaceVariant)),
                       ],
                     ),
@@ -752,7 +751,7 @@ class ShortcutPageState extends State<ShortcutPage> {
         ],
       ),
       Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         child: Text(text, style: TextStyle(color: statusColor)),
       ),
       if (message.isNotEmpty)
@@ -763,7 +762,7 @@ class ShortcutPageState extends State<ShortcutPage> {
             : tr('Free suggestions'),
       ),
       if (view['keys'] != null) _legend(scheme, marks),
-      const SizedBox(height: 6),
+      const SizedBox(height: 8),
       _keyMap(scheme, marks),
     ];
   }
@@ -794,7 +793,7 @@ class ShortcutPageState extends State<ShortcutPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
                   children: [
                     const Icon(Icons.keyboard_outlined, size: 18),
@@ -837,7 +836,7 @@ class ShortcutPageState extends State<ShortcutPage> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 10, 16, 4),
+              padding: const EdgeInsets.fromLTRB(8, 12, 16, 4),
               child: Row(
                 children: [
                   TextButton.icon(

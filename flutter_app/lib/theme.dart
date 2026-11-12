@@ -13,13 +13,16 @@ Color? hexColor(Map colors, String key) {
 /// The corner radius in effect (Settings › Corners; the desktop's windows), in three sizes (as
 /// Maprisma Playground): the window, cards, folders, dialogs and pop-ups take [radius]; buttons,
 /// choice boxes, fields, menus' entries, tooltips and chips [control] (at most 8); check boxes,
-/// slider tracks, progress bars and small tags [small] (at most 4). Square squares everything; the
+/// slider tracks, progress bars and small tags [small] (at most 4); count badges [pill]. Square squares everything; the
 /// slider knob stays small (see [KnobShape]).
 class Corners extends ThemeExtension<Corners> {
   const Corners(this.radius);
   final double radius;
   double get control => min(radius, 8);
   double get small => min(radius, 4);
+
+  /// Pill badges and toggles: fully round, square with Square corners.
+  double get pill => radius <= 0 ? 0 : 999;
   @override
   Corners copyWith({double? radius}) => Corners(radius ?? this.radius);
   @override
@@ -93,8 +96,11 @@ ThemeData appTheme(Brightness platform, Map colors, double radius) {
   if (background != null) {
     final foreground = hexColor(colors, 'foreground') ?? scheme.onSurface;
     Color step(double amount) => Color.lerp(background, foreground, amount)!;
+    final accent = hexColor(colors, 'accent');
     scheme = scheme.copyWith(
-      primary: hexColor(colors, 'accent') ?? scheme.primary,
+      primary: accent ?? scheme.primary,
+      // Text on the accent: black on a light accent, else white.
+      onPrimary: accent == null ? null : (accent.computeLuminance() > .4 ? Colors.black : Colors.white),
       surface: background,
       onSurface: foreground,
       onSurfaceVariant: hexColor(colors, 'muted') == null

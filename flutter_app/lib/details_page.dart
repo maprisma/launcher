@@ -114,7 +114,7 @@ class DetailsPage extends StatelessWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 10, 16, 4),
+              padding: const EdgeInsets.fromLTRB(8, 12, 16, 4),
               child: Row(
                 children: [
                   TextButton.icon(
@@ -135,17 +135,17 @@ class DetailsPage extends StatelessWidget {
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 children: [
                   Row(
                     children: [
                       AppIcon(app['icon_file'] as String?, size: 48),
-                      const SizedBox(width: 14),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('${app['name']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                            Text('${app['name']}', style: Theme.of(context).textTheme.titleLarge),
                             if (description.isNotEmpty)
                               Text(description, style: TextStyle(color: scheme.onSurfaceVariant)),
                           ],

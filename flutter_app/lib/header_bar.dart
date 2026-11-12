@@ -134,7 +134,7 @@ extension HeaderBar on AppsPageState {
     }
     return Container(
       key: const ValueKey('view-card'),
-      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(cornerSizes(context).control),
@@ -237,7 +237,7 @@ extension HeaderBar on AppsPageState {
         message: tr('Drag a button to move it'),
         waitDuration: const Duration(seconds: 2),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
           decoration: BoxDecoration(
             color: scheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(cornerSizes(context).control),

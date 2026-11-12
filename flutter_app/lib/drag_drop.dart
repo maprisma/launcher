@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_icon.dart';
+import 'theme.dart';
 
 /// What is being moved inside the window: an entry (by key) or a group.
 sealed class Dragged {
@@ -29,10 +30,10 @@ Widget groupDragFeedback(BuildContext context, String name) {
     offset: const Offset(8, 8),
     child: Material(
       color: scheme.secondaryContainer,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(cornerSizes(context).control),
       elevation: 4,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
       ),
     ),
@@ -107,7 +108,7 @@ class _DropSlotState extends State<DropSlot> {
             DecoratedBox(
               decoration: BoxDecoration(
                 color: _into ? accent.withValues(alpha: .18) : null,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(cornerSizes(context).control),
               ),
               child: widget.child,
             ),
