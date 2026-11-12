@@ -181,7 +181,7 @@ CosmicSettings cosmicSettings(Session session, ConfigStore store, {String? defau
 // --- Omarchy (Hyprland) ----------------------------------------------------------------
 
 /// Omarchy's Hyprland, or ([omarchy] false) any other Hyprland with a Lua config
-/// (Caelestia and the like): there the module binds with `hl.bind` and
+/// (Maprisma Shell and the like): there the module binds with `hl.bind` and
 /// `hl.dsp.exec_cmd`, as Omarchy's `o.bind` and uwsm-app are missing.
 final class HyprBackend implements ShortcutBackend {
   HyprBackend(this.session, this.store, {Runner? run, this.omarchy = true}) : run = run ?? sessionRun(session);
@@ -196,12 +196,12 @@ final class HyprBackend implements ShortcutBackend {
   String get hyprDir => p.join(session.home, '.config/hypr');
   String get luaFile => p.join(hyprDir, '$module.lua');
 
-  /// Where the require line goes: Omarchy's hyprland.lua; on Caelestia its user
-  /// file (loaded last, kept by Caelestia's updates); else hyprland.lua.
+  /// Where the require line goes: Omarchy's hyprland.lua; elsewhere the user file
+  /// ~/.config/hypr/hypr-user.lua when there is one (loaded last); else hyprland.lua.
   String get mainFile {
     if (!omarchy) {
-      final caelestia = p.join(session.home, '.config/caelestia/hypr-user.lua');
-      if (File(caelestia).existsSync()) return caelestia;
+      final user = p.join(hyprDir, 'hypr-user.lua');
+      if (File(user).existsSync()) return user;
     }
     return p.join(hyprDir, 'hyprland.lua');
   }
@@ -391,7 +391,7 @@ final class HyprBackend implements ShortcutBackend {
 /// The backend of a desktop, or null where shortcuts cannot be written.
 ShortcutBackend? backendFor(Desktop desktop, ConfigStore store, {String? cosmicDefaults}) => switch (desktop) {
   OmarchyDesktop() => HyprBackend(desktop.session, store),
-  // Hyprland without Omarchy (Caelestia and the like): plain hl.bind.
+  // Hyprland without Omarchy (Maprisma Shell and the like): plain hl.bind.
   GenericDesktop() when (desktop.session.environment['HYPRLAND_INSTANCE_SIGNATURE'] ?? '').isNotEmpty =>
     HyprBackend(desktop.session, store, omarchy: false),
   GnomeDesktop() => GnomeBackend(

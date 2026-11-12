@@ -14,12 +14,12 @@ void main() {
 
   test('Hyprland: Caelestia\'s scheme gives the colours; other desktops and no file give none', () async {
     expect(await desktop('Hyprland').themeColors(), isEmpty);
-    File('${home.path}/.local/state/caelestia/scheme.json')
+    File('${home.path}/.local/state/maprisma-shell/scheme.json')
       ..createSync(recursive: true)
       ..writeAsStringSync('{"colours": {"primary": "89B4FA", "surface": "1e1e2e", "onSurface": "cdd6f4", "green": "x"}}');
     expect(await desktop('Hyprland').themeColors(), {'accent': '#89b4fa', 'background': '#1e1e2e', 'foreground': '#cdd6f4'});
     expect(await desktop('GNOME').themeColors(), isEmpty);
-    File('${home.path}/.local/state/caelestia/scheme.json').writeAsStringSync('{broken');
+    File('${home.path}/.local/state/maprisma-shell/scheme.json').writeAsStringSync('{broken');
     expect(await desktop('Hyprland').themeColors(), isEmpty);
   });
 }

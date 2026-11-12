@@ -548,8 +548,8 @@ final class GenericDesktop extends Desktop {
   @override
   String get name => 'generic';
 
-  /// On Hyprland with Caelestia (no Omarchy): Caelestia's colour scheme
-  /// (XDG_STATE_HOME/caelestia/scheme.json, Material names), so the Launcher
+  /// On Hyprland with Maprisma Shell (no Omarchy): its colour scheme
+  /// (XDG_STATE_HOME/maprisma-shell/scheme.json, Material names), so the Launcher
   /// follows the theme in use, as Maprisma Manager and Playground do.
   @override
   Future<Map<String, String>> themeColors() async {
@@ -558,7 +558,7 @@ final class GenericDesktop extends Desktop {
     if (!hyprland) return {};
     final stateHome = env['XDG_STATE_HOME'];
     final state = stateHome != null && p.isAbsolute(stateHome) ? stateHome : p.join(session.home, '.local', 'state');
-    final file = File(p.join(state, 'caelestia', 'scheme.json'));
+    final file = File(p.join(state, 'maprisma-shell', 'scheme.json'));
     Object? data;
     try {
       if (!file.existsSync() || file.lengthSync() > 256 * 1024) return {};

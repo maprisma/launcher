@@ -454,8 +454,8 @@ void main() {
     });
     tearDown(() => f.dispose());
 
-    test('plain hl.bind with the desktop file\'s command; require in Caelestia\'s user file', () async {
-      final user = p.join(f.home.path, '.config/caelestia/hypr-user.lua');
+    test('plain hl.bind with the desktop file\'s command; require in the user file hypr-user.lua', () async {
+      final user = p.join(hypr, 'hypr-user.lua');
       Directory(p.dirname(user)).createSync(recursive: true);
       File(user).writeAsStringSync('-- mine\n');
       final state = await f.call('shortcuts.state', {'key': f.firefox, 'mods': ['SUPER'], 'fresh': true});
