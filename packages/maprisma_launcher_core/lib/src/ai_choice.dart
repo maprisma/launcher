@@ -43,6 +43,18 @@ String readAiChoice(Session session, {Object? legacy}) {
   return validAiChoice(helper) ? helper as String : aiAuto;
 }
 
+/// Whether web discovery is on for all Maprisma apps: the shared file's
+/// boolean `web_search`, set in Maprisma Manager › AI. Missing, invalid or no
+/// file = off.
+bool readAiWebSearch(Session session) {
+  final data = _store(session).readJson(aiSettingsName);
+  return data is Map && data['web_search'] == true;
+}
+
+/// Helpers with a documented web-only mode (search and fetch, no other
+/// tools): only Claude Code (`--tools WebSearch,WebFetch`).
+const webSearchHelpers = {'claude'};
+
 /// Store [value] as the shared choice; other keys in the file stay.
 void writeAiChoice(Session session, String value) {
   if (!validAiChoice(value)) throw ArgumentError.value(value, 'helper');

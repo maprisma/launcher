@@ -21,6 +21,7 @@ import 'desktops.dart';
 import 'dock.dart';
 import 'facts.dart';
 import 'groups.dart' as groups;
+import 'github_releases.dart';
 import 'icon_theme.dart';
 import 'icons.dart';
 import 'hyprland.dart';
@@ -54,7 +55,9 @@ final class CoreService {
     Session? session,
     String? configDir,
     String? executable,
+    GithubReleases? githubReleases,
   }) : session = session ?? Session(environment: environment ?? const {}),
+       githubReleases = githubReleases ?? GithubReleases(),
        executable = executable ?? Platform.resolvedExecutable {
     desktop = detectDesktop(this.session);
     store = ConfigStore(this.session, dir: configDir);
@@ -62,6 +65,9 @@ final class CoreService {
   }
 
   final Session session;
+
+  /// Public GitHub release metadata (no credentials; cached briefly).
+  final GithubReleases githubReleases;
 
   /// This program (the dock and the window are both `maprisma-launcher`).
   final String executable;
@@ -78,8 +84,11 @@ final class CoreService {
   late final _facts = AppFacts(session);
 
   /// Global shortcuts: the desktop's backend (none on generic desktops).
-  late final shortcuts = ShortcutService(backendFor(desktop, store), store,
-      keyboardLayout: () => detectKeyboardLayout(session.environment));
+  late final shortcuts = ShortcutService(
+    backendFor(desktop, store),
+    store,
+    keyboardLayout: () => detectKeyboardLayout(session.environment),
+  );
   late final _managers = Managers(session);
 
   /// The last search's results: only these can be installed.
@@ -452,7 +461,8 @@ final class CoreService {
     'window.popup': (params) async {
       final width = params['width'], height = params['height'];
       if (width is! int || height is! int) throw ServiceError('bad_params');
-      if (!_hyprland.available) return {'placed': false, 'reason': 'not Hyprland'};
+      if (!_hyprland.available)
+        return {'placed': false, 'reason': 'not Hyprland'};
       return _hyprland.placePopup(pid, width, height);
     },
     'updates.check': (params) => _checkUpdates(force: params['force'] == true),
@@ -589,7 +599,8 @@ final class CoreService {
     // The shared helper choice of all Maprisma apps (ai_choice.dart).
     'ai.helper.set': (params) async {
       final value = params['helper'];
-      if (value is! String || !validAiChoice(value)) throw ServiceError('bad_params');
+      if (value is! String || !validAiChoice(value))
+        throw ServiceError('bad_params');
       try {
         writeAiChoice(session, value);
       } on FileSystemException catch (e) {
@@ -608,7 +619,8 @@ final class CoreService {
           .firstOrNull;
       final terminal = desktop.terminal();
       // A catalog helper has no sign-in command here.
-      if (helper == null || helper.login.isEmpty || terminal == null) throw ServiceError('bad_params');
+      if (helper == null || helper.login.isEmpty || terminal == null)
+        throw ServiceError('bad_params');
       // The helper's own sign-in, from the table: no text of the user in it.
       if (!await startDetached([
         ...terminal,
@@ -636,7 +648,13 @@ final class CoreService {
                 ..sort())
               .take(maxThemeResults)
               .map((n) => {'name': n, 'file': icons.lookup(n)})
-              .map((t) => {...t, if (t['file'] case final String f) 'file': drawableIcon(f, const {}, session)})
+              .map(
+                (t) => {
+                  ...t,
+                  if (t['file'] case final String f)
+                    'file': drawableIcon(f, const {}, session),
+                },
+              )
               .where((t) => t['file'] != null)
               .toList();
       final online = await _iconChoices.online(
@@ -709,8 +727,9 @@ final class CoreService {
           query.contains(RegExp(r'[\x00-\x1f]'))) {
         throw ServiceError('bad_params');
       }
-      _found = await _managers.search(query, _enabledManagers());
-      return {'results': _found};
+      final found = await _searchApps([query], _enabledManagers());
+      _found = found.results;
+      return {'results': _found, 'github_unavailable': found.githubUnavailable};
     },
     'packages.install_plan': (params) async => _installPlan(params),
     'packages.install': (params) async {
@@ -1002,7 +1021,8 @@ final class CoreService {
     // Icons that colour themselves by stylesheet (Breeze) are shown from a
     // copy with the colours inlined: Flutter's SVG renderer ignores <style>.
     final palette = await desktop.themeColors();
-    String? drawable(String? file) => file == null ? null : drawableIcon(file, palette, session);
+    String? drawable(String? file) =>
+        file == null ? null : drawableIcon(file, palette, session);
     final seen = cleanSeen(store.readJson('seen.json', cap: 512 * 1024));
     final installed = {
       for (final a in apps)
@@ -1080,6 +1100,97 @@ final class CoreService {
     };
   }
 
+  /// Both manual search and Ask AI use the same real sources. A failed public
+  /// lookup must not erase package results or masquerade as "no matches".
+  Future<({List<Found> results, bool githubUnavailable})> _searchApps(
+    List<String> queries,
+    List<String> managers,
+  ) async {
+    final results = <Found>[];
+    var githubUnavailable = false;
+    void add(Iterable<Found> found) {
+      for (final f in found) {
+        if (!results.any(
+          (r) => r['manager'] == f['manager'] && r['package'] == f['package'],
+        )) {
+          results.add(f);
+        }
+      }
+    }
+
+    for (final query in queries) {
+      add(await _managers.search(query, managers));
+    }
+    for (final query in queries.take(2)) {
+      try {
+        add(await githubReleases.search(query));
+      } on Object {
+        githubUnavailable = true;
+        break;
+      }
+    }
+    return (results: results, githubUnavailable: githubUnavailable);
+  }
+
+  /// Web discovery (shared setting on, a web-only helper): the helper may only
+  /// name official GitHub repositories and the page it found them on; the
+  /// core looks up their latest stable release itself. No web-supplied
+  /// command or download link is ever used.
+  Future<Map<String, dynamic>> _webDiscovery(
+    String command,
+    String request,
+    String? language,
+  ) async {
+    Map<String, dynamic> discovery;
+    try {
+      discovery = checkWebAsk(
+        firstJson(
+          await _ask.run(
+            command,
+            webAskPrompt(request, language: language),
+            web: true,
+          ),
+        ),
+      );
+    } on Object catch (e) {
+      throw ServiceError('helper_failed', '$e');
+    }
+    _found = [];
+    final sources = discovery['found'] as List<Map<String, dynamic>>;
+    try {
+      for (final hit in sources) {
+        List<Found> found;
+        try {
+          found = await githubReleases.search(hit['repository'] as String);
+        } on GithubLookupFailure catch (e) {
+          if (e.status == 404) continue; // Not a repository: ignored.
+          rethrow;
+        }
+        for (final f in found) {
+          if (!_found.any((x) => x['package'] == f['package'])) {
+            _found.add({...f, 'web_site': ?hit['site']});
+          }
+        }
+      }
+    } on Object {
+      _found = [];
+      throw ServiceError('github_failed');
+    }
+    return {
+      'action': 'install',
+      'source': 'github',
+      'web': true,
+      'summary': discovery['summary'],
+      'picks': _found,
+      'installed': <String>[],
+      'queries': [for (final hit in sources) hit['repository']],
+      'web_found': [
+        for (final f in _found)
+          {'site': ?f['web_site'], 'repository': f['package']},
+      ],
+    };
+  }
+
   /// Ask AI's helpers, the shared choice (`choice`: "auto" or an id; before
   /// the shared file exists, the Launcher's former `ask_helper`) and the
   /// helper it means now (`chosen`, null when none is installed).
@@ -1090,6 +1201,10 @@ final class CoreService {
       'helpers': states,
       'choice': choice,
       'chosen': resolveAiChoice(choice, states),
+      // Web discovery: on in Maprisma Manager › AI, and only for helpers with
+      // a web-only mode (webSearchHelpers).
+      'web_search': readAiWebSearch(session),
+      'web_helpers': webSearchHelpers.toList(),
       'shared_file': p.join(aiSettingsDir(session), aiSettingsName),
     };
   }
@@ -1099,21 +1214,74 @@ final class CoreService {
   Future<Map<String, dynamic>> _askRun(Map<String, dynamic> params) async {
     final request = _string(params, 'request').trim();
     if (request.length > 2000) throw ServiceError('bad_params');
-    final command = _string(params, 'helper');
+    // An explicit GitHub request works without a helper too.
+    final command = params['helper'] is String
+        ? params['helper'] as String
+        : '';
     final piOnline = await _piOnlineNow();
     final state = (await helperStates(
       session,
       piOnline: piOnline,
     )).where((h) => h['command'] == command).firstOrNull;
+    final language = params['language'] is String
+        ? params['language'] as String
+        : null;
+    // Preserve an explicit GitHub source instead of substituting unrelated packages.
+    final github = githubQuery(request);
+    if (github != null) {
+      try {
+        // A helper may correct spelling, but only nearby names survive the
+        // shared lexical check. Search results, never the helper, supply repos.
+        var suggestions = <String>[];
+        if (state != null && state['installed'] == true) {
+          try {
+            final text = await _ask.run(
+              command,
+              askPrompt(
+                request: request,
+                installed: const [],
+                managers: const ['github'],
+              ),
+              piOnline: piOnline,
+            );
+            final checked = checkAsk(firstJson(text), const {});
+            suggestions = (checked['queries'] as List? ?? const [])
+                .cast<String>();
+          } on Object {
+            // An optional spelling hint must not prevent the search.
+          }
+        }
+        _found = await githubReleases.search(github, suggestions: suggestions);
+      } on Object {
+        _found = [];
+        throw ServiceError('github_failed');
+      }
+      return {
+        'action': 'install',
+        'summary': '',
+        'picks': _found,
+        'installed': <String>[],
+        'queries': [github],
+        'source': 'github',
+      };
+    }
     if (state == null || state['installed'] != true) {
       throw ServiceError('no_helper');
     }
     final answer = params['answer'] is String
         ? (params['answer'] as String)
         : null;
-    final language = params['language'] is String
-        ? params['language'] as String
-        : null;
+    // Web discovery is a shared setting (Maprisma Manager › AI), never a
+    // per-question switch, and needs a helper with a web-only mode.
+    final web = !readAiWebSearch(session)
+        ? 'off'
+        : webSearchHelpers.contains(command)
+        ? 'on'
+        : 'unsupported';
+    // A named website goes to the web straight away (no package guesses).
+    if (web == 'on' && answer == null && namesWebsite(request)) {
+      return _webDiscovery(command, request, language);
+    }
     if (_apps.isEmpty) await _listApps();
     // An Ask AI request must see updates even if the background check is still running.
     if (RegExp(
@@ -1183,17 +1351,16 @@ final class CoreService {
     ];
     switch (first['action']) {
       case 'search':
-        final merged = <Found>[];
-        for (final q in first['queries'] as List) {
-          for (final f in await _managers.search(q as String, managers)) {
-            if (!merged.any(
-              (m) =>
-                  m['manager'] == f['manager'] && m['package'] == f['package'],
-            )) {
-              merged.add(f);
-            }
-          }
-        }
+        final queries = (first['queries'] as List).cast<String>();
+        // Keep a short literal search as well as the helper's interpretation:
+        // a partial or misspelled app name must not disappear from discovery.
+        final literal =
+            RegExp(r'^[\w .+-]{1,40}$').hasMatch(request) &&
+            request.split(RegExp(r'\s+')).length <= 3;
+        final combined = await _searchApps([
+          ...{if (literal) request, ...queries},
+        ], managers);
+        final merged = combined.results;
         // Official repositories first, the AUR last (Antigravity's review, 6b).
         merged.sort(
           (a, b) =>
@@ -1203,12 +1370,21 @@ final class CoreService {
         _found = found;
         final already = first['installed'] as List;
         if (found.isEmpty) {
+          // Nothing in the packages or on GitHub: the web, when it is on.
+          if (web == 'on' && !combined.githubUnavailable) {
+            return {
+              ...await _webDiscovery(command, request, language),
+              'installed': toKeys(already),
+            };
+          }
           return {
             'action': 'install',
             'summary': '',
             'picks': [],
             'installed': toKeys(already),
             'queries': first['queries'],
+            'github_unavailable': combined.githubUnavailable,
+            'web_search': web,
           };
         }
         String second;
@@ -1228,6 +1404,8 @@ final class CoreService {
                     'description': '${f['description'] ?? ''}'.length > 120
                         ? '${f['description']}'.substring(0, 120)
                         : f['description'],
+                    if (f['manager'] == 'github')
+                      'installable': f['installable'],
                     if (f['aur'] == true) 'aur': true,
                     if (f['installed'] == true) 'installed': true,
                   },
@@ -1248,6 +1426,7 @@ final class CoreService {
             {...already, ...picks['installed'] as List}.toList(),
           ),
           'queries': first['queries'],
+          'github_unavailable': combined.githubUnavailable,
         };
       case 'remove' || 'update' || 'explain':
         return {...first, 'apps': toKeys(first['apps'])};
@@ -1358,19 +1537,25 @@ final class CoreService {
     final found = _found
         .where((f) => f['manager'] == manager && f['package'] == package)
         .firstOrNull;
-    if (found == null || !_enabledManagers().contains(manager)) {
+    if (found == null ||
+        (manager != 'github' && !_enabledManagers().contains(manager))) {
       throw ServiceError('not_found');
     }
     // The app's own terminal needs no outside one; packages.install does.
     final terminal = desktop.terminal();
-    final argv = _managers.installCommand(manager, found, terminal ?? const []);
+    final argv = manager == 'github'
+        ? githubInstall(session, found, terminal ?? const [])
+        : _managers.installCommand(manager, found, terminal ?? const []);
     if (argv == null) throw ServiceError('not_found');
     return {
       'manager': manager,
       'package': package,
       'argv': argv,
       // Shown to the user: the line the terminal runs, with the package in it.
-      'command': _shownCommand(argv),
+      'command': manager == 'github'
+          ? argv.sublist(argv.indexOf('-c') + 1).join('\n')
+          : _shownCommand(argv),
+      if (manager == 'github') 'github': true,
       'aur': manager == 'aur',
     };
   }
@@ -1406,12 +1591,20 @@ final class CoreService {
         final found = _found
             .where((f) => f['manager'] == manager && f['package'] == package)
             .firstOrNull;
-        if (found == null || !_enabledManagers().contains(manager)) {
+        if (found == null ||
+            (manager != 'github' && !_enabledManagers().contains(manager))) {
           throw ServiceError('not_found');
         }
-        final argv = _managers.installCommand(manager, found, const []);
+        final argv = manager == 'github'
+            ? githubInstall(session, found, const [])
+            : _managers.installCommand(manager, found, const []);
         if (argv == null) throw ServiceError('not_found');
-        return (_bare(argv), _shownCommand(argv));
+        return (
+          _bare(argv),
+          manager == 'github'
+              ? '${found['repository']} → ${found['asset']}'
+              : _shownCommand(argv),
+        );
       case 'uninstall':
         final app = _app(params);
         final plan = await _uninstallPlan(app);

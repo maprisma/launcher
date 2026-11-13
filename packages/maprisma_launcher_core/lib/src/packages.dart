@@ -12,6 +12,7 @@ import 'package:path/path.dart' as p;
 import 'bounded.dart';
 import 'desktop_entries.dart';
 import 'updates.dart';
+import 'search_terms.dart';
 
 /// id, label, the programs that make it available.
 const managerKinds = [
@@ -51,8 +52,16 @@ final class Managers {
     for (final (id, _, _) in managerKinds) {
       final program = there[id];
       if (program == null || !enabled.contains(id)) continue;
-      final found = await _search(id, program, query);
-      out.addAll(found.take(maxResultsPerManager));
+      for (final term in searchTerms(query)) {
+        final found = await _search(id, program, term);
+        for (final result in found) {
+          if (out.where((f) => f['manager'] == id).length < maxResultsPerManager &&
+              !out.any((f) => f['manager'] == result['manager'] && f['package'] == result['package'])) {
+            out.add(result);
+          }
+        }
+        if (out.where((f) => f['manager'] == id).length >= maxResultsPerManager) break;
+      }
     }
     return out;
   }

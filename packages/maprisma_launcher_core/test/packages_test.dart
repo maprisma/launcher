@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:maprisma_launcher_core/src/github_releases.dart';
 
 import 'package:maprisma_launcher_core/maprisma_launcher_core.dart';
 import 'package:path/path.dart' as p;
@@ -72,7 +73,7 @@ void main() {
   test('core: install only what a search found; the shown command; AUR off by default', () async {
     final home = Directory.systemTemp.createTempSync('am-pkg-');
     addTearDown(() => home.deleteSync(recursive: true));
-    final core = CoreService(environment: {...Platform.environment, 'HOME': home.path});
+    final core = CoreService(githubReleases: GithubReleases(fetch: (_) async => {'items': []}), environment: {...Platform.environment, 'HOME': home.path});
     Future<Map> call(String method, [Map<String, dynamic> params = const {}]) async =>
         jsonDecode(await core.handleAsync(jsonEncode({'id': 1, 'protocol': 1, 'method': method, 'params': params})))
             as Map;

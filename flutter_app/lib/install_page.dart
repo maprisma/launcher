@@ -8,7 +8,7 @@ import 'terminal_page.dart';
 import 'theme.dart';
 
 /// Install apps (Ask AI step 1, no AI): search the package managers the user
-/// allows, then a review with the exact command before a terminal runs it.
+/// allows and public GitHub repositories, then a review before a terminal runs it.
 class InstallPage extends StatefulWidget {
   const InstallPage({super.key, required this.core, this.onInstalled, this.embedded = false});
   final CoreCall core;
@@ -23,6 +23,7 @@ class _InstallPageState extends State<InstallPage> {
   List<Map<String, dynamic>> managers = [];
   List<Map<String, dynamic>> results = [];
   bool searching = false;
+  bool githubUnavailable = false;
   String? searched;
 
   @override
@@ -51,6 +52,7 @@ class _InstallPageState extends State<InstallPage> {
       setState(() {
         results = [for (final f in r['results'] as List) Map<String, dynamic>.from(f)];
         searched = text;
+        githubUnavailable = r['github_unavailable'] == true;
       });
     } on ServiceError catch (e) {
       _tell(trf('That did not work ({0}).', [e.code]));
@@ -63,7 +65,7 @@ class _InstallPageState extends State<InstallPage> {
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text(text)));
 
-  String _managerLabel(String id) =>
+  String _managerLabel(String id) => id == 'github' ? 'GitHub' :
       managers.where((m) => m['id'] == id).firstOrNull?['label'] as String? ?? id;
 
   Future<void> _review(Map found) =>
@@ -72,7 +74,7 @@ class _InstallPageState extends State<InstallPage> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final enabled = managers.where((m) => m['enabled'] == true).map((m) => m['label']).join(', ');
+    final enabled = [...managers.where((m) => m['enabled'] == true).map((m) => m['label']), 'GitHub'].join(', ');
     final content = Column(
       children: [
         if (!widget.embedded)
@@ -124,6 +126,7 @@ class _InstallPageState extends State<InstallPage> {
             ),
           ),
         ),
+        if (githubUnavailable) Text(tr('GitHub search is unavailable. Package results are still shown.')),
         Expanded(
           child: searched != null && results.isEmpty && !searching
               ? Center(child: Text(trf('Nothing found for “{0}”.', [searched])))
@@ -145,7 +148,12 @@ class _InstallPageState extends State<InstallPage> {
                         label: Text(_managerLabel('${f['manager']}'), style: Theme.of(context).textTheme.labelSmall),
                         backgroundColor: aur ? markColors(context).update.withValues(alpha: .2) : null,
                       ),
-                      trailing: f['installed'] == true
+                      trailing: f['manager'] == 'github' && f['installable'] != true
+                          ? TextButton(onPressed: () async {
+                              try { await widget.core('open.url', {'url': f['repository']}); }
+                              on ServiceError catch (e) { if (mounted) _tell(trf('That did not work ({0}).', [e.code])); }
+                            }, child: Text(tr('Open')))
+                          : f['installed'] == true
                           ? Tooltip(
                               message: tr('Installed'),
                               child: Icon(Icons.check_circle, color: markColors(context).running),
@@ -199,7 +207,7 @@ void tell(String text) => ScaffoldMessenger.of(context)
     context: context,
     builder: (context) => AlertDialog(
       title: Text(trf('Install {0}?', [found['name'] ?? found['package']])),
-      content: Column(
+      content: SingleChildScrollView(child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -207,7 +215,12 @@ void tell(String text) => ScaffoldMessenger.of(context)
           const SizedBox(height: 12),
           Text(trf('From: {0}', [managerLabel])),
           const SizedBox(height: 8),
-          Text(tr('A terminal runs this and asks for your password:')),
+          if (plan['github'] == true) ...[
+            SelectableText('${found['repository']}'),
+            Text('${found['asset']}'),
+            Text(tr('Downloads to Applications and verifies SHA-256. No password is needed.')),
+          ] else
+            Text(tr('A terminal runs this and asks for your password:')),
           const SizedBox(height: 4),
           Container(
             padding: const EdgeInsets.all(8),
@@ -230,7 +243,7 @@ void tell(String text) => ScaffoldMessenger.of(context)
             ),
           ],
         ],
-      ),
+      )),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Cancel'))),
         FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(tr('Install in terminal'))),
