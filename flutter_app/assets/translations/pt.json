@@ -299,6 +299,7 @@
  "Pin to dock": "Fixar na dock",
  "Plugin actions": "Ações do plugin",
  "Popup": "Popup",
+ "Popups need Hyprland: on this desktop the Launcher always opens as a normal window.": "Os popups precisam do Hyprland: neste ambiente de trabalho o Launcher abre sempre como janela normal.",
  "Position": "Posição",
  "Press a key now. Hold modifiers while pressing, or toggle them above.": "Aperte uma tecla agora. Segure os modificadores ou ative-os acima.",
  "Press a key, or pick a free key below.": "Aperte uma tecla ou escolha uma tecla livre abaixo.",

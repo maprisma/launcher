@@ -27,13 +27,18 @@ void main() {
     };
   }
 
-  Future<void> mount(WidgetTester tester) async {
+  Future<void> mount(WidgetTester tester, {bool popupPossible = true}) async {
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       MaterialApp(
-        home: SettingsPage(core: core, settings: const {'language': 'auto'}, onChanged: (_) {}),
+        home: SettingsPage(
+          core: core,
+          settings: const {'language': 'auto'},
+          onChanged: (_) {},
+          popupPossible: popupPossible,
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -56,6 +61,13 @@ void main() {
     // The explanation is under the name, not only in its tooltip.
     expect(find.textContaining('Corners of the window'), findsOneWidget);
     expect(tester.widget<ListTile>(find.byKey(const ValueKey('settings-section-layout'))).selected, isTrue);
+  });
+
+  testWidgets('Window: off Hyprland the row says popups fall back to a window', (tester) async {
+    await mount(tester);
+    expect(find.textContaining('Popups need Hyprland'), findsNothing);
+    await mount(tester, popupPossible: false);
+    expect(find.textContaining('Popups need Hyprland'), findsOneWidget);
   });
 
   testWidgets('Find in Settings shows the matching rows of every section', (tester) async {

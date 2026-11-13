@@ -28,11 +28,16 @@ class SettingsPage extends StatefulWidget {
     required this.settings,
     required this.onChanged,
     this.windowRounding,
+    this.popupPossible = true,
   });
   final CoreCall core;
   final Map<String, dynamic> settings;
   final ValueChanged<Map<String, dynamic>> onChanged;
   final int? windowRounding;
+
+  /// Popup mode works in this session (Hyprland); elsewhere the row says it
+  /// falls back to a normal window.
+  final bool popupPossible;
   @override
   State<SettingsPage> createState() => _SettingsPageState();
 }
@@ -660,7 +665,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     tr('Window'),
                     tr(
                       'A popup floats in the middle of the screen and closes with Esc or a click elsewhere, like the old App Manager; a normal window stays and is placed by the desktop. Auto: a popup on Omarchy, a window elsewhere.',
-                    ),
+                    ) +
+                        (widget.popupPossible
+                            ? ''
+                            : ' ${tr('Popups need Hyprland: on this desktop the Launcher always opens as a normal window.')}'),
                     _dropdown<String>(settings['window_mode'] as String? ?? 'auto', [
                       ('auto', tr('Auto')),
                       ('popup', tr('Popup')),

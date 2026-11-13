@@ -253,7 +253,8 @@
     "Found on the web: {0} → {1}": "Im Web gefunden: {0} → {1}",
     "Found on the web: {0}": "Im Web gefunden: {0}",
     "Web search is off (Maprisma Settings › AI).": "Die Websuche ist aus (Maprisma Settings › KI).",
-    "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "Die Websuche braucht Claude Code als KI-Helfer (Maprisma Settings › KI)."
+    "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "Die Websuche braucht Claude Code als KI-Helfer (Maprisma Settings › KI).",
+    "Popups need Hyprland: on this desktop the Launcher always opens as a normal window.": "Popups brauchen Hyprland: auf diesem Desktop öffnet sich der Launcher immer als normales Fenster."
   },
   "es": {
     "\u0004Shortcuts of {0} app": [
@@ -509,7 +510,8 @@
     "Found on the web: {0} → {1}": "Encontrado en la web: {0} → {1}",
     "Found on the web: {0}": "Encontrado en la web: {0}",
     "Web search is off (Maprisma Settings › AI).": "La búsqueda web está desactivada (Maprisma Settings › IA).",
-    "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "La búsqueda web necesita Claude Code como asistente de IA (Maprisma Settings › IA)."
+    "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "La búsqueda web necesita Claude Code como asistente de IA (Maprisma Settings › IA).",
+    "Popups need Hyprland: on this desktop the Launcher always opens as a normal window.": "Las ventanas emergentes necesitan Hyprland: en este escritorio el Launcher siempre se abre como ventana normal."
   },
   "fr": {
     "\u0004Shortcuts of {0} app": [
@@ -765,7 +767,8 @@
     "Found on the web: {0} → {1}": "Trouvé sur le Web : {0} → {1}",
     "Found on the web: {0}": "Trouvé sur le Web : {0}",
     "Web search is off (Maprisma Settings › AI).": "La recherche Web est désactivée (Maprisma Settings › IA).",
-    "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "La recherche Web nécessite Claude Code comme assistant IA (Maprisma Settings › IA)."
+    "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "La recherche Web nécessite Claude Code comme assistant IA (Maprisma Settings › IA).",
+    "Popups need Hyprland: on this desktop the Launcher always opens as a normal window.": "Les fenêtres surgissantes nécessitent Hyprland : sur ce bureau, le Launcher s’ouvre toujours en fenêtre normale."
   },
   "it": {
     "\u0004Shortcuts of {0} app": [
@@ -1021,7 +1024,8 @@
     "Found on the web: {0} → {1}": "Trovato sul web: {0} → {1}",
     "Found on the web: {0}": "Trovato sul web: {0}",
     "Web search is off (Maprisma Settings › AI).": "La ricerca web è disattivata (Maprisma Settings › IA).",
-    "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "La ricerca web richiede Claude Code come assistente IA (Maprisma Settings › IA)."
+    "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "La ricerca web richiede Claude Code come assistente IA (Maprisma Settings › IA).",
+    "Popups need Hyprland: on this desktop the Launcher always opens as a normal window.": "I popup richiedono Hyprland: su questo desktop il Launcher si apre sempre come finestra normale."
   },
   "nl": {
     "\u0004Shortcuts of {0} app": [
@@ -1277,7 +1281,8 @@
     "Found on the web: {0} → {1}": "Gevonden op het web: {0} → {1}",
     "Found on the web: {0}": "Gevonden op het web: {0}",
     "Web search is off (Maprisma Settings › AI).": "Zoeken op het web staat uit (Maprisma Settings › AI).",
-    "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "Zoeken op het web vereist Claude Code als AI-helper (Maprisma Settings › AI)."
+    "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "Zoeken op het web vereist Claude Code als AI-helper (Maprisma Settings › AI).",
+    "Popups need Hyprland: on this desktop the Launcher always opens as a normal window.": "Pop-ups hebben Hyprland nodig: op dit bureaublad opent de Launcher altijd als normaal venster."
   },
   "pl": {
     "\u0004Shortcuts of {0} app": [
@@ -1538,7 +1543,8 @@
     "Found on the web: {0} → {1}": "Znaleziono w sieci: {0} → {1}",
     "Found on the web: {0}": "Znaleziono w sieci: {0}",
     "Web search is off (Maprisma Settings › AI).": "Wyszukiwanie w sieci jest wyłączone (Maprisma Settings › AI).",
-    "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "Wyszukiwanie w sieci wymaga Claude Code jako asystenta AI (Maprisma Settings › AI)."
+    "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "Wyszukiwanie w sieci wymaga Claude Code jako asystenta AI (Maprisma Settings › AI).",
+    "Popups need Hyprland: on this desktop the Launcher always opens as a normal window.": "Okienka wymagają Hyprlanda: na tym pulpicie Launcher zawsze otwiera się jako zwykłe okno."
   },
   "pt": {
     "\u0004Shortcuts of {0} app": [
@@ -1794,6 +1800,7 @@
     "Found on the web: {0} → {1}": "Encontrado na Web: {0} → {1}",
     "Found on the web: {0}": "Encontrado na Web: {0}",
     "Web search is off (Maprisma Settings › AI).": "A pesquisa na Web está desligada (Maprisma Settings › IA).",
-    "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "A pesquisa na Web precisa do Claude Code como assistente de IA (Maprisma Settings › IA)."
+    "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "A pesquisa na Web precisa do Claude Code como assistente de IA (Maprisma Settings › IA).",
+    "Popups need Hyprland: on this desktop the Launcher always opens as a normal window.": "Os popups precisam do Hyprland: neste ambiente de trabalho o Launcher abre sempre como janela normal."
   }
 }

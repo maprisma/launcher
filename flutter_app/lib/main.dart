@@ -88,11 +88,17 @@ Future<void> main(List<String> args) async {
   runApp(MaprismaLauncherApp(core: backend.call, look: look, settings: settings));
 }
 
-/// Popup mode (Settings › Window): on Omarchy and Hyprland by default.
+/// Popup mode (Settings › Window): on Omarchy and Hyprland by default. Only
+/// Hyprland can place and size the popup (the core's window.popup); on COSMIC,
+/// KDE and the rest "Popup" falls back to a normal, decorated window.
 bool isPopup(Map settings, Map look) {
+  if (!popupPossible(look)) return false;
   final mode = settings['window_mode'] as String? ?? 'auto';
-  return mode == 'popup' || (mode == 'auto' && (look['desktop'] == 'omarchy' || look['hyprland'] == true));
+  return mode == 'popup' || mode == 'auto';
 }
+
+/// A session where popup mode works: Omarchy or any Hyprland.
+bool popupPossible(Map look) => look['desktop'] == 'omarchy' || look['hyprland'] == true;
 
 class MaprismaLauncherApp extends StatefulWidget {
   const MaprismaLauncherApp({super.key, required this.core, required this.look, this.settings = const {}});
@@ -399,6 +405,7 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
           onHide: () => windowChannel.invokeMethod('hide').ignore(),
           onSettings: _onSettings,
           windowRounding: look['rounding'] as int?,
+          popupPossible: popupPossible(look),
         ),
       ),
     );

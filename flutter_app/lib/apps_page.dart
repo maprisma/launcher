@@ -91,9 +91,13 @@ class AppsPage extends StatefulWidget {
     this.onHide,
     this.onSettings,
     this.windowRounding,
+    this.popupPossible = true,
   });
   final CoreCall core;
   final String desktop;
+
+  /// Popup mode can be used here (Hyprland); elsewhere Settings says it falls back.
+  final bool popupPossible;
 
   /// The settings changed (corners, language): the app's theme follows.
   final ValueChanged<Map<String, dynamic>>? onSettings;
@@ -1853,6 +1857,7 @@ class AppsPageState extends State<AppsPage> {
         core: widget.core,
         settings: settings,
         windowRounding: widget.windowRounding,
+        popupPossible: widget.popupPossible,
         onChanged: (fresh) {
           setState(() => _takeSettings(fresh));
           widget.onSettings?.call(fresh);
