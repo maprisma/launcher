@@ -83,7 +83,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('settings-section-apps')));
     await tester.pumpAndSettle();
     expect(find.text('AI helper'), findsOneWidget);
-    expect(find.text('Applies to all Maprisma apps; also in Maprisma Manager › AI.'), findsOneWidget);
+    expect(find.text('Applies to all Maprisma apps; also in Maprisma Settings › AI.'), findsOneWidget);
     expect(find.text('Automatic · Claude Code'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('ai-helper')));
     await tester.pumpAndSettle();

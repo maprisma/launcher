@@ -66,7 +66,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   /// The shared helper choice (maprisma-ai/settings.json), the same as Ask
-  /// AI's drop-down and Maprisma Manager › AI.
+  /// AI's drop-down and Maprisma Settings › AI.
   Future<void> _setHelper(String value) async {
     try {
       final r = await widget.core('ai.helper.set', {'helper': value});
@@ -790,7 +790,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   if (ai != null)
                     _row(
                       tr('AI helper'),
-                      tr('Applies to all Maprisma apps; also in Maprisma Manager › AI.'),
+                      tr('Applies to all Maprisma apps; also in Maprisma Settings › AI.'),
                       _helperChoice(),
                     ),
                   if (managers.isNotEmpty)

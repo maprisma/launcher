@@ -241,7 +241,7 @@
     "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} stammt aus dem Paket {1}, das {2} noch brauchen. pacman entfernt es nicht ohne sie.",
     " (untested)": " (ungetestet)",
     "AI helper": "KI-Helfer",
-    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Gilt für alle Maprisma-Apps; auch in Maprisma Manager › KI.",
+    "Applies to all Maprisma apps; also in Maprisma Settings › AI.": "Gilt für alle Maprisma-Apps; auch in Maprisma Settings › KI.",
     "Dictate": "Diktieren",
     "Stop and insert": "Stoppen und einfügen",
     "Listening…": "Höre zu…",
@@ -252,8 +252,8 @@
     "GitHub search is unavailable. Package results are still shown.": "Die GitHub-Suche ist nicht verfügbar. Paketergebnisse werden weiterhin angezeigt.",
     "Found on the web: {0} → {1}": "Im Web gefunden: {0} → {1}",
     "Found on the web: {0}": "Im Web gefunden: {0}",
-    "Web search is off (Maprisma Manager › AI).": "Die Websuche ist aus (Maprisma Manager › KI).",
-    "Web search needs Claude Code as the AI helper (Maprisma Manager › AI).": "Die Websuche braucht Claude Code als KI-Helfer (Maprisma Manager › KI)."
+    "Web search is off (Maprisma Settings › AI).": "Die Websuche ist aus (Maprisma Settings › KI).",
+    "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "Die Websuche braucht Claude Code als KI-Helfer (Maprisma Settings › KI)."
   },
   "es": {
     "\u0004Shortcuts of {0} app": [
@@ -497,7 +497,7 @@
     "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} viene del paquete {1}, que {2} aún necesitan. pacman no lo quitará sin ellos.",
     " (untested)": " (sin probar)",
     "AI helper": "Asistente de IA",
-    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Se aplica a todas las apps de Maprisma; también en Maprisma Manager › IA.",
+    "Applies to all Maprisma apps; also in Maprisma Settings › AI.": "Se aplica a todas las apps de Maprisma; también en Maprisma Settings › IA.",
     "Dictate": "Dictar",
     "Stop and insert": "Detener e insertar",
     "Listening…": "Escuchando…",
@@ -508,8 +508,8 @@
     "GitHub search is unavailable. Package results are still shown.": "La búsqueda de GitHub no está disponible. Se siguen mostrando los paquetes.",
     "Found on the web: {0} → {1}": "Encontrado en la web: {0} → {1}",
     "Found on the web: {0}": "Encontrado en la web: {0}",
-    "Web search is off (Maprisma Manager › AI).": "La búsqueda web está desactivada (Maprisma Manager › IA).",
-    "Web search needs Claude Code as the AI helper (Maprisma Manager › AI).": "La búsqueda web necesita Claude Code como asistente de IA (Maprisma Manager › IA)."
+    "Web search is off (Maprisma Settings › AI).": "La búsqueda web está desactivada (Maprisma Settings › IA).",
+    "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "La búsqueda web necesita Claude Code como asistente de IA (Maprisma Settings › IA)."
   },
   "fr": {
     "\u0004Shortcuts of {0} app": [
@@ -753,7 +753,7 @@
     "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} vient du paquet {1}, dont {2} ont encore besoin. pacman ne le supprimera pas sans eux.",
     " (untested)": " (non testé)",
     "AI helper": "Assistant IA",
-    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "S’applique à toutes les apps Maprisma ; aussi dans Maprisma Manager › IA.",
+    "Applies to all Maprisma apps; also in Maprisma Settings › AI.": "S’applique à toutes les apps Maprisma ; aussi dans Maprisma Settings › IA.",
     "Dictate": "Dicter",
     "Stop and insert": "Arrêter et insérer",
     "Listening…": "À l’écoute…",
@@ -764,8 +764,8 @@
     "GitHub search is unavailable. Package results are still shown.": "La recherche GitHub est indisponible. Les résultats des paquets restent affichés.",
     "Found on the web: {0} → {1}": "Trouvé sur le Web : {0} → {1}",
     "Found on the web: {0}": "Trouvé sur le Web : {0}",
-    "Web search is off (Maprisma Manager › AI).": "La recherche Web est désactivée (Maprisma Manager › IA).",
-    "Web search needs Claude Code as the AI helper (Maprisma Manager › AI).": "La recherche Web nécessite Claude Code comme assistant IA (Maprisma Manager › IA)."
+    "Web search is off (Maprisma Settings › AI).": "La recherche Web est désactivée (Maprisma Settings › IA).",
+    "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "La recherche Web nécessite Claude Code comme assistant IA (Maprisma Settings › IA)."
   },
   "it": {
     "\u0004Shortcuts of {0} app": [
@@ -1009,7 +1009,7 @@
     "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} proviene dal pacchetto {1}, che serve ancora a {2}. pacman non lo rimuove senza di loro.",
     " (untested)": " (non testato)",
     "AI helper": "Assistente IA",
-    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Vale per tutte le app Maprisma; anche in Maprisma Manager › IA.",
+    "Applies to all Maprisma apps; also in Maprisma Settings › AI.": "Vale per tutte le app Maprisma; anche in Maprisma Settings › IA.",
     "Dictate": "Detta",
     "Stop and insert": "Ferma e inserisci",
     "Listening…": "In ascolto…",
@@ -1020,8 +1020,8 @@
     "GitHub search is unavailable. Package results are still shown.": "La ricerca GitHub non è disponibile. I risultati dei pacchetti restano visibili.",
     "Found on the web: {0} → {1}": "Trovato sul web: {0} → {1}",
     "Found on the web: {0}": "Trovato sul web: {0}",
-    "Web search is off (Maprisma Manager › AI).": "La ricerca web è disattivata (Maprisma Manager › IA).",
-    "Web search needs Claude Code as the AI helper (Maprisma Manager › AI).": "La ricerca web richiede Claude Code come assistente IA (Maprisma Manager › IA)."
+    "Web search is off (Maprisma Settings › AI).": "La ricerca web è disattivata (Maprisma Settings › IA).",
+    "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "La ricerca web richiede Claude Code come assistente IA (Maprisma Settings › IA)."
   },
   "nl": {
     "\u0004Shortcuts of {0} app": [
@@ -1265,7 +1265,7 @@
     "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} komt uit het pakket {1}, dat {2} nog nodig hebben. pacman verwijdert het niet zonder hen.",
     " (untested)": " (niet getest)",
     "AI helper": "AI-helper",
-    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Geldt voor alle Maprisma-apps; ook in Maprisma Manager › AI.",
+    "Applies to all Maprisma apps; also in Maprisma Settings › AI.": "Geldt voor alle Maprisma-apps; ook in Maprisma Settings › AI.",
     "Dictate": "Dicteren",
     "Stop and insert": "Stoppen en invoegen",
     "Listening…": "Aan het luisteren…",
@@ -1276,8 +1276,8 @@
     "GitHub search is unavailable. Package results are still shown.": "Zoeken op GitHub is niet beschikbaar. Pakketresultaten worden nog steeds getoond.",
     "Found on the web: {0} → {1}": "Gevonden op het web: {0} → {1}",
     "Found on the web: {0}": "Gevonden op het web: {0}",
-    "Web search is off (Maprisma Manager › AI).": "Zoeken op het web staat uit (Maprisma Manager › AI).",
-    "Web search needs Claude Code as the AI helper (Maprisma Manager › AI).": "Zoeken op het web vereist Claude Code als AI-helper (Maprisma Manager › AI)."
+    "Web search is off (Maprisma Settings › AI).": "Zoeken op het web staat uit (Maprisma Settings › AI).",
+    "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "Zoeken op het web vereist Claude Code als AI-helper (Maprisma Settings › AI)."
   },
   "pl": {
     "\u0004Shortcuts of {0} app": [
@@ -1526,7 +1526,7 @@
     "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} pochodzi z pakietu {1}, którego wciąż potrzebują {2}. pacman nie usunie go bez nich.",
     " (untested)": " (nieprzetestowany)",
     "AI helper": "Asystent AI",
-    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Dotyczy wszystkich aplikacji Maprisma; także w Maprisma Manager › AI.",
+    "Applies to all Maprisma apps; also in Maprisma Settings › AI.": "Dotyczy wszystkich aplikacji Maprisma; także w Maprisma Settings › AI.",
     "Dictate": "Dyktuj",
     "Stop and insert": "Zatrzymaj i wstaw",
     "Listening…": "Słucham…",
@@ -1537,8 +1537,8 @@
     "GitHub search is unavailable. Package results are still shown.": "Wyszukiwanie w GitHubie jest niedostępne. Wyniki pakietów są nadal wyświetlane.",
     "Found on the web: {0} → {1}": "Znaleziono w sieci: {0} → {1}",
     "Found on the web: {0}": "Znaleziono w sieci: {0}",
-    "Web search is off (Maprisma Manager › AI).": "Wyszukiwanie w sieci jest wyłączone (Maprisma Manager › AI).",
-    "Web search needs Claude Code as the AI helper (Maprisma Manager › AI).": "Wyszukiwanie w sieci wymaga Claude Code jako asystenta AI (Maprisma Manager › AI)."
+    "Web search is off (Maprisma Settings › AI).": "Wyszukiwanie w sieci jest wyłączone (Maprisma Settings › AI).",
+    "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "Wyszukiwanie w sieci wymaga Claude Code jako asystenta AI (Maprisma Settings › AI)."
   },
   "pt": {
     "\u0004Shortcuts of {0} app": [
@@ -1782,7 +1782,7 @@
     "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} vem do pacote {1}, de que {2} ainda precisam. O pacman não o remove sem eles.",
     " (untested)": " (não testado)",
     "AI helper": "Assistente de IA",
-    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Aplica-se a todas as apps Maprisma; também no Maprisma Manager › IA.",
+    "Applies to all Maprisma apps; also in Maprisma Settings › AI.": "Aplica-se a todas as apps Maprisma; também no Maprisma Settings › IA.",
     "Dictate": "Ditar",
     "Stop and insert": "Parar e inserir",
     "Listening…": "A ouvir…",
@@ -1793,7 +1793,7 @@
     "GitHub search is unavailable. Package results are still shown.": "A pesquisa no GitHub está indisponível. Os resultados dos pacotes continuam visíveis.",
     "Found on the web: {0} → {1}": "Encontrado na Web: {0} → {1}",
     "Found on the web: {0}": "Encontrado na Web: {0}",
-    "Web search is off (Maprisma Manager › AI).": "A pesquisa na Web está desligada (Maprisma Manager › IA).",
-    "Web search needs Claude Code as the AI helper (Maprisma Manager › AI).": "A pesquisa na Web precisa do Claude Code como assistente de IA (Maprisma Manager › IA)."
+    "Web search is off (Maprisma Settings › AI).": "A pesquisa na Web está desligada (Maprisma Settings › IA).",
+    "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "A pesquisa na Web precisa do Claude Code como assistente de IA (Maprisma Settings › IA)."
   }
 }

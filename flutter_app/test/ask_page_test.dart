@@ -158,9 +158,9 @@ void main() {
     await askFor(tester, 'zzqq');
     expect(find.byType(CheckboxListTile), findsNothing);
     expect(asked.where((a) => a['method'] == 'ask.run').single.containsKey('web'), false);
-    expect(find.text('Web search is off (Maprisma Manager › AI).'), findsOneWidget);
+    expect(find.text('Web search is off (Maprisma Settings › AI).'), findsOneWidget);
     await askFor(tester, 'zzqq agy');
-    expect(find.text('Web search needs Claude Code as the AI helper (Maprisma Manager › AI).'), findsOneWidget);
+    expect(find.text('Web search needs Claude Code as the AI helper (Maprisma Settings › AI).'), findsOneWidget);
   });
 
   testWidgets('web discovery shows where the repository was found; install uses the checked preview', (tester) async {
@@ -536,7 +536,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(asked.where((a) => a['method'] == 'ask.run').last['helper'], 'gemini');
 
-    // Chosen elsewhere (Maprisma Manager › AI), not installed here: Automatic is shown, the file stays.
+    // Chosen elsewhere (Maprisma Settings › AI), not installed here: Automatic is shown, the file stays.
     sharedChoice = 'grok';
     await tester.pumpWidget(MaterialApp(home: AskPage(key: UniqueKey(), core: fake, apps: apps, actions: actions())));
     await tester.pumpAndSettle();

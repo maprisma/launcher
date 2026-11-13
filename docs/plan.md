@@ -252,7 +252,7 @@ No add-on runs code.
   results. Checked live: "pdfcraft" finds storytold/pdfcraft v0.21.1 with a digest-checked
   `pdfcraft-0.21.1-linux-x86_64.AppImage`; the misspelling "pdscraft" finds it through the helper's checked hint.
   Web discovery changed from the branch's per-question checkbox to the shared `web_search` setting of
-  `maprisma-ai/settings.json` (Maprisma Manager › AI): when on and the shared helper is Claude Code (only
+  `maprisma-ai/settings.json` (Maprisma Settings › AI): when on and the shared helper is Claude Code (only
   WebSearch/WebFetch), an install request that found nothing, or one naming a website, asks the web for the
   official GitHub repository; the core verifies its release and the result says "Found on the web: site →
   github.com/owner/repo". Off or another helper: no web call; "nothing found" says why. Codex (`--search` keeps

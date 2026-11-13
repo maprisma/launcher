@@ -325,7 +325,7 @@ class _AskPageState extends State<AskPage> {
     helper = r['chosen'] as String?;
   }
 
-  /// A new choice goes to the shared file (Maprisma Manager › AI and every
+  /// A new choice goes to the shared file (Maprisma Settings › AI and every
   /// Maprisma app use the same one).
   Future<void> _choose(String value) async {
     try {
@@ -950,12 +950,12 @@ class _AskPageState extends State<AskPage> {
             ),
           );
           if (r['web_search'] == 'off') {
-            children.add(Text(tr('Web search is off (Maprisma Manager › AI).')));
+            children.add(Text(tr('Web search is off (Maprisma Settings › AI).')));
           } else if (r['web_search'] == 'unsupported') {
             children.add(
               Text(
                 tr(
-                  'Web search needs Claude Code as the AI helper (Maprisma Manager › AI).',
+                  'Web search needs Claude Code as the AI helper (Maprisma Settings › AI).',
                 ),
               ),
             );

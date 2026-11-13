@@ -550,7 +550,7 @@ final class GenericDesktop extends Desktop {
 
   /// On Hyprland with Maprisma Shell (no Omarchy): its colour scheme
   /// (XDG_STATE_HOME/maprisma-shell/scheme.json, Material names), so the Launcher
-  /// follows the theme in use, as Maprisma Manager and Playground do.
+  /// follows the theme in use, as Maprisma Settings and Playground do.
   @override
   Future<Map<String, String>> themeColors() async {
     final env = session.environment;

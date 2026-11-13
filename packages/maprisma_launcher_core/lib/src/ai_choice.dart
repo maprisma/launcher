@@ -6,7 +6,7 @@
 ///
 /// "auto": the first installed helper in the catalog's order (one that seems
 /// signed in first), the local models after them. A chosen helper that isn't
-/// installed falls back to auto. Maprisma Manager › AI sets the same file.
+/// installed falls back to auto. Maprisma Settings › AI sets the same file.
 library;
 
 import 'dart:io';
@@ -44,7 +44,7 @@ String readAiChoice(Session session, {Object? legacy}) {
 }
 
 /// Whether web discovery is on for all Maprisma apps: the shared file's
-/// boolean `web_search`, set in Maprisma Manager › AI. Missing, invalid or no
+/// boolean `web_search`, set in Maprisma Settings › AI. Missing, invalid or no
 /// file = off.
 bool readAiWebSearch(Session session) {
   final data = _store(session).readJson(aiSettingsName);

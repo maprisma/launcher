@@ -1201,7 +1201,7 @@ final class CoreService {
       'helpers': states,
       'choice': choice,
       'chosen': resolveAiChoice(choice, states),
-      // Web discovery: on in Maprisma Manager › AI, and only for helpers with
+      // Web discovery: on in Maprisma Settings › AI, and only for helpers with
       // a web-only mode (webSearchHelpers).
       'web_search': readAiWebSearch(session),
       'web_helpers': webSearchHelpers.toList(),
@@ -1271,7 +1271,7 @@ final class CoreService {
     final answer = params['answer'] is String
         ? (params['answer'] as String)
         : null;
-    // Web discovery is a shared setting (Maprisma Manager › AI), never a
+    // Web discovery is a shared setting (Maprisma Settings › AI), never a
     // per-question switch, and needs a helper with a web-only mode.
     final web = !readAiWebSearch(session)
         ? 'off'
