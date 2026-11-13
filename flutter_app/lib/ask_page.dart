@@ -6,6 +6,7 @@ import 'backend.dart';
 import 'core_call.dart';
 import 'i18n.dart';
 import 'install_page.dart';
+import 'mic_button.dart';
 import 'shortcut_page.dart';
 import 'theme.dart';
 
@@ -63,6 +64,9 @@ class _AskPageState extends State<AskPage> {
   Map<String, dynamic>? result;
   String? error;
   String? lastRequest;
+
+  /// What dictation heard so far (shown greyed under the field); empty: nothing.
+  String heard = '';
 
   /// Flatpaks being updated now (their row shows a spinner).
   final Set<String> updating = {};
@@ -764,6 +768,8 @@ class _AskPageState extends State<AskPage> {
                         'What do you need? e.g. “something to edit photos”',
                       ),
                       counterText: '',
+                      helperText: heard.isEmpty ? null : heard,
+                      helperMaxLines: 2,
                       suffixIcon: asking
                           ? IconButton(
                               tooltip: tr('Stop'),
@@ -773,6 +779,15 @@ class _AskPageState extends State<AskPage> {
                           : Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
+                                MicButton(
+                                  appId: 'com.maprisma.Launcher',
+                                  tr: tr,
+                                  controller: request,
+                                  focusNode: _field,
+                                  onPartial: (t) {
+                                    if (mounted) setState(() => heard = t);
+                                  },
+                                ),
                                 IconButton(
                                   tooltip: tr('Save as suggestion'),
                                   onPressed: _savePrompt,

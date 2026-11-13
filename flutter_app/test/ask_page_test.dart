@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'voice_fake.dart';
+
 void main() {
   final asked = <Map<String, dynamic>>[];
   var helpersReady = true;
@@ -458,5 +460,33 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Automatic · Claude Code'), findsOneWidget);
     expect(sharedChoice, 'grok');
+  });
+
+  group('mic button (fake maprisma-voice)', () {
+    late FakeVoice voice;
+    setUp(() async => voice = await FakeVoice.create());
+    tearDown(() => voice.dispose());
+
+    testWidgets('hidden while the voice service is not ready', (tester) async {
+      voice.status(ready: false);
+      await tester.pumpWidget(MaterialApp(home: AskPage(core: fake, apps: apps, actions: actions())));
+      await settle(tester);
+      expect(find.byKey(const ValueKey('voice-mic')), findsNothing);
+      expect(find.byTooltip('Save as suggestion'), findsOneWidget);
+    });
+
+    testWidgets('ready: click, click puts the words into the request at the cursor', (tester) async {
+      await tester.pumpWidget(MaterialApp(home: AskPage(core: fake, apps: apps, actions: actions())));
+      await settle(tester);
+      await tester.enterText(find.byType(TextField), 'Find');
+      await tester.tap(find.byKey(const ValueKey('voice-mic')));
+      await settle(tester);
+      expect(find.text('hello'), findsOneWidget); // the partial, greyed under the field
+      await tester.tap(find.byKey(const ValueKey('voice-mic')));
+      await settle(tester);
+      expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, 'Find hello world');
+      expect(find.text('hello'), findsNothing);
+      expect(voice.args.last, 'dictate --events --release --app-id com.maprisma.Launcher');
+    });
   });
 }

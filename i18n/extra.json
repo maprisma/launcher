@@ -241,7 +241,11 @@
     "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} stammt aus dem Paket {1}, das {2} noch brauchen. pacman entfernt es nicht ohne sie.",
     " (untested)": " (ungetestet)",
     "AI helper": "KI-Helfer",
-    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Gilt für alle Maprisma-Apps; auch in Maprisma Manager › KI."
+    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Gilt für alle Maprisma-Apps; auch in Maprisma Manager › KI.",
+    "Dictate": "Diktieren",
+    "Stop and insert": "Stoppen und einfügen",
+    "Listening…": "Höre zu…",
+    "Dictation is not available: {0}": "Diktieren ist nicht verfügbar: {0}"
   },
   "es": {
     "\u0004Shortcuts of {0} app": [
@@ -485,7 +489,11 @@
     "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} viene del paquete {1}, que {2} aún necesitan. pacman no lo quitará sin ellos.",
     " (untested)": " (sin probar)",
     "AI helper": "Asistente de IA",
-    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Se aplica a todas las apps de Maprisma; también en Maprisma Manager › IA."
+    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Se aplica a todas las apps de Maprisma; también en Maprisma Manager › IA.",
+    "Dictate": "Dictar",
+    "Stop and insert": "Detener e insertar",
+    "Listening…": "Escuchando…",
+    "Dictation is not available: {0}": "El dictado no está disponible: {0}"
   },
   "fr": {
     "\u0004Shortcuts of {0} app": [
@@ -729,7 +737,11 @@
     "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} vient du paquet {1}, dont {2} ont encore besoin. pacman ne le supprimera pas sans eux.",
     " (untested)": " (non testé)",
     "AI helper": "Assistant IA",
-    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "S’applique à toutes les apps Maprisma ; aussi dans Maprisma Manager › IA."
+    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "S’applique à toutes les apps Maprisma ; aussi dans Maprisma Manager › IA.",
+    "Dictate": "Dicter",
+    "Stop and insert": "Arrêter et insérer",
+    "Listening…": "À l’écoute…",
+    "Dictation is not available: {0}": "La dictée n’est pas disponible : {0}"
   },
   "it": {
     "\u0004Shortcuts of {0} app": [
@@ -973,7 +985,11 @@
     "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} proviene dal pacchetto {1}, che serve ancora a {2}. pacman non lo rimuove senza di loro.",
     " (untested)": " (non testato)",
     "AI helper": "Assistente IA",
-    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Vale per tutte le app Maprisma; anche in Maprisma Manager › IA."
+    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Vale per tutte le app Maprisma; anche in Maprisma Manager › IA.",
+    "Dictate": "Detta",
+    "Stop and insert": "Ferma e inserisci",
+    "Listening…": "In ascolto…",
+    "Dictation is not available: {0}": "La dettatura non è disponibile: {0}"
   },
   "nl": {
     "\u0004Shortcuts of {0} app": [
@@ -1217,7 +1233,11 @@
     "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} komt uit het pakket {1}, dat {2} nog nodig hebben. pacman verwijdert het niet zonder hen.",
     " (untested)": " (niet getest)",
     "AI helper": "AI-helper",
-    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Geldt voor alle Maprisma-apps; ook in Maprisma Manager › AI."
+    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Geldt voor alle Maprisma-apps; ook in Maprisma Manager › AI.",
+    "Dictate": "Dicteren",
+    "Stop and insert": "Stoppen en invoegen",
+    "Listening…": "Aan het luisteren…",
+    "Dictation is not available: {0}": "Dicteren is niet beschikbaar: {0}"
   },
   "pl": {
     "\u0004Shortcuts of {0} app": [
@@ -1466,7 +1486,11 @@
     "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} pochodzi z pakietu {1}, którego wciąż potrzebują {2}. pacman nie usunie go bez nich.",
     " (untested)": " (nieprzetestowany)",
     "AI helper": "Asystent AI",
-    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Dotyczy wszystkich aplikacji Maprisma; także w Maprisma Manager › AI."
+    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Dotyczy wszystkich aplikacji Maprisma; także w Maprisma Manager › AI.",
+    "Dictate": "Dyktuj",
+    "Stop and insert": "Zatrzymaj i wstaw",
+    "Listening…": "Słucham…",
+    "Dictation is not available: {0}": "Dyktowanie jest niedostępne: {0}"
   },
   "pt": {
     "\u0004Shortcuts of {0} app": [
@@ -1710,6 +1734,10 @@
     "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} vem do pacote {1}, de que {2} ainda precisam. O pacman não o remove sem eles.",
     " (untested)": " (não testado)",
     "AI helper": "Assistente de IA",
-    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Aplica-se a todas as apps Maprisma; também no Maprisma Manager › IA."
+    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Aplica-se a todas as apps Maprisma; também no Maprisma Manager › IA.",
+    "Dictate": "Ditar",
+    "Stop and insert": "Parar e inserir",
+    "Listening…": "A ouvir…",
+    "Dictation is not available: {0}": "O ditado não está disponível: {0}"
   }
 }
