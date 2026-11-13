@@ -118,4 +118,27 @@ void main() {
       'generic',
     );
   });
+
+  test('desktop detection without XDG_CURRENT_DESKTOP uses the session hints', () {
+    Desktop d(Map<String, String> env) => detectDesktop(Session(environment: {'HOME': '/', ...env}));
+    expect(d({'XDG_SESSION_DESKTOP': 'KDE'}).name, 'kde');
+    expect(d({'DESKTOP_SESSION': '/usr/share/wayland-sessions/plasma.desktop'}).name, 'kde');
+    expect(d({'DESKTOP_SESSION': 'cosmic'}).name, 'cosmic');
+    expect(d({'KDE_FULL_SESSION': 'true'}).name, 'kde');
+    expect(d({'XDG_CURRENT_DESKTOP': '', 'XDG_SESSION_DESKTOP': 'COSMIC'}).name, 'cosmic');
+    // XDG_CURRENT_DESKTOP, when set, wins over the hints
+    expect(d({'XDG_CURRENT_DESKTOP': 'COSMIC', 'XDG_SESSION_DESKTOP': 'KDE'}).name, 'cosmic');
+    expect(d({}).name, 'generic');
+  });
+
+  test('an Omarchy install does not override a named COSMIC/KDE session or an empty signature', () {
+    final omarchy = Directory.systemTemp.createTempSync('launcher-omarchy-');
+    addTearDown(() => omarchy.deleteSync(recursive: true));
+    Desktop d(Map<String, String> env) =>
+        detectDesktop(Session(environment: {'HOME': '/', 'OMARCHY_PATH': omarchy.path, ...env}));
+    expect(d({'HYPRLAND_INSTANCE_SIGNATURE': 'x', 'XDG_CURRENT_DESKTOP': 'Hyprland'}).name, 'omarchy');
+    expect(d({'HYPRLAND_INSTANCE_SIGNATURE': 'x', 'XDG_CURRENT_DESKTOP': 'KDE'}).name, 'kde');
+    expect(d({'HYPRLAND_INSTANCE_SIGNATURE': '', 'XDG_CURRENT_DESKTOP': 'COSMIC'}).name, 'cosmic');
+    expect(d({'HYPRLAND_INSTANCE_SIGNATURE': '', 'XDG_CURRENT_DESKTOP': 'Hyprland'}).name, 'generic');
+  });
 }

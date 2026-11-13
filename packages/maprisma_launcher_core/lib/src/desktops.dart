@@ -103,13 +103,37 @@ abstract class Desktop {
   };
 }
 
+/// The session's desktop names, lower case: `XDG_CURRENT_DESKTOP`, or when a
+/// launch lost it, the session hints `XDG_SESSION_DESKTOP` / `DESKTOP_SESSION`
+/// (`KDE_FULL_SESSION` marks Plasma).
+List<String> sessionDesktopTokens(Map<String, String> env) {
+  List<String> split(String? v) =>
+      [for (final t in (v ?? '').toLowerCase().split(':')) if (t.trim().isNotEmpty) t.trim()];
+  var tokens = split(env['XDG_CURRENT_DESKTOP']);
+  if (tokens.isEmpty) tokens = split(env['XDG_SESSION_DESKTOP']);
+  if (tokens.isEmpty) {
+    // DESKTOP_SESSION may be a path to the session file (…/plasma.desktop)
+    final ds = (env['DESKTOP_SESSION'] ?? '').split('/').last.replaceAll('.desktop', '');
+    tokens = split(ds);
+  }
+  if (tokens.isEmpty && env['KDE_FULL_SESSION'] == 'true') tokens = ['kde'];
+  return [
+    for (final t in tokens)
+      if (t == 'plasma' || t == 'plasmawayland' || t == 'plasmax11') 'kde' else t,
+  ];
+}
+
 Desktop detectDesktop(Session session) {
   final env = session.environment;
   final wanted = env['MAPRISMA_LAUNCHER_DESKTOP'];
-  final current = (env['XDG_CURRENT_DESKTOP'] ?? '').toLowerCase().split(':');
+  final current = sessionDesktopTokens(env);
+  // An explicit COSMIC/KDE/GNOME session wins over the Omarchy install-folder
+  // heuristic; an empty Hyprland signature is no Hyprland session.
+  final namedOther = current.any((t) => t == 'cosmic' || t == 'kde' || t == 'gnome');
   if (wanted == 'omarchy' ||
       wanted == null &&
-          env['HYPRLAND_INSTANCE_SIGNATURE'] != null &&
+          !namedOther &&
+          (env['HYPRLAND_INSTANCE_SIGNATURE'] ?? '').isNotEmpty &&
           Directory(env['OMARCHY_PATH'] ?? '/usr/share/omarchy').existsSync()) {
     return OmarchyDesktop(session);
   }
@@ -554,7 +578,7 @@ final class GenericDesktop extends Desktop {
   @override
   Future<Map<String, String>> themeColors() async {
     final env = session.environment;
-    final hyprland = (env['XDG_CURRENT_DESKTOP'] ?? '').toUpperCase().split(':').contains('HYPRLAND');
+    final hyprland = sessionDesktopTokens(env).contains('hyprland');
     if (!hyprland) return {};
     final stateHome = env['XDG_STATE_HOME'];
     final state = stateHome != null && p.isAbsolute(stateHome) ? stateHome : p.join(session.home, '.local', 'state');
