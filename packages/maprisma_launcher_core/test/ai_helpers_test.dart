@@ -74,7 +74,8 @@ void main() {
           reason: 'run tools/gen-helpers');
       final ids = [for (final h in shippedHelpersCatalog.helpers) h.id];
       expect(ids.take(2), ['claude', 'codex']);
-      expect(ids, containsAll(['gemini', 'agy', 'cursor-agent', 'copilot', 'hermes', 'pi']));
+      expect(ids, containsAll(['agy', 'cursor-agent', 'copilot', 'hermes', 'pi']));
+      expect(ids, isNot(contains('gemini')), reason: 'interactive only: its tools stay on in one-shot mode');
       expect(ids, isNot(contains('opencode')), reason: 'no ask');
     });
 
@@ -129,7 +130,8 @@ void main() {
     test("the helpers: catalog order; the Launcher's own five keep their stricter setups", () {
       final list = helpersFrom(shippedHelpersCatalog);
       final ids = [for (final h in list) h.command];
-      expect(ids.take(4), ['claude', 'codex', 'gemini', 'agy']);
+      expect(ids.take(4), ['claude', 'codex', 'agy', 'cursor-agent']);
+      expect(ids, isNot(contains('gemini')), reason: 'no one-shot ask in catalog version 2');
       for (final id in ['claude', 'codex', 'agy', 'pi', 'hermes']) {
         final own = list.firstWhere((h) => h.command == id);
         expect(own.catalog, isNull, reason: id);
@@ -137,9 +139,9 @@ void main() {
       }
       expect(list.firstWhere((h) => h.command == 'agy').argv, containsAll(['--mode', 'plan', '--sandbox']));
       expect(list.firstWhere((h) => h.command == 'claude').argv, contains('--disable-slash-commands'));
-      final gemini = list.firstWhere((h) => h.command == 'gemini');
-      expect(gemini.catalog, isNotNull);
-      expect(gemini.verified, isFalse);
+      final cursor = list.firstWhere((h) => h.command == 'cursor-agent');
+      expect(cursor.catalog, isNotNull);
+      expect(cursor.verified, isFalse);
       // one of ours missing from a catalog is still offered, last
       final short = helpersFrom(parseHelpersCatalog(catalogText(1, [entry('gemini'), entry('codex')]))!);
       expect([for (final h in short) h.command], ['gemini', 'codex', 'claude', 'agy', 'pi', 'hermes']);
@@ -147,27 +149,29 @@ void main() {
 
     test('states: a catalog agent only when installed, then ready and marked untested', () async {
       w.fake('claude', 'exit 0');
+      w.writeFile(p.join(w.home, '.local/bin/cursor-agent'), '#!/bin/sh\n', mode: '755');
       w.writeFile(p.join(w.home, '.local/bin/gemini'), '#!/bin/sh\n', mode: '755');
       final states = {for (final h in await helperStates(w.session({'PATH': w.fakeBin}))) h['command']: h};
-      expect(states['gemini']!['installed'], isTrue);
-      expect(states['gemini']!['signed_in'], isTrue);
-      expect(states['gemini']!['verified'], isFalse);
-      expect(states['gemini']!['catalog'], isTrue);
+      expect(states['cursor-agent']!['installed'], isTrue);
+      expect(states['cursor-agent']!['signed_in'], isTrue);
+      expect(states['cursor-agent']!['verified'], isFalse);
+      expect(states['cursor-agent']!['catalog'], isTrue);
       expect(states['claude']!['signed_in'], isFalse, reason: 'its own sign-in check');
       expect(states['claude']!['verified'], isTrue);
       expect(states['codex']!['installed'], isFalse, reason: 'own helpers are listed when missing');
       expect(states.containsKey('grok'), isFalse, reason: 'catalog helpers only when installed');
+      expect(states.containsKey('gemini'), isFalse, reason: 'installed, but no one-shot ask: not offered');
     });
 
     test('a catalog agent gets the prompt as one argument, not on stdin; stdout is the answer', () async {
-      w.fake('gemini', r'''
+      w.fake('cursor-agent', r'''
 for a in "$@"; do printf '[%s]' "$a"; done > "$HOME/args"
 cat > "$HOME/stdin"
 echo "the answer"
 ''');
       const prompt = '-rf it\'s "odd"\n\$HOME `x`';
-      expect(await AskRunner(w.session()).run('gemini', prompt), 'the answer\n');
-      expect(File('${w.home}/args').readAsStringSync(), '[--approval-mode][default][-o][text][-p][ $prompt]');
+      expect(await AskRunner(w.session()).run('cursor-agent', prompt), 'the answer\n');
+      expect(File('${w.home}/args').readAsStringSync(), '[-p][--mode][ask][--sandbox][enabled][--output-format][text][ $prompt]');
       expect(File('${w.home}/stdin').readAsStringSync(), '');
     });
 
@@ -190,7 +194,7 @@ echo "the answer"
       expect(readAiChoice(s, legacy: '--evil'), 'auto');
       expect(readAiChoice(s, legacy: 3), 'auto');
       for (final (text, want) in [
-        ('{"helper": "gemini"}', 'gemini'),
+        ('{"helper": "cursor-agent"}', 'cursor-agent'),
         ('{"helper": "pi:llama/gemma-3:4b"}', 'pi:llama/gemma-3:4b'),
         ('{"helper": "auto"}', 'auto'),
         ('{"helper": "-x"}', 'auto'),
@@ -230,21 +234,21 @@ echo "the answer"
       final states = <Map<String, dynamic>>[
         {'command': 'claude', 'installed': true, 'signed_in': false},
         {'command': 'codex', 'installed': false, 'signed_in': false},
-        {'command': 'gemini', 'installed': true, 'signed_in': true},
+        {'command': 'cursor-agent', 'installed': true, 'signed_in': true},
         {'command': 'pi:l/m', 'installed': true, 'signed_in': true, 'local': true},
       ];
-      expect(resolveAiChoice('auto', states), 'gemini');
+      expect(resolveAiChoice('auto', states), 'cursor-agent');
       expect(resolveAiChoice('claude', states), 'claude');
       expect(resolveAiChoice('pi:l/m', states), 'pi:l/m');
-      expect(resolveAiChoice('codex', states), 'gemini', reason: 'not installed: auto');
-      expect(resolveAiChoice('nobody', states), 'gemini');
+      expect(resolveAiChoice('codex', states), 'cursor-agent', reason: 'not installed: auto');
+      expect(resolveAiChoice('nobody', states), 'cursor-agent');
       expect(resolveAiChoice('auto', [states[0]]), 'claude');
       expect(resolveAiChoice('auto', [states[1]]), isNull);
     });
 
     test('routes: ask.helpers shows the shared choice, ai.helper.set writes it', () async {
       w.fake('claude', 'exit 0');
-      w.writeFile(p.join(w.home, '.local/bin/gemini'), '#!/bin/sh\n', mode: '755');
+      w.writeFile(p.join(w.home, '.local/bin/cursor-agent'), '#!/bin/sh\n', mode: '755');
       final core = CoreService(environment: {
         'HOME': w.home,
         'PATH': '${w.fakeBin}:/usr/bin:/bin',
@@ -266,17 +270,17 @@ echo "the answer"
 
       r = (await call('ai.helper.set', {'helper': 'auto'}))['result'] as Map;
       expect(r['choice'], 'auto');
-      expect(r['chosen'], 'gemini', reason: 'the first ready one (claude is not signed in)');
+      expect(r['chosen'], 'cursor-agent', reason: 'the first ready one (claude is not signed in)');
       expect(jsonDecode(File(w.shared).readAsStringSync()), {'helper': 'auto'});
 
-      r = (await call('ai.helper.set', {'helper': 'gemini'}))['result'] as Map;
-      expect(r['choice'], 'gemini');
-      expect(r['chosen'], 'gemini');
+      r = (await call('ai.helper.set', {'helper': 'cursor-agent'}))['result'] as Map;
+      expect(r['choice'], 'cursor-agent');
+      expect(r['chosen'], 'cursor-agent');
       // Another app picked something this PC doesn't have: auto, file unchanged.
       w.writeFile(w.shared, '{"helper": "grok"}');
       r = (await call('ask.helpers'))['result'] as Map;
       expect(r['choice'], 'grok');
-      expect(r['chosen'], 'gemini');
+      expect(r['chosen'], 'cursor-agent');
       expect((await call('ai.helper.set', {'helper': '-bad'}))['error']['code'], 'bad_params');
       expect((await call('ai.helper.set', {'helper': 3}))['error']['code'], 'bad_params');
       expect(jsonDecode(File(w.shared).readAsStringSync()), {'helper': 'grok'});
