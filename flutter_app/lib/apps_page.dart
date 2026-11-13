@@ -331,6 +331,7 @@ class AppsPageState extends State<AppsPage> {
             actions: (
               open: (app) => _launch(app),
               uninstall: _uninstall,
+              uninstallAll: _uninstallAll,
               update: _updateFlatpak,
               updateAppImage: _updateAppImage,
               updateSystem: _updateSystem,
@@ -1194,6 +1195,30 @@ class AppsPageState extends State<AppsPage> {
       );
       return;
     }
+    final neededBy = (plan['needed_by'] as List? ?? const []).cast<String>();
+    if (neededBy.isNotEmpty) {
+      // pacman refuses: other installed packages need this one.
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(trf('Could not uninstall {0}', [app['name']])),
+          content: Text(
+            trf(
+              '{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.',
+              [app['name'], what, _nameList(neededBy)],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(tr('Close')),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
     final manager = plan['manager'] as String?;
     final text = switch (kind) {
       'webapp' => trf(
@@ -1307,6 +1332,158 @@ class AppsPageState extends State<AppsPage> {
       return;
     }
     await _uninstallOutside(app, kind: kind, what: what);
+  }
+
+  /// A list of names, at most five, then "and N more".
+  static String _nameList(List<Object?> names) => names.length <= 5
+      ? names.join(', ')
+      : trf('{0} and {1} more', [names.take(5).join(', '), names.length - 5]);
+
+  /// "Uninstall all" (Ask AI's list): one review of the combined plan; system
+  /// packages go in one terminal per manager, each package once; packages
+  /// others still need are left out (pacman would refuse the whole line).
+  Future<void> _uninstallAll(List<Map> apps) async {
+    Map<String, dynamic> plan;
+    try {
+      plan = await widget.core('apps.uninstall_all_plan', {
+        'keys': [for (final a in apps) a['key']],
+      });
+    } on ServiceError catch (e) {
+      _tell(trf('That did not work ({0}).', [e.code]));
+      return;
+    }
+    final packages = (plan['packages'] as List).cast<Map>();
+    final blocked = (plan['blocked'] as List).cast<Map>();
+    final others = (plan['others'] as List).cast<Map>();
+    final skipped = (plan['skipped'] as List).cast<Map>();
+    List<Object?> names(Map group) => [
+      for (final a in group['apps'] as List) a['name'],
+    ];
+    final count =
+        others.length +
+        packages.fold<int>(0, (n, g) => n + (g['apps'] as List).length);
+    if (!mounted) return;
+    final scheme = Theme.of(context).colorScheme;
+    Widget warning(String text) => Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: scheme.error.withValues(alpha: .15),
+        borderRadius: BorderRadius.circular(cornerSizes(context).control),
+      ),
+      child: Text(text),
+    );
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          count == 0
+              ? tr('Nothing in this list can be uninstalled.')
+              : trn(
+                  'Do you want to uninstall {0} app?',
+                  'Do you want to uninstall {0} apps?',
+                  count,
+                ),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final g in packages) ...[
+                Text(
+                  trf(
+                    'Removes the packages {0} with {1}, in a terminal that asks for your password.',
+                    [(g['what'] as List).join(', '), g['manager']],
+                  ),
+                ),
+                Text(
+                  _nameList(names(g)),
+                  style: TextStyle(color: scheme.onSurfaceVariant),
+                ),
+                if ((g['omarchy'] as List).isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  warning(
+                    tr(
+                      'Omarchy installs this package itself; removing it can break the desktop.',
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+              ],
+              if (others.isNotEmpty) ...[
+                Text(
+                  trf('Also removed at once: {0}', [
+                    _nameList([for (final a in others) a['name']]),
+                  ]),
+                ),
+                const SizedBox(height: 12),
+              ],
+              for (final g in blocked) ...[
+                warning(
+                  trf(
+                    'Cannot be uninstalled: {0}. The package {1} is still needed by {2}.',
+                    [
+                      _nameList(names(g)),
+                      g['what'],
+                      _nameList(g['needed_by'] as List),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              if (skipped.isNotEmpty)
+                Text(
+                  trf('Not uninstalled: {0}', [
+                    _nameList([for (final a in skipped) a['name']]),
+                  ]),
+                ),
+            ],
+          ),
+        ),
+        actions: count == 0
+            ? [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text(tr('Close')),
+                ),
+              ]
+            : [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text(tr('Cancel')),
+                ),
+                FilledButton(
+                  style: FilledButton.styleFrom(backgroundColor: scheme.error),
+                  onPressed: () => Navigator.pop(context, true),
+                  child: Text(tr('Uninstall all')),
+                ),
+              ],
+      ),
+    );
+    if (go != true) return;
+    final keys = [for (final a in apps) a['key']];
+    for (final g in packages) {
+      if (!mounted) return;
+      await runInTerminal(
+        context,
+        widget.core,
+        {'action': 'uninstall_all', 'manager': g['manager'], 'keys': keys},
+        trf('Uninstalling {0}…', [(g['what'] as List).join(', ')]),
+      );
+    }
+    final failed = <Object?>[];
+    for (final a in others) {
+      try {
+        await widget.core('apps.uninstall', {'key': a['key']});
+      } on ServiceError {
+        failed.add(a['name']);
+      }
+    }
+    await _load();
+    if (failed.isNotEmpty) {
+      _tell(trf('Could not uninstall {0}', [_nameList(failed)]));
+    }
   }
 
   /// apps.uninstall: done at once (trash, Flatpak, Omarchy's own entries), or

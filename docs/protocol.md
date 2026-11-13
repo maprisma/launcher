@@ -22,7 +22,7 @@ A request is `{"id", "protocol": 1, "method", "params"}`, the answer `{"id", "re
 | `apps.open_on_workspace` | `key`, `workspace` (int) | `started`; `bad_params`, `launch_failed` |
 | `workspaces.list` | — | `workspaces` (in use, with their apps), `free` (the next empty one) |
 | `window.popup` | `width`, `height` | Omarchy: the popup floated and centred (`placed`); elsewhere `placed` false |
-| `term.start` | `action` (`install` + `manager`, `package` from the last search; `uninstall` + `key`; `system`), `cols`?, `rows`? | `id`, `command` (shown); the program runs in a pseudo terminal (setsid -w -c, sudo asks there); `not_found`, `not_terminal` (nothing needs a terminal / the desktop's own updater), `no_pty`, `busy` (4 at once) |
+| `term.start` | `action` (`install` + `manager`, `package` from the last search; `uninstall` + `key`; `uninstall_all` + `keys`, `manager`: that manager's packages of the combined plan, minus blocked ones, in one line; `system`), `cols`?, `rows`? | `id`, `command` (shown); the program runs in a pseudo terminal (setsid -w -c, sudo asks there); `not_found`, `not_terminal` (nothing needs a terminal / the desktop's own updater), `no_pty`, `busy` (4 at once) |
 | `term.read` | `id` | `data` (base64, the output since the last read, at most 1 MiB kept), `ended`, `code` |
 | `term.write` / `term.resize` / `term.close` | `id` + `data` (base64, ≤ 64 KiB) / `cols`, `rows` / — | `accepted`, `ended` / `resized` / `closed` (a running program gets a hangup) |
 | `apps.quit_check` | `key` | `label`: the app's own tray Quit entry (StatusNotifierItem menu), or null |
@@ -30,8 +30,9 @@ A request is `{"id", "protocol": 1, "method", "params"}`, the answer `{"id", "re
 | `admin.state` | — | `enabled` (this login session), `available` (pkexec and a session to tie it to) |
 | `admin.enable` | `on` | `enabled`; turning it on asks polkit for the password first (`not_confirmed`) |
 | `apps.admin_check` / `apps.admin_launch` | `key` | `can` / `started`; `not_enabled`, `launch_failed` |
-| `apps.uninstall_plan` | `key` | `kind` (null, `flatpak`, `package` + `manager`, `webapp`, `omarchy` + `how`, `trash`), `what`, `warnings` |
+| `apps.uninstall_plan` | `key` | `kind` (null, `flatpak`, `package` + `manager`, `webapp`, `omarchy` + `how`, `trash`), `what`, `warnings`, `needed_by` (packages: installed packages that still need it) |
 | `apps.uninstall` | `key` | what the plan said: started in a terminal, or done |
+| `apps.uninstall_all_plan` | `keys` | `packages` (per `manager`: `what` (each once), `apps`, `omarchy`), `blocked` (`what`, `needed_by`, `apps`: other installed packages still need it, pacman would refuse), `others` (no terminal: trash, Flatpak, Omarchy entries), `skipped` (web apps, nothing owns it) |
 | `updates.check` | `force`? | `apps` {desktop path: [package, old, new]}, `flatpaks` {key: …}, `appimages` {key: release details}, `appimage_unknown` {key: reason}, `appimage_restorable` [keys], `checked` |
 | `updates.flatpak` | `key` | the updates; `bad_params`, `update_failed` |
 | `updates.appimage` | `key` | installs a verified newer AppImage from embedded GitHub update information at its existing path, keeping the previous binary as `.bak`; `no_update`, `busy`, `update_failed` |

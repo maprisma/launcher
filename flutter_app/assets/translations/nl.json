@@ -1,4 +1,8 @@
 {
+ "\u0004Do you want to uninstall {0} app?": [
+  "Wil je {0} app verwijderen?",
+  "Wil je {0} apps verwijderen?"
+ ],
  "\u0004Shortcuts of {0} app": [
   "Sneltoetsen van {0} app",
   "Sneltoetsen van {0} apps"
@@ -38,6 +42,7 @@
  "Along the whole screen edge; off: only as long as its icons.": "Langs de hele schermrand; uit: alleen zo lang als de pictogrammen.",
  "Already installed": "Al geïnstalleerd",
  "Already opens {0} — nothing to add.": "Opent al {0} — niets toe te voegen.",
+ "Also removed at once: {0}": "Ook meteen verwijderd: {0}",
  "An app that wants attention bounces in the dock until you switch to it.": "Een app die aandacht vraagt stuitert in het dock tot je ernaar overschakelt.",
  "App actions": "App-acties",
  "Apps & AI": "Apps & AI",
@@ -57,6 +62,7 @@
  "By origin": "Op herkomst",
  "By origin (Ctrl+G)": "Op herkomst (Ctrl+G)",
  "Cancel": "Annuleren",
+ "Cannot be uninstalled: {0}. The package {1} is still needed by {2}.": "Niet te verwijderen: {0}. Het pakket {1} is nog nodig voor {2}.",
  "Cards": "Kaarten",
  "Center": "Midden",
  "Change": "Wijzigen",
@@ -242,8 +248,10 @@
  "Not available": "Niet beschikbaar",
  "Not in the bar": "Niet in de balk",
  "Not installed": "Niet geïnstalleerd",
+ "Not uninstalled: {0}": "Niet verwijderd: {0}",
  "Nothing found for “{0}”.": "Niets gevonden voor “{0}”.",
  "Nothing found. Try another name, e.g. the company.": "Niets gevonden. Probeer een andere naam, bijv. het bedrijf.",
+ "Nothing in this list can be uninstalled.": "Niets in deze lijst kan worden verwijderd.",
  "Nothing to change.": "Niets te wijzigen.",
  "Off": "Uit",
  "Office": "Kantoor",
@@ -301,6 +309,7 @@
  "Removes the Flatpak {0}. Its data in ~/.var/app stays.": "Verwijdert de Flatpak {0}. De gegevens in ~/.var/app blijven.",
  "Removes the package {0} with pacman, in a terminal that asks for your password.": "Verwijdert het pakket {0} met pacman, in een terminal die om je wachtwoord vraagt.",
  "Removes the package {0} with {1}, in a terminal that asks for your password.": "Verwijdert het pakket {0} met {1}, in een terminal die om je wachtwoord vraagt.",
+ "Removes the packages {0} with {1}, in a terminal that asks for your password.": "Verwijdert de pakketten {0} met {1}, in een terminal die om je wachtwoord vraagt.",
  "Removes the terminal app {0}, as Omarchy's menu does.": "Verwijdert de terminal-app {0}, zoals het menu van Omarchy.",
  "Removes the web app {0}, as Omarchy's menu does.": "Verwijdert de web-app {0}, zoals het menu van Omarchy.",
  "Rename group": "Groep hernoemen",
@@ -388,6 +397,7 @@
  "Unhide": "Tonen",
  "Unhide from list": "In de lijst tonen",
  "Uninstall": "Verwijderen",
+ "Uninstall all": "Alles verwijderen",
  "Uninstalled {0}": "{0} verwijderd",
  "Uninstalling {0}…": "{0} wordt verwijderd…",
  "Uninstall…": "Verwijderen…",
@@ -439,6 +449,8 @@
  "was “{0}”": "was ‘{0}’",
  "yours": "van jou",
  "{0} (empty)": "{0} (leeg)",
+ "{0} and {1} more": "{0} en {1} meer",
+ "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} komt uit het pakket {1}, dat {2} nog nodig hebben. pacman verwijdert het niet zonder hen.",
  "{0} could not be closed.": "{0} kon niet worden gesloten.",
  "{0} could not be quit.": "{0} kon niet worden afgesloten.",
  "{0} could not be started.": "{0} kon niet worden gestart.",

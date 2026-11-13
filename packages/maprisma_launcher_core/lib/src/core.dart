@@ -714,6 +714,7 @@ final class CoreService {
     },
     'apps.uninstall_plan': (params) async => _uninstallPlan(_app(params)),
     'apps.uninstall': (params) => _uninstall(_app(params)),
+    'apps.uninstall_all_plan': (params) async => _uninstallAllPlan(params),
     'shortcuts.state': (params) async => shortcuts.view(_app(params), params),
     'shortcuts.set': (params) async => shortcuts.assign(_app(params), params),
     'shortcuts.remove': (params) async =>
@@ -1416,6 +1417,23 @@ final class CoreService {
         // Other kinds (trash, web apps, a Flatpak alone) need no terminal.
         if (argv == null) throw ServiceError('not_terminal');
         return (_bare(argv), _shownCommand(argv));
+      case 'uninstall_all':
+        // The packages of the apps' combined plan, of one manager, each once;
+        // never those other installed packages still need.
+        final manager = _string(params, 'manager');
+        final plan = await _uninstallAllPlan(params);
+        final group = (plan['packages'] as List)
+            .cast<Map>()
+            .where((g) => g['manager'] == manager)
+            .firstOrNull;
+        if (group == null) throw ServiceError('not_terminal');
+        final argv = _managers.removeManyCommand(
+          manager,
+          (group['what'] as List).cast<String>(),
+          const [],
+        );
+        if (argv == null) throw ServiceError('not_terminal');
+        return (_bare(argv), _shownCommand(argv));
       case 'system':
         final argv = desktop.systemUpdateInner();
         if (argv == null) throw ServiceError('not_terminal');
@@ -1458,6 +1476,8 @@ final class CoreService {
           'how': how.$1,
           'what': how.$2,
           'warnings': warnings,
+          if (how.$1 == 'package')
+            'needed_by': await _managers.neededBy('pacman', how.$2),
         };
       }
     }
@@ -1482,9 +1502,104 @@ final class CoreService {
         'manager': owner.$1,
         'what': owner.$2,
         'warnings': warnings,
+        'needed_by': await _managers.neededBy(owner.$1, owner.$2),
       };
     }
     return {'kind': plan.$1, 'what': plan.$2, 'warnings': warnings};
+  }
+
+  /// The plans of several apps (`keys`) at once, for "Uninstall all":
+  /// system packages by manager, each once, with the apps they bring down;
+  /// `blocked`: packages others still need (pacman would refuse them, and the
+  /// whole line with them); `others`: removed one by one without a terminal;
+  /// `skipped`: web apps and apps nothing can remove.
+  Future<Map<String, dynamic>> _uninstallAllPlan(
+    Map<String, dynamic> params,
+  ) async {
+    final keys = params['keys'];
+    if (keys is! List || keys.isEmpty || keys.length > 500) {
+      throw ServiceError('bad_params');
+    }
+    final byPackage = <(String, String), List<Map>>{};
+    final needs = <(String, String), List<String>>{};
+    final warned = <(String, String)>{};
+    final others = <Map<String, dynamic>>[];
+    final skipped = <Map<String, dynamic>>[];
+    for (final key in keys.toSet()) {
+      final app = key is String ? _apps[key] : null;
+      if (app == null) continue;
+      final plan = await _uninstallPlan(app);
+      final kind = plan['kind'];
+      final what = plan['what'] as String?;
+      final entry = {'key': key, 'name': app['name']};
+      final (String, String)? package = switch (kind) {
+        'package' => (plan['manager'] as String, what!),
+        'omarchy' when plan['how'] == 'package' => ('pacman', what!),
+        _ => null,
+      };
+      if (package != null) {
+        byPackage.putIfAbsent(package, () => []).add(entry);
+        needs[package] = (plan['needed_by'] as List? ?? const []).cast();
+        if ((plan['warnings'] as List? ?? const []).contains('omarchy')) {
+          warned.add(package);
+        }
+      } else if (kind == null || kind == 'webapp') {
+        skipped.add({...entry, 'kind': kind, 'what': what});
+      } else {
+        others.add({...entry, 'kind': kind, 'how': plan['how'], 'what': what});
+      }
+    }
+    // A package stays removable when all that need it go too; one that cannot
+    // go keeps those it needs, so repeat until nothing changes.
+    final going = byPackage.keys.toSet();
+    final blocked = <(String, String), List<String>>{};
+    for (var changed = true; changed;) {
+      changed = false;
+      for (final package in going.toList()) {
+        final names = {
+          for (final g in going)
+            if (g.$1 == package.$1) g.$2,
+        };
+        final rest = needs[package]!.where((n) => !names.contains(n)).toList();
+        if (rest.isNotEmpty) {
+          blocked[package] = rest;
+          going.remove(package);
+          changed = true;
+        }
+      }
+    }
+    List<Map> appsOf(Iterable<(String, String)> packages) => [
+      for (final p in packages) ...byPackage[p]!,
+    ];
+    final managers = {for (final g in going) g.$1};
+    return {
+      'packages': [
+        for (final m in managers)
+          {
+            'manager': m,
+            'what': [
+              for (final g in going)
+                if (g.$1 == m) g.$2,
+            ],
+            'apps': appsOf(going.where((g) => g.$1 == m)),
+            'omarchy': [
+              for (final g in going)
+                if (g.$1 == m && warned.contains(g)) g.$2,
+            ],
+          },
+      ],
+      'blocked': [
+        for (final e in blocked.entries)
+          {
+            'manager': e.key.$1,
+            'what': e.key.$2,
+            'needed_by': e.value,
+            'apps': byPackage[e.key],
+          },
+      ],
+      'others': others,
+      'skipped': skipped,
+    };
   }
 
   /// What omarchy-remove-launcher-entry will do, in its own order: Omarchy

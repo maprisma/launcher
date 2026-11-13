@@ -226,7 +226,19 @@
     "The window drew nothing.": "Das Fenster hat nichts gezeichnet.",
     "Slightly rounded ({0} px)": "Leicht abgerundet ({0} px)",
     "Rounded ({0} px)": "Abgerundet ({0} px)",
-    "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Ecken des Fensters, seiner Karten und aller Bedienelemente (Knöpfe, Auswahlfelder, Eingabefelder). „Wie Fenster“ folgt der Fensterrundung des Desktops."
+    "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Ecken des Fensters, seiner Karten und aller Bedienelemente (Knöpfe, Auswahlfelder, Eingabefelder). „Wie Fenster“ folgt der Fensterrundung des Desktops.",
+    "\u0004Do you want to uninstall {0} app?": [
+      "Möchtest du {0} App deinstallieren?",
+      "Möchtest du {0} Apps deinstallieren?"
+    ],
+    "Also removed at once: {0}": "Außerdem sofort entfernt: {0}",
+    "Cannot be uninstalled: {0}. The package {1} is still needed by {2}.": "Nicht deinstallierbar: {0}. Das Paket {1} wird noch von {2} gebraucht.",
+    "Not uninstalled: {0}": "Nicht deinstalliert: {0}",
+    "Nothing in this list can be uninstalled.": "Nichts in dieser Liste lässt sich deinstallieren.",
+    "Removes the packages {0} with {1}, in a terminal that asks for your password.": "Entfernt die Pakete {0} mit {1}, in einem Terminal, das nach deinem Passwort fragt.",
+    "Uninstall all": "Alle deinstallieren",
+    "{0} and {1} more": "{0} und {1} weitere",
+    "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} stammt aus dem Paket {1}, das {2} noch brauchen. pacman entfernt es nicht ohne sie."
   },
   "es": {
     "\u0004Shortcuts of {0} app": [
@@ -455,7 +467,19 @@
     "The window drew nothing.": "La ventana no dibujó nada.",
     "Slightly rounded ({0} px)": "Ligeramente redondeadas ({0} px)",
     "Rounded ({0} px)": "Redondeadas ({0} px)",
-    "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Esquinas de la ventana, sus tarjetas y todos los controles (botones, listas de opciones, campos). «Como las ventanas» sigue el redondeo de las ventanas del escritorio."
+    "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Esquinas de la ventana, sus tarjetas y todos los controles (botones, listas de opciones, campos). «Como las ventanas» sigue el redondeo de las ventanas del escritorio.",
+    "\u0004Do you want to uninstall {0} app?": [
+      "¿Quieres desinstalar {0} app?",
+      "¿Quieres desinstalar {0} apps?"
+    ],
+    "Also removed at once: {0}": "También se quitan al momento: {0}",
+    "Cannot be uninstalled: {0}. The package {1} is still needed by {2}.": "No se pueden desinstalar: {0}. {2} aún necesitan el paquete {1}.",
+    "Not uninstalled: {0}": "No desinstaladas: {0}",
+    "Nothing in this list can be uninstalled.": "Nada de esta lista se puede desinstalar.",
+    "Removes the packages {0} with {1}, in a terminal that asks for your password.": "Quita los paquetes {0} con {1}, en un terminal que pide tu contraseña.",
+    "Uninstall all": "Desinstalar todas",
+    "{0} and {1} more": "{0} y {1} más",
+    "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} viene del paquete {1}, que {2} aún necesitan. pacman no lo quitará sin ellos."
   },
   "fr": {
     "\u0004Shortcuts of {0} app": [
@@ -684,7 +708,19 @@
     "The window drew nothing.": "La fenêtre n'a rien dessiné.",
     "Slightly rounded ({0} px)": "Légèrement arrondis ({0} px)",
     "Rounded ({0} px)": "Arrondis ({0} px)",
-    "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Coins de la fenêtre, de ses cartes et de toutes les commandes (boutons, listes de choix, champs). « Comme les fenêtres » suit l'arrondi des fenêtres du bureau."
+    "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Coins de la fenêtre, de ses cartes et de toutes les commandes (boutons, listes de choix, champs). « Comme les fenêtres » suit l'arrondi des fenêtres du bureau.",
+    "\u0004Do you want to uninstall {0} app?": [
+      "Veux-tu désinstaller {0} app ?",
+      "Veux-tu désinstaller {0} apps ?"
+    ],
+    "Also removed at once: {0}": "Également supprimés tout de suite : {0}",
+    "Cannot be uninstalled: {0}. The package {1} is still needed by {2}.": "Impossible à désinstaller : {0}. Le paquet {1} est encore requis par {2}.",
+    "Not uninstalled: {0}": "Non désinstallées : {0}",
+    "Nothing in this list can be uninstalled.": "Rien dans cette liste ne peut être désinstallé.",
+    "Removes the packages {0} with {1}, in a terminal that asks for your password.": "Supprime les paquets {0} avec {1}, dans un terminal qui demande ton mot de passe.",
+    "Uninstall all": "Tout désinstaller",
+    "{0} and {1} more": "{0} et {1} de plus",
+    "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} vient du paquet {1}, dont {2} ont encore besoin. pacman ne le supprimera pas sans eux."
   },
   "it": {
     "\u0004Shortcuts of {0} app": [
@@ -913,7 +949,19 @@
     "The window drew nothing.": "La finestra non ha disegnato nulla.",
     "Slightly rounded ({0} px)": "Leggermente arrotondati ({0} px)",
     "Rounded ({0} px)": "Arrotondati ({0} px)",
-    "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Angoli della finestra, delle sue schede e di tutti i controlli (pulsanti, caselle di scelta, campi). «Come le finestre» segue l'arrotondamento delle finestre del desktop."
+    "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Angoli della finestra, delle sue schede e di tutti i controlli (pulsanti, caselle di scelta, campi). «Come le finestre» segue l'arrotondamento delle finestre del desktop.",
+    "\u0004Do you want to uninstall {0} app?": [
+      "Vuoi disinstallare {0} app?",
+      "Vuoi disinstallare {0} app?"
+    ],
+    "Also removed at once: {0}": "Rimossi subito anche: {0}",
+    "Cannot be uninstalled: {0}. The package {1} is still needed by {2}.": "Non disinstallabili: {0}. Il pacchetto {1} serve ancora a {2}.",
+    "Not uninstalled: {0}": "Non disinstallate: {0}",
+    "Nothing in this list can be uninstalled.": "Niente in questo elenco può essere disinstallato.",
+    "Removes the packages {0} with {1}, in a terminal that asks for your password.": "Rimuove i pacchetti {0} con {1}, in un terminale che chiede la tua password.",
+    "Uninstall all": "Disinstalla tutte",
+    "{0} and {1} more": "{0} e altri {1}",
+    "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} proviene dal pacchetto {1}, che serve ancora a {2}. pacman non lo rimuove senza di loro."
   },
   "nl": {
     "\u0004Shortcuts of {0} app": [
@@ -1142,7 +1190,19 @@
     "The window drew nothing.": "Het venster tekende niets.",
     "Slightly rounded ({0} px)": "Licht afgerond ({0} px)",
     "Rounded ({0} px)": "Afgerond ({0} px)",
-    "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Hoeken van het venster, zijn kaarten en alle bedieningselementen (knoppen, keuzelijsten, velden). ‘Zoals vensters’ volgt de vensterafronding van het bureaublad."
+    "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Hoeken van het venster, zijn kaarten en alle bedieningselementen (knoppen, keuzelijsten, velden). ‘Zoals vensters’ volgt de vensterafronding van het bureaublad.",
+    "\u0004Do you want to uninstall {0} app?": [
+      "Wil je {0} app verwijderen?",
+      "Wil je {0} apps verwijderen?"
+    ],
+    "Also removed at once: {0}": "Ook meteen verwijderd: {0}",
+    "Cannot be uninstalled: {0}. The package {1} is still needed by {2}.": "Niet te verwijderen: {0}. Het pakket {1} is nog nodig voor {2}.",
+    "Not uninstalled: {0}": "Niet verwijderd: {0}",
+    "Nothing in this list can be uninstalled.": "Niets in deze lijst kan worden verwijderd.",
+    "Removes the packages {0} with {1}, in a terminal that asks for your password.": "Verwijdert de pakketten {0} met {1}, in een terminal die om je wachtwoord vraagt.",
+    "Uninstall all": "Alles verwijderen",
+    "{0} and {1} more": "{0} en {1} meer",
+    "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} komt uit het pakket {1}, dat {2} nog nodig hebben. pacman verwijdert het niet zonder hen."
   },
   "pl": {
     "\u0004Shortcuts of {0} app": [
@@ -1375,7 +1435,20 @@
     "The window drew nothing.": "Okno niczego nie narysowało.",
     "Slightly rounded ({0} px)": "Lekko zaokrąglone ({0} px)",
     "Rounded ({0} px)": "Zaokrąglone ({0} px)",
-    "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Narożniki okna, jego kart i wszystkich kontrolek (przyciski, listy wyboru, pola). „Jak okna” podąża za zaokrągleniem okien pulpitu."
+    "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Narożniki okna, jego kart i wszystkich kontrolek (przyciski, listy wyboru, pola). „Jak okna” podąża za zaokrągleniem okien pulpitu.",
+    "\u0004Do you want to uninstall {0} app?": [
+      "Czy chcesz odinstalować {0} aplikację?",
+      "Czy chcesz odinstalować {0} aplikacje?",
+      "Czy chcesz odinstalować {0} aplikacji?"
+    ],
+    "Also removed at once: {0}": "Od razu usuwane także: {0}",
+    "Cannot be uninstalled: {0}. The package {1} is still needed by {2}.": "Nie można odinstalować: {0}. Pakiet {1} jest wciąż potrzebny dla {2}.",
+    "Not uninstalled: {0}": "Nie odinstalowano: {0}",
+    "Nothing in this list can be uninstalled.": "Niczego z tej listy nie można odinstalować.",
+    "Removes the packages {0} with {1}, in a terminal that asks for your password.": "Usuwa pakiety {0} za pomocą {1}, w terminalu, który pyta o hasło.",
+    "Uninstall all": "Odinstaluj wszystkie",
+    "{0} and {1} more": "{0} i {1} więcej",
+    "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} pochodzi z pakietu {1}, którego wciąż potrzebują {2}. pacman nie usunie go bez nich."
   },
   "pt": {
     "\u0004Shortcuts of {0} app": [
@@ -1604,6 +1677,18 @@
     "The window drew nothing.": "A janela não desenhou nada.",
     "Slightly rounded ({0} px)": "Levemente arredondados ({0} px)",
     "Rounded ({0} px)": "Arredondados ({0} px)",
-    "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Cantos da janela, dos seus cartões e de todos os controlos (botões, caixas de escolha, campos). «Como as janelas» segue o arredondamento das janelas do ambiente de trabalho."
+    "Corners of the window, its cards and every control (buttons, choice boxes, fields). “Like windows” follows the desktop's window rounding.": "Cantos da janela, dos seus cartões e de todos os controlos (botões, caixas de escolha, campos). «Como as janelas» segue o arredondamento das janelas do ambiente de trabalho.",
+    "\u0004Do you want to uninstall {0} app?": [
+      "Queres desinstalar {0} app?",
+      "Queres desinstalar {0} apps?"
+    ],
+    "Also removed at once: {0}": "Também removidos de imediato: {0}",
+    "Cannot be uninstalled: {0}. The package {1} is still needed by {2}.": "Não é possível desinstalar: {0}. O pacote {1} ainda é necessário para {2}.",
+    "Not uninstalled: {0}": "Não desinstaladas: {0}",
+    "Nothing in this list can be uninstalled.": "Nada nesta lista pode ser desinstalado.",
+    "Removes the packages {0} with {1}, in a terminal that asks for your password.": "Remove os pacotes {0} com {1}, num terminal que pede a tua palavra-passe.",
+    "Uninstall all": "Desinstalar todas",
+    "{0} and {1} more": "{0} e mais {1}",
+    "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} vem do pacote {1}, de que {2} ainda precisam. O pacman não o remove sem eles."
   }
 }

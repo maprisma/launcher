@@ -89,6 +89,7 @@ void main() {
   AppActions actions() => (
     open: (app) => opened.add('${app['name']}'),
     uninstall: (app) async {},
+    uninstallAll: (apps) async {},
     update: (app) async {},
     updateAppImage: (app) async {},
     updateSystem: () async {},
@@ -151,6 +152,7 @@ void main() {
     final actions = (
       open: (Map app) {},
       uninstall: (Map app) async {},
+      uninstallAll: (List<Map> apps) async {},
       update: (Map app) async {
         done.add('flatpak ${app['name']}');
         await flatpak.future;
@@ -196,6 +198,7 @@ void main() {
     final actions = (
       open: (Map app) {},
       uninstall: (Map app) async {},
+      uninstallAll: (List<Map> apps) async {},
       update: (Map app) async {
         done.add('flatpak ${app['name']}');
         await flatpak.future;
@@ -236,6 +239,7 @@ void main() {
     final AppActions withHide = (
       open: base.open,
       uninstall: base.uninstall,
+      uninstallAll: base.uninstallAll,
       update: base.update,
       updateAppImage: base.updateAppImage,
       updateSystem: base.updateSystem,

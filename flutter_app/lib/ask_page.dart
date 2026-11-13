@@ -14,6 +14,9 @@ import 'theme.dart';
 typedef AppActions = ({
   void Function(Map app) open,
   Future<void> Function(Map app) uninstall,
+
+  /// One review for the whole list; packages others need are left out.
+  Future<void> Function(List<Map> apps) uninstallAll,
   Future<void> Function(Map app) update,
   Future<void> Function(Map app) updateAppImage,
   Future<void> Function() updateSystem,
@@ -59,6 +62,7 @@ class _AskPageState extends State<AskPage> {
   /// Flatpaks being updated now (their row shows a spinner).
   final Set<String> updating = {};
   bool updatingAll = false;
+  bool uninstallingAll = false;
 
   /// Hidden or shown here, by key: the buttons follow at once.
   final Map<String, bool> hiddenNow = {};
@@ -935,7 +939,36 @@ class _AskPageState extends State<AskPage> {
           children.add(_appRow(app, [_hideButton(app)]));
         }
       case 'remove':
-        children.add(_section(tr('Uninstall')));
+        // "Uninstall all" on the heading's line, in the column of the row buttons.
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 8, right: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    tr('Uninstall'),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                if (uninstallingAll)
+                  const Padding(
+                    padding: EdgeInsets.all(10),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                else if (apps.length > 1)
+                  TextButton(
+                    onPressed: () => _uninstallAll(apps),
+                    child: Text(tr('Uninstall all')),
+                  ),
+              ],
+            ),
+          ),
+        );
         for (final app in apps) {
           children.add(
             _appRow(app, [
@@ -1202,6 +1235,15 @@ class _AskPageState extends State<AskPage> {
       if (system && mounted) a.updateSystem();
     } finally {
       if (mounted) setState(() => updatingAll = false);
+    }
+  }
+
+  Future<void> _uninstallAll(List<Map> apps) async {
+    setState(() => uninstallingAll = true);
+    try {
+      await widget.actions.uninstallAll(apps);
+    } finally {
+      if (mounted) setState(() => uninstallingAll = false);
     }
   }
 

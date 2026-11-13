@@ -165,6 +165,56 @@ final class Managers {
     if (line == null) return null;
     return [...terminal, 'sh', '-c', "$line; echo; read -r -p 'Press Enter to close. ' _", 'uninstall', package];
   }
+
+  /// One terminal line that removes several system packages of [manager].
+  List<String>? removeManyCommand(String manager, List<String> packages, List<String> terminal) {
+    if (packages.isEmpty || !packages.every(validPackage)) return null;
+    final line = switch (manager) {
+      'pacman' => 'sudo pacman -Rns -- "\$@"',
+      'apt' => 'sudo apt remove -- "\$@"',
+      'dnf' => 'sudo dnf remove -- "\$@"',
+      'zypper' => 'sudo zypper remove -- "\$@"',
+      'snap' => 'sudo snap remove -- "\$@"',
+      _ => null,
+    };
+    if (line == null) return null;
+    return [...terminal, 'sh', '-c', "$line; echo; read -r -p 'Press Enter to close. ' _", 'uninstall', ...packages];
+  }
+
+  /// The installed packages that need [package] (pacman's "Required By"):
+  /// pacman refuses to remove it while they stay. Empty for other managers,
+  /// which offer to remove the dependents along with it.
+  Future<List<String>> neededBy(String manager, String package) async {
+    final pacman = installed()['pacman'];
+    if (manager != 'pacman' || pacman == null || !validPackage(package)) return const [];
+    final out = await readBoundedText(
+      [pacman, '-Qi', '--', package],
+      maxBytes: 1024 * 1024,
+      timeout: const Duration(seconds: 5),
+      environment: {...session.environment, 'LC_ALL': 'C'},
+    );
+    return parseRequiredBy(out);
+  }
+}
+
+/// The "Required By" field of `pacman -Qi` (LC_ALL=C), wrapped lines too.
+List<String> parseRequiredBy(String? text) {
+  final out = <String>[];
+  var inField = false;
+  for (final line in (text ?? '').split('\n')) {
+    if (line.startsWith('Required By')) {
+      inField = true;
+      out.addAll(line.substring(line.indexOf(':') + 1).trim().split(RegExp(r'\s+')));
+    } else if (inField && line.startsWith(' ') && !line.contains(' : ')) {
+      out.addAll(line.trim().split(RegExp(r'\s+')));
+    } else {
+      inField = false;
+    }
+  }
+  return [
+    for (final name in out)
+      if (name.isNotEmpty && name != 'None' && validPackage(name)) name,
+  ];
 }
 
 // --- search output --------------------------------------------------------------

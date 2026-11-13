@@ -1,4 +1,8 @@
 {
+ "\u0004Do you want to uninstall {0} app?": [
+  "Möchtest du {0} App deinstallieren?",
+  "Möchtest du {0} Apps deinstallieren?"
+ ],
  "\u0004Shortcuts of {0} app": [
   "Tastenkürzel von {0} App",
   "Tastenkürzel von {0} Apps"
@@ -38,6 +42,7 @@
  "Along the whole screen edge; off: only as long as its icons.": "Über den ganzen Bildschirmrand; aus: nur so lang wie seine Symbole.",
  "Already installed": "Schon installiert",
  "Already opens {0} — nothing to add.": "Öffnet bereits {0} — nichts hinzuzufügen.",
+ "Also removed at once: {0}": "Außerdem sofort entfernt: {0}",
  "An app that wants attention bounces in the dock until you switch to it.": "Eine App, die Aufmerksamkeit braucht, hüpft im Dock, bis du zu ihr wechselst.",
  "App actions": "App-Aktionen",
  "Apps & AI": "Apps & KI",
@@ -57,6 +62,7 @@
  "By origin": "Nach Herkunft",
  "By origin (Ctrl+G)": "Nach Herkunft (Strg+G)",
  "Cancel": "Abbrechen",
+ "Cannot be uninstalled: {0}. The package {1} is still needed by {2}.": "Nicht deinstallierbar: {0}. Das Paket {1} wird noch von {2} gebraucht.",
  "Cards": "Karten",
  "Center": "Mitte",
  "Change": "Ändern",
@@ -242,8 +248,10 @@
  "Not available": "Nicht verfügbar",
  "Not in the bar": "Nicht in der Leiste",
  "Not installed": "Nicht installiert",
+ "Not uninstalled: {0}": "Nicht deinstalliert: {0}",
  "Nothing found for “{0}”.": "Nichts gefunden für „{0}“.",
  "Nothing found. Try another name, e.g. the company.": "Nichts gefunden. Versuche einen anderen Namen, z. B. die Firma.",
+ "Nothing in this list can be uninstalled.": "Nichts in dieser Liste lässt sich deinstallieren.",
  "Nothing to change.": "Nichts zu ändern.",
  "Off": "Aus",
  "Office": "Büro",
@@ -301,6 +309,7 @@
  "Removes the Flatpak {0}. Its data in ~/.var/app stays.": "Entfernt das Flatpak {0}. Seine Daten in ~/.var/app bleiben.",
  "Removes the package {0} with pacman, in a terminal that asks for your password.": "Entfernt das Paket {0} mit pacman, in einem Terminal, das nach deinem Passwort fragt.",
  "Removes the package {0} with {1}, in a terminal that asks for your password.": "Entfernt das Paket {0} mit {1}, in einem Terminal, das nach deinem Passwort fragt.",
+ "Removes the packages {0} with {1}, in a terminal that asks for your password.": "Entfernt die Pakete {0} mit {1}, in einem Terminal, das nach deinem Passwort fragt.",
  "Removes the terminal app {0}, as Omarchy's menu does.": "Entfernt die Terminal-App {0}, wie Omarchys Menü.",
  "Removes the web app {0}, as Omarchy's menu does.": "Entfernt die Web-App {0}, wie Omarchys Menü.",
  "Rename group": "Gruppe umbenennen",
@@ -388,6 +397,7 @@
  "Unhide": "Einblenden",
  "Unhide from list": "In der Liste zeigen",
  "Uninstall": "Deinstallieren",
+ "Uninstall all": "Alle deinstallieren",
  "Uninstalled {0}": "{0} deinstalliert",
  "Uninstalling {0}…": "{0} wird deinstalliert …",
  "Uninstall…": "Deinstallieren…",
@@ -439,6 +449,8 @@
  "was “{0}”": "war „{0}“",
  "yours": "deins",
  "{0} (empty)": "{0} (leer)",
+ "{0} and {1} more": "{0} und {1} weitere",
+ "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} stammt aus dem Paket {1}, das {2} noch brauchen. pacman entfernt es nicht ohne sie.",
  "{0} could not be closed.": "{0} konnte nicht geschlossen werden.",
  "{0} could not be quit.": "{0} konnte nicht beendet werden.",
  "{0} could not be started.": "{0} konnte nicht gestartet werden.",
