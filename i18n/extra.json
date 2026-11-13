@@ -245,7 +245,15 @@
     "Dictate": "Diktieren",
     "Stop and insert": "Stoppen und einfügen",
     "Listening…": "Höre zu…",
-    "Dictation is not available: {0}": "Diktieren ist nicht verfügbar: {0}"
+    "Dictation is not available: {0}": "Diktieren ist nicht verfügbar: {0}",
+    "Downloads to Applications and verifies SHA-256. No password is needed.": "Lädt nach Applications herunter und prüft SHA-256. Kein Passwort nötig.",
+    "No repositories were found on GitHub.": "Auf GitHub wurden keine Repositorys gefunden.",
+    "GitHub repositories": "GitHub-Repositorys",
+    "GitHub search is unavailable. Package results are still shown.": "Die GitHub-Suche ist nicht verfügbar. Paketergebnisse werden weiterhin angezeigt.",
+    "Found on the web: {0} → {1}": "Im Web gefunden: {0} → {1}",
+    "Found on the web: {0}": "Im Web gefunden: {0}",
+    "Web search is off (Maprisma Manager › AI).": "Die Websuche ist aus (Maprisma Manager › KI).",
+    "Web search needs Claude Code as the AI helper (Maprisma Manager › AI).": "Die Websuche braucht Claude Code als KI-Helfer (Maprisma Manager › KI)."
   },
   "es": {
     "\u0004Shortcuts of {0} app": [
@@ -493,7 +501,15 @@
     "Dictate": "Dictar",
     "Stop and insert": "Detener e insertar",
     "Listening…": "Escuchando…",
-    "Dictation is not available: {0}": "El dictado no está disponible: {0}"
+    "Dictation is not available: {0}": "El dictado no está disponible: {0}",
+    "Downloads to Applications and verifies SHA-256. No password is needed.": "Descarga en Applications y verifica SHA-256. No se necesita contraseña.",
+    "No repositories were found on GitHub.": "No se encontraron repositorios en GitHub.",
+    "GitHub repositories": "Repositorios de GitHub",
+    "GitHub search is unavailable. Package results are still shown.": "La búsqueda de GitHub no está disponible. Se siguen mostrando los paquetes.",
+    "Found on the web: {0} → {1}": "Encontrado en la web: {0} → {1}",
+    "Found on the web: {0}": "Encontrado en la web: {0}",
+    "Web search is off (Maprisma Manager › AI).": "La búsqueda web está desactivada (Maprisma Manager › IA).",
+    "Web search needs Claude Code as the AI helper (Maprisma Manager › AI).": "La búsqueda web necesita Claude Code como asistente de IA (Maprisma Manager › IA)."
   },
   "fr": {
     "\u0004Shortcuts of {0} app": [
@@ -741,7 +757,15 @@
     "Dictate": "Dicter",
     "Stop and insert": "Arrêter et insérer",
     "Listening…": "À l’écoute…",
-    "Dictation is not available: {0}": "La dictée n’est pas disponible : {0}"
+    "Dictation is not available: {0}": "La dictée n’est pas disponible : {0}",
+    "Downloads to Applications and verifies SHA-256. No password is needed.": "Télécharge dans Applications et vérifie SHA-256. Aucun mot de passe nécessaire.",
+    "No repositories were found on GitHub.": "Aucun dépôt trouvé sur GitHub.",
+    "GitHub repositories": "Dépôts GitHub",
+    "GitHub search is unavailable. Package results are still shown.": "La recherche GitHub est indisponible. Les résultats des paquets restent affichés.",
+    "Found on the web: {0} → {1}": "Trouvé sur le Web : {0} → {1}",
+    "Found on the web: {0}": "Trouvé sur le Web : {0}",
+    "Web search is off (Maprisma Manager › AI).": "La recherche Web est désactivée (Maprisma Manager › IA).",
+    "Web search needs Claude Code as the AI helper (Maprisma Manager › AI).": "La recherche Web nécessite Claude Code comme assistant IA (Maprisma Manager › IA)."
   },
   "it": {
     "\u0004Shortcuts of {0} app": [
@@ -989,7 +1013,15 @@
     "Dictate": "Detta",
     "Stop and insert": "Ferma e inserisci",
     "Listening…": "In ascolto…",
-    "Dictation is not available: {0}": "La dettatura non è disponibile: {0}"
+    "Dictation is not available: {0}": "La dettatura non è disponibile: {0}",
+    "Downloads to Applications and verifies SHA-256. No password is needed.": "Scarica in Applications e verifica SHA-256. Non serve una password.",
+    "No repositories were found on GitHub.": "Nessun repository trovato su GitHub.",
+    "GitHub repositories": "Repository GitHub",
+    "GitHub search is unavailable. Package results are still shown.": "La ricerca GitHub non è disponibile. I risultati dei pacchetti restano visibili.",
+    "Found on the web: {0} → {1}": "Trovato sul web: {0} → {1}",
+    "Found on the web: {0}": "Trovato sul web: {0}",
+    "Web search is off (Maprisma Manager › AI).": "La ricerca web è disattivata (Maprisma Manager › IA).",
+    "Web search needs Claude Code as the AI helper (Maprisma Manager › AI).": "La ricerca web richiede Claude Code come assistente IA (Maprisma Manager › IA)."
   },
   "nl": {
     "\u0004Shortcuts of {0} app": [
@@ -1237,7 +1269,15 @@
     "Dictate": "Dicteren",
     "Stop and insert": "Stoppen en invoegen",
     "Listening…": "Aan het luisteren…",
-    "Dictation is not available: {0}": "Dicteren is niet beschikbaar: {0}"
+    "Dictation is not available: {0}": "Dicteren is niet beschikbaar: {0}",
+    "Downloads to Applications and verifies SHA-256. No password is needed.": "Downloadt naar Applications en controleert SHA-256. Geen wachtwoord nodig.",
+    "No repositories were found on GitHub.": "Geen repositories gevonden op GitHub.",
+    "GitHub repositories": "GitHub-repositories",
+    "GitHub search is unavailable. Package results are still shown.": "Zoeken op GitHub is niet beschikbaar. Pakketresultaten worden nog steeds getoond.",
+    "Found on the web: {0} → {1}": "Gevonden op het web: {0} → {1}",
+    "Found on the web: {0}": "Gevonden op het web: {0}",
+    "Web search is off (Maprisma Manager › AI).": "Zoeken op het web staat uit (Maprisma Manager › AI).",
+    "Web search needs Claude Code as the AI helper (Maprisma Manager › AI).": "Zoeken op het web vereist Claude Code als AI-helper (Maprisma Manager › AI)."
   },
   "pl": {
     "\u0004Shortcuts of {0} app": [
@@ -1490,7 +1530,15 @@
     "Dictate": "Dyktuj",
     "Stop and insert": "Zatrzymaj i wstaw",
     "Listening…": "Słucham…",
-    "Dictation is not available: {0}": "Dyktowanie jest niedostępne: {0}"
+    "Dictation is not available: {0}": "Dyktowanie jest niedostępne: {0}",
+    "Downloads to Applications and verifies SHA-256. No password is needed.": "Pobiera do Applications i sprawdza SHA-256. Hasło nie jest wymagane.",
+    "No repositories were found on GitHub.": "Nie znaleziono repozytoriów na GitHubie.",
+    "GitHub repositories": "Repozytoria GitHub",
+    "GitHub search is unavailable. Package results are still shown.": "Wyszukiwanie w GitHubie jest niedostępne. Wyniki pakietów są nadal wyświetlane.",
+    "Found on the web: {0} → {1}": "Znaleziono w sieci: {0} → {1}",
+    "Found on the web: {0}": "Znaleziono w sieci: {0}",
+    "Web search is off (Maprisma Manager › AI).": "Wyszukiwanie w sieci jest wyłączone (Maprisma Manager › AI).",
+    "Web search needs Claude Code as the AI helper (Maprisma Manager › AI).": "Wyszukiwanie w sieci wymaga Claude Code jako asystenta AI (Maprisma Manager › AI)."
   },
   "pt": {
     "\u0004Shortcuts of {0} app": [
@@ -1738,6 +1786,14 @@
     "Dictate": "Ditar",
     "Stop and insert": "Parar e inserir",
     "Listening…": "A ouvir…",
-    "Dictation is not available: {0}": "O ditado não está disponível: {0}"
+    "Dictation is not available: {0}": "O ditado não está disponível: {0}",
+    "Downloads to Applications and verifies SHA-256. No password is needed.": "Transfere para Applications e verifica SHA-256. Não é necessária palavra-passe.",
+    "No repositories were found on GitHub.": "Não foram encontrados repositórios no GitHub.",
+    "GitHub repositories": "Repositórios do GitHub",
+    "GitHub search is unavailable. Package results are still shown.": "A pesquisa no GitHub está indisponível. Os resultados dos pacotes continuam visíveis.",
+    "Found on the web: {0} → {1}": "Encontrado na Web: {0} → {1}",
+    "Found on the web: {0}": "Encontrado na Web: {0}",
+    "Web search is off (Maprisma Manager › AI).": "A pesquisa na Web está desligada (Maprisma Manager › IA).",
+    "Web search needs Claude Code as the AI helper (Maprisma Manager › AI).": "A pesquisa na Web precisa do Claude Code como assistente de IA (Maprisma Manager › IA)."
   }
 }

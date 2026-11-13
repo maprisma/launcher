@@ -402,6 +402,16 @@ class _AskPageState extends State<AskPage> {
 
   Future<void> _stop() => widget.core('ask.cancel');
 
+  Future<void> _openRepository(Map pick) async {
+    try {
+      await widget.core('open.url', {'url': pick['repository']});
+    } on ServiceError catch (e) {
+      if (mounted) {
+        setState(() => error = trf('That did not work ({0}).', [e.code]));
+      }
+    }
+  }
+
   /// A started request in the field, the cursor at its end (the user names the app).
   void _start(String text) {
     request.value = TextEditingValue(
@@ -890,7 +900,10 @@ class _AskPageState extends State<AskPage> {
     final installed = [
       for (final k in (r['installed'] as List? ?? const [])) ?widget.apps[k],
     ];
-    final children = <Widget>[];
+    final children = <Widget>[
+      if (r['github_unavailable'] == true)
+        Text(tr('GitHub search is unavailable. Package results are still shown.')),
+    ];
     switch (r['action']) {
       case 'install':
         final picks = [
@@ -913,16 +926,50 @@ class _AskPageState extends State<AskPage> {
             );
           }
         }
-        if (picks.isEmpty && installed.isEmpty) {
+        // Web discovery: where each repository was found (the core verified
+        // its release itself; the web supplied no download or command).
+        for (final hit in r['web_found'] as List? ?? const []) {
+          if (hit is! Map) continue;
+          final repo = 'github.com/${hit['repository']}';
           children.add(
             Text(
-              trf('Nothing found for “{0}”.', [
-                (r['queries'] as List? ?? const []).join(', '),
-              ]),
+              hit['site'] is String
+                  ? trf('Found on the web: {0} → {1}', [hit['site'], repo])
+                  : trf('Found on the web: {0}', [repo]),
             ),
           );
         }
-        if (picks.isNotEmpty) children.add(_section(tr('Suggestions')));
+        if (picks.isEmpty && installed.isEmpty) {
+          children.add(
+            Text(
+              r['source'] == 'github'
+                  ? tr('No repositories were found on GitHub.')
+                  : trf('Nothing found for “{0}”.', [
+                      (r['queries'] as List? ?? const []).join(', '),
+                    ]),
+            ),
+          );
+          if (r['web_search'] == 'off') {
+            children.add(Text(tr('Web search is off (Maprisma Manager › AI).')));
+          } else if (r['web_search'] == 'unsupported') {
+            children.add(
+              Text(
+                tr(
+                  'Web search needs Claude Code as the AI helper (Maprisma Manager › AI).',
+                ),
+              ),
+            );
+          }
+        }
+        if (picks.isNotEmpty) {
+          children.add(
+            _section(
+              r['source'] == 'github'
+                  ? tr('GitHub repositories')
+                  : tr('Suggestions'),
+            ),
+          );
+        }
         for (final pick in picks) {
           final aur = pick['aur'] == true;
           children.add(
@@ -947,14 +994,20 @@ class _AskPageState extends State<AskPage> {
                 leading: Chip(
                   visualDensity: VisualDensity.compact,
                   label: Text(
-                    aur ? 'AUR' : '${pick['manager']}',
+                    _source(pick),
                     style: Theme.of(context).textTheme.labelSmall,
                   ),
                   backgroundColor: aur
                       ? markColors(context).update.withValues(alpha: .2)
                       : null,
                 ),
-                trailing: pick['installed'] == true
+                trailing:
+                    pick['manager'] == 'github' && pick['installable'] != true
+                    ? TextButton(
+                        onPressed: () => _openRepository(pick),
+                        child: Text(tr('Open')),
+                      )
+                    : pick['installed'] == true
                     ? Icon(
                         Icons.check_circle,
                         color: markColors(context).running,
@@ -964,7 +1017,7 @@ class _AskPageState extends State<AskPage> {
                           context,
                           widget.core,
                           pick,
-                          aur ? 'AUR' : '${pick['manager']}',
+                          _source(pick),
                         ),
                         child: Text(tr('Install…')),
                       ),
@@ -1299,6 +1352,13 @@ class _AskPageState extends State<AskPage> {
       if (mounted) setState(() => uninstallingAll = false);
     }
   }
+
+  /// A pick's source label: AUR, GitHub or the package manager.
+  static String _source(Map pick) => pick['aur'] == true
+      ? 'AUR'
+      : pick['manager'] == 'github'
+      ? 'GitHub'
+      : '${pick['manager']}';
 
   Widget _section(String title) => Padding(
     padding: const EdgeInsets.only(top: 8),

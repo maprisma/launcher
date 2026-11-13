@@ -43,6 +43,33 @@ void main() {
         sharedChoice = params['helper'] as String;
         return helperState();
       })(),
+      'ask.run' when '${params['request']}' == 'can you list the artcraft apps from github' => {
+        'action': 'install', 'source': 'github', 'picks': [{
+          'manager': 'github', 'package': 'storytold/craft-launcher', 'installable': false,
+          'repository': 'https://github.com/storytold/craft-launcher', 'description': 'ArtCraft apps',
+        }],
+      },
+      'ask.run' when '${params['request']}' == 'install craft-launcher from github' => {
+        'action': 'install', 'source': 'github', 'picks': [{
+          'manager': 'github', 'package': 'storytold/craft-launcher', 'version': 'v1', 'installable': true,
+          'repository': 'https://github.com/storytold/craft-launcher', 'asset': 'craft-x86_64.AppImage',
+        }],
+      },
+      'ask.run' when '${params['request']}' == 'install pdfcraft from getartcraft.com' => {
+        'action': 'install', 'source': 'github', 'web': true, 'summary': 'The official site links to GitHub.',
+        'picks': [{
+          'manager': 'github', 'package': 'storytold/pdfcraft', 'version': 'v1', 'installable': true,
+          'repository': 'https://github.com/storytold/pdfcraft', 'asset': 'pdfcraft-1-linux-x86_64.AppImage',
+        }],
+        'web_found': [{'site': 'getartcraft.com', 'repository': 'storytold/pdfcraft'}],
+      },
+      'ask.run' when '${params['request']}'.startsWith('zzqq') => {
+        'action': 'install', 'picks': [], 'installed': [], 'queries': ['zzqq'],
+        'web_search': '${params['request']}'.endsWith('agy') ? 'unsupported' : 'off',
+      },
+      'packages.install_plan' when params['manager'] == 'github' => {
+        'github': true, 'command': 'download; sha256sum --check; install',
+      },
       'ask.run' when '${params['request']}'.contains('shortcuts of all') => {
         'action': 'shortcuts',
         'apps': ['k1'],
@@ -115,6 +142,61 @@ void main() {
     updateKind: (app) => null,
     setHidden: (app, hidden) async {},
   );
+
+  Future<void> askFor(WidgetTester tester, String text) async {
+    asked.clear();
+    helpersReady = true;
+    await tester.pumpWidget(MaterialApp(home: AskPage(key: UniqueKey(), core: fake, apps: apps, actions: actions())));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), text);
+    await tester.tap(find.byTooltip('Ask'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('no per-question web switch; nothing found says when web search is off or needs Claude Code',
+      (tester) async {
+    await askFor(tester, 'zzqq');
+    expect(find.byType(CheckboxListTile), findsNothing);
+    expect(asked.where((a) => a['method'] == 'ask.run').single.containsKey('web'), false);
+    expect(find.text('Web search is off (Maprisma Manager › AI).'), findsOneWidget);
+    await askFor(tester, 'zzqq agy');
+    expect(find.text('Web search needs Claude Code as the AI helper (Maprisma Manager › AI).'), findsOneWidget);
+  });
+
+  testWidgets('web discovery shows where the repository was found; install uses the checked preview', (tester) async {
+    await askFor(tester, 'install pdfcraft from getartcraft.com');
+    expect(find.text('Found on the web: getartcraft.com → github.com/storytold/pdfcraft'), findsOneWidget);
+    expect(find.text('GitHub repositories'), findsOneWidget);
+    await tester.tap(find.text('Install…'));
+    await tester.pumpAndSettle();
+    expect(find.text('Downloads to Applications and verifies SHA-256. No password is needed.'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('listing shows repositories without installers and opens the source', (tester) async {
+    await askFor(tester, 'can you list the artcraft apps from github');
+    expect(find.text('GitHub repositories'), findsOneWidget);
+    expect(find.textContaining('storytold/craft-launcher'), findsOneWidget);
+    expect(find.text('Install…'), findsNothing);
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    expect(asked.where((a) => a['method'] == 'open.url').single['url'], 'https://github.com/storytold/craft-launcher');
+    expect(asked.where((a) => a['method'] == 'packages.install_plan'), isEmpty);
+  });
+
+  testWidgets('GitHub suggestion keeps its repository and uses the install preview', (tester) async {
+    await askFor(tester, 'install craft-launcher from github');
+    expect(find.text('GitHub'), findsOneWidget);
+    await tester.tap(find.text('Install…'));
+    await tester.pumpAndSettle();
+    expect(find.text('https://github.com/storytold/craft-launcher'), findsOneWidget);
+    expect(find.text('Downloads to Applications and verifies SHA-256. No password is needed.'), findsOneWidget);
+    expect(find.text('A terminal runs this and asks for your password:'), findsNothing);
+    expect(asked.where((a) => a['method'] == 'packages.install' || a['method'] == 'terminal.start'), isEmpty);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+  });
 
   testWidgets('no helper or AI disabled: shows Install apps with a hint why Ask AI is not available', (tester) async {
     helpersReady = false;

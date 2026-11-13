@@ -758,7 +758,7 @@ void main() {
 
     await tester.pumpWidget(MaterialApp(home: InstallPage(core: fake)));
     await settle(tester);
-    expect(find.text('Searches: pacman, AUR'), findsOneWidget);
+    expect(find.text('Searches: pacman, AUR, GitHub'), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'gimp');
     await tester.testTextInput.receiveAction(TextInputAction.search);
     await settle(tester);

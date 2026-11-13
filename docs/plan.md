@@ -239,3 +239,22 @@ No add-on runs code.
   unverified ones say "(untested)". The helper is the shared choice of all Maprisma apps
   (`maprisma-ai/settings.json`, key `helper`), set from Ask AI's drop-down, Settings › Apps & AI and Maprisma
   Manager › AI; the old `ask_helper` is read until that file exists.
+
+- **2026-11-13 — GitHub releases and web discovery (ported from `fix/github-release-discovery`, 2026-11-05):**
+  Ask AI preserves explicit `app from github` and repository URL requests and the topic of natural requests
+  ("list the artcraft apps from github"). GitHub's public repository/release metadata supplies Linux AppImage
+  candidates, never helper-generated download commands; only x86_64/arm64 AppImages with published SHA-256
+  digests are installable (verified with `sha256sum`, linked into `~/Applications`, never replacing or running a
+  file). Repositories without one are listed with Open. No GitHub credentials; bounded metadata cached five
+  minutes; API errors propagate (`github_failed`) instead of unrelated suggestions, and a GitHub failure in a
+  general search keeps the package results (`github_unavailable`). Package and GitHub searches share bounded
+  spacing/hyphen variants; Ask AI's spelling hints pass a lexical check. Install apps and Ask AI show GitHub
+  results. Checked live: "pdfcraft" finds storytold/pdfcraft v0.21.1 with a digest-checked
+  `pdfcraft-0.21.1-linux-x86_64.AppImage`; the misspelling "pdscraft" finds it through the helper's checked hint.
+  Web discovery changed from the branch's per-question checkbox to the shared `web_search` setting of
+  `maprisma-ai/settings.json` (Maprisma Manager › AI): when on and the shared helper is Claude Code (only
+  WebSearch/WebFetch), an install request that found nothing, or one naming a website, asks the web for the
+  official GitHub repository; the core verifies its release and the result says "Found on the web: site →
+  github.com/owner/repo". Off or another helper: no web call; "nothing found" says why. Codex (`--search` keeps
+  its shell tool) and Antigravity (no tool selection) have no web-only mode, so they are not offered.
+
