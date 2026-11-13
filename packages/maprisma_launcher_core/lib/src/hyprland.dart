@@ -13,6 +13,7 @@ import 'package:path/path.dart' as p;
 
 import 'bounded.dart';
 import 'desktop_entries.dart';
+import 'hypr_session.dart';
 import 'running.dart';
 import 'shlex.dart';
 
@@ -130,7 +131,7 @@ String luaString(String text) =>
 final class Hyprland {
   Hyprland(this.session);
   final Session session;
-  bool get available => (session.environment['HYPRLAND_INSTANCE_SIGNATURE'] ?? '').isNotEmpty;
+  bool get available => hyprlandSession(session.environment);
 
   Future<String?> _hyprctl(List<String> args) async {
     final hyprctl = session.which('hyprctl');

@@ -62,6 +62,7 @@ final class Fixture {
           'MAPRISMA_LAUNCHER_DESKTOP': 'omarchy',
           'OMARCHY_PATH': omarchyDir.path,
           'HYPRLAND_INSTANCE_SIGNATURE': 'test',
+          'XDG_CURRENT_DESKTOP': 'Hyprland',
         } else
           'MAPRISMA_LAUNCHER_DESKTOP': 'generic',
       },

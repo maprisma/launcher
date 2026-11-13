@@ -442,7 +442,7 @@ void main() {
     late Fixture f;
     late String hypr;
     setUp(() async {
-      f = Fixture('generic', extra: {'HYPRLAND_INSTANCE_SIGNATURE': 'test_signature'});
+      f = Fixture('generic', extra: {'HYPRLAND_INSTANCE_SIGNATURE': 'test_signature', 'XDG_CURRENT_DESKTOP': 'Hyprland'});
       writeExec(p.join(f.bin, 'hyprctl'), fakeHyprctl);
       File(p.join(f.bin, 'binds.txt')).writeAsStringSync(
         'bind\n\tmodmask: 64\n\tsubmap: \n\tkey: Return\n\tdescription: \n',

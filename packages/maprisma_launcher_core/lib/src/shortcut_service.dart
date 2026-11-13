@@ -13,6 +13,7 @@ import 'bounded.dart';
 import 'config.dart';
 import 'desktop_entries.dart';
 import 'desktops.dart';
+import 'hypr_session.dart';
 import 'launch.dart';
 import 'posix.dart';
 import 'protocol.dart';
@@ -400,7 +401,7 @@ final class HyprBackend implements ShortcutBackend {
 ShortcutBackend? backendFor(Desktop desktop, ConfigStore store, {String? cosmicDefaults}) => switch (desktop) {
   OmarchyDesktop() => HyprBackend(desktop.session, store),
   // Hyprland without Omarchy (Maprisma Shell and the like): plain hl.bind.
-  GenericDesktop() when (desktop.session.environment['HYPRLAND_INSTANCE_SIGNATURE'] ?? '').isNotEmpty =>
+  GenericDesktop() when hyprlandSession(desktop.session.environment) =>
     HyprBackend(desktop.session, store, omarchy: false),
   GnomeDesktop() => GnomeBackend(
     desktop.session,

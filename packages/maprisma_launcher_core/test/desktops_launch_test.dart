@@ -104,6 +104,27 @@ void main() {
       expect(await desktop.windowRounding(), 8);
       expect(await desktop.iconTheme(), 'Pop');
     });
+
+    test('COSMIC 1.x: the theme in v2 (v1 empty), the user\'s before the system\'s', () async {
+      final home = Directory.systemTemp.createTempSync('am-cosmic2-');
+      addTearDown(() => home.deleteSync(recursive: true));
+      void put(String base, String component, String version, String key, String text) =>
+          File(p.join(base, component, version, key))
+            ..createSync(recursive: true)
+            ..writeAsStringSync(text);
+      final user = p.join(home.path, '.config/cosmic'), system = p.join(home.path, 'system');
+      Directory(p.join(user, 'com.system76.CosmicTheme.Dark/v1')).createSync(recursive: true);
+      put(user, 'com.system76.CosmicTheme.Mode', 'v1', 'is_dark', 'true');
+      put(user, 'com.system76.CosmicTheme.Dark', 'v2', 'accent', '(base: "#FF0000FF", on: "#000000FF")'); // v2: hex strings
+      put(user, 'com.system76.CosmicTheme.Dark', 'v2', 'corner_radii', '(radius_s: (4.0, 4.0, 4.0, 4.0))');
+      put(system, 'com.system76.CosmicTheme.Dark', 'v1', 'accent', '(base: (red: 0.0, green: 1.0, blue: 0.0, alpha: 1.0))');
+      put(system, 'com.system76.CosmicTheme.Dark', 'v2', 'background', background);
+      final desktop = CosmicDesktop(Session(environment: {'HOME': home.path}), systemDir: system);
+      final colors = await desktop.themeColors();
+      expect(colors['accent'], '#ff0000');
+      expect(colors['background'], '#1a334d');
+      expect(await desktop.windowRounding(), 4);
+    });
   });
 
   test('desktop detection', () {
@@ -140,5 +161,22 @@ void main() {
     expect(d({'HYPRLAND_INSTANCE_SIGNATURE': 'x', 'XDG_CURRENT_DESKTOP': 'KDE'}).name, 'kde');
     expect(d({'HYPRLAND_INSTANCE_SIGNATURE': '', 'XDG_CURRENT_DESKTOP': 'COSMIC'}).name, 'cosmic');
     expect(d({'HYPRLAND_INSTANCE_SIGNATURE': '', 'XDG_CURRENT_DESKTOP': 'Hyprland'}).name, 'generic');
+  });
+
+  test('a stale Hyprland signature (left in systemd\'s environment) counts only with its socket', () {
+    final dir = Directory.systemTemp.createTempSync('launcher-hypr-');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final omarchy = Directory(p.join(dir.path, 'omarchy'))..createSync();
+    final live = {'HOME': '/', 'OMARCHY_PATH': omarchy.path, 'HYPRLAND_INSTANCE_SIGNATURE': 'abc', 'XDG_RUNTIME_DIR': p.join(dir.path, 'run')};
+    expect(hyprlandSession(live), isFalse);
+    expect(detectDesktop(Session(environment: live)).name, 'generic');
+    expect(Hyprland(Session(environment: live)).available, isFalse);
+    File(p.join(dir.path, 'run/hypr/abc/.socket.sock')).createSync(recursive: true);
+    expect(hyprlandSession(live), isTrue);
+    expect(detectDesktop(Session(environment: live)).name, 'omarchy');
+    // a named desktop decides, socket or not
+    expect(hyprlandSession({...live, 'XDG_CURRENT_DESKTOP': 'KDE'}), isFalse);
+    expect(hyprlandSession({...live, 'XDG_CURRENT_DESKTOP': 'Hyprland', 'XDG_RUNTIME_DIR': '/nonexistent'}), isTrue);
+    expect(hyprlandSession({...live, 'HYPRLAND_INSTANCE_SIGNATURE': '../abc'}), isFalse);
   });
 }

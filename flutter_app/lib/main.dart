@@ -130,6 +130,8 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
       final fresh = await widget.core('settings.set', {'key': 'window_size', 'value': [w, h]});
       if (mounted) setState(() => settings = Map<String, dynamic>.from(fresh));
     },
+    // Maprisma Tiling on KDE sizes the window without GTK knowing (window_size.dart)
+    tiled: () => tiledByMaprismaTiling('com.maprisma.Launcher'),
   );
 
   /// Whether clicking outside the popup hides it (Settings › Close on click outside).

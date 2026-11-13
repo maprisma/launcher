@@ -6,6 +6,7 @@ export 'src/appimages.dart';
 export 'src/bounded.dart';
 export 'src/cli_tools.dart';
 export 'src/desktop_entries.dart';
+export 'src/hypr_session.dart';
 export 'src/posix.dart';
 export 'src/protocol.dart';
 export 'src/shlex.dart';

@@ -10,6 +10,7 @@ import 'package:toml/toml.dart';
 
 import 'bounded.dart';
 import 'desktop_entries.dart';
+import 'hypr_session.dart';
 import 'launch.dart';
 import 'origins.dart';
 import 'origins.dart' as origins_lib;
@@ -96,7 +97,7 @@ abstract class Desktop {
   Future<Map<String, dynamic>> look() async => {
     'desktop': name,
     // any Hyprland session (Omarchy or not): the window can be a popup there
-    'hyprland': (session.environment['HYPRLAND_INSTANCE_SIGNATURE'] ?? '').isNotEmpty,
+    'hyprland': hyprlandSession(session.environment),
     'colors': await themeColors(),
     'rounding': await windowRounding(),
     'icon_theme': await iconTheme(),
@@ -128,12 +129,12 @@ Desktop detectDesktop(Session session) {
   final wanted = env['MAPRISMA_LAUNCHER_DESKTOP'];
   final current = sessionDesktopTokens(env);
   // An explicit COSMIC/KDE/GNOME session wins over the Omarchy install-folder
-  // heuristic; an empty Hyprland signature is no Hyprland session.
+  // heuristic; a Hyprland signature without XDG_CURRENT_DESKTOP counts only with its socket.
   final namedOther = current.any((t) => t == 'cosmic' || t == 'kde' || t == 'gnome');
   if (wanted == 'omarchy' ||
       wanted == null &&
           !namedOther &&
-          (env['HYPRLAND_INSTANCE_SIGNATURE'] ?? '').isNotEmpty &&
+          hyprlandSession(env) &&
           Directory(env['OMARCHY_PATH'] ?? '/usr/share/omarchy').existsSync()) {
     return OmarchyDesktop(session);
   }
@@ -400,6 +401,9 @@ String? ronField(String text, String key) {
 /// `(red: 0.1, green: 0.2, blue: 0.3, alpha: 1.0)` → #rrggbb.
 String? ronColor(String? value) {
   if (value == null) return null;
+  // COSMIC 1.x (schema v2) writes colours as "#RRGGBBAA" strings.
+  final hexString = RegExp(r'^"?#([0-9a-fA-F]{6})(?:[0-9a-fA-F]{2})?"?$').firstMatch(value.trim());
+  if (hexString != null) return '#${hexString[1]!.toLowerCase()}';
   int? part(String name) {
     final m = RegExp('$name:\\s*([0-9.eE+-]+)').firstMatch(value);
     final v = m == null ? null : double.tryParse(m[1]!);
@@ -425,11 +429,14 @@ final class CosmicDesktop extends Desktop {
         ? session.environment['XDG_CONFIG_HOME']!
         : p.join(session.home, '.config');
     for (final base in [p.join(home, 'cosmic'), systemDir]) {
-      final bytes = Posix.instance.readRegular(
-        p.join(base, component, 'v1', key),
-        256 * 1024,
-      );
-      if (bytes != null) return utf8.decode(bytes, allowMalformed: true);
+      // newest schema first: COSMIC 1.x keeps its themes in v2 and leaves v1 empty or stale
+      for (final version in const ['v2', 'v1']) {
+        final bytes = Posix.instance.readRegular(
+          p.join(base, component, version, key),
+          256 * 1024,
+        );
+        if (bytes != null) return utf8.decode(bytes, allowMalformed: true);
+      }
     }
     return null;
   }
@@ -615,7 +622,7 @@ final class GenericDesktop extends Desktop {
   @override
   Future<int?> windowRounding() async {
     final env = session.environment;
-    if ((env['HYPRLAND_INSTANCE_SIGNATURE'] ?? '').isEmpty) return null;
+    if (!hyprlandSession(env)) return null;
     final now = clock();
     final last = _roundingAt;
     if (last != null && now.difference(last) < roundingTtl) return _rounding;
