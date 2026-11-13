@@ -593,6 +593,18 @@ List<Combo> suggestCombos(
 
 // --- GNOME writing ---------------------------------------------------------------
 
+/// Whether a `where` (a binding's place, as kept in shortcuts.json) belongs to
+/// the desktop of [kind] ('kde', 'cosmic' or 'gnome'): `custom:` paths are
+/// checked against the desktop's own list before use, so they count for all.
+bool whereBelongsTo(String kind, String where) {
+  if (where.startsWith('custom:')) return true;
+  return switch (kind) {
+    'kde' => where.startsWith('kde/'),
+    'cosmic' => where.startsWith('$cosmicSchema:'),
+    _ => where.startsWith('org.gnome.'),
+  };
+}
+
 /// _desired_removals: {(where, accel)} the launcher keeps taken from others.
 Set<(String, String)> desiredRemovals(Map state) => {
   for (final entry in (state['apps'] as Map).values) ...{
@@ -723,9 +735,22 @@ Future<Map<String, dynamic>> applyGnome(
   required String Function(List<String> launch, String action) command,
   bool takeConflicts = false,
   bool stableSlots = false,
+  bool Function(String where)? owns,
 }) async {
-  final previous = {for (final a in previousApplied) ('${a['where']}', '${a['accel']}')};
-  final wanted = desiredRemovals(state);
+  // One shortcuts.json serves every desktop of a shared home: a key taken on
+  // COSMIC (cosmic.shortcuts:…) means nothing to KDE's kglobalaccel and the
+  // reverse. Bindings of another desktop are never taken or given back here;
+  // the record of them is kept for when that desktop saves again.
+  final mine = owns ?? (_) => true;
+  final foreign = [
+    for (final a in previousApplied)
+      if (!mine('${a['where']}')) {'where': '${a['where']}', 'accel': '${a['accel']}'},
+  ];
+  final previous = {
+    for (final a in previousApplied)
+      if (mine('${a['where']}')) ('${a['where']}', '${a['accel']}'),
+  };
+  final wanted = {for (final item in desiredRemovals(state)) if (mine(item.$1)) item};
   if (takeConflicts) {
     wanted.addAll(await conflictingKeys(state, settings, previous: previous, ownPrefix: ownPrefix));
   }
@@ -796,7 +821,7 @@ Future<Map<String, dynamic>> applyGnome(
   }
   await settings.setCustomPaths([...paths, ...written]);
   await settings.sync();
-  return {...state, 'applied': applied};
+  return {...state, 'applied': [...applied, ...foreign]};
 }
 
 // --- GNOME through the gsettings program ----------------------------------------

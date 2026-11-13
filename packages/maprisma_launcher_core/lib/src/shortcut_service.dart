@@ -119,6 +119,14 @@ final class GnomeBackend implements ShortcutBackend {
       // holds; GNOME and COSMIC keep the reference's behaviour.
       takeConflicts: settings is KdeSettings,
       stableSlots: settings is KdeSettings,
+      owns: (where) => whereBelongsTo(
+        switch (settings) {
+          KdeSettings() => 'kde',
+          CosmicSettings() => 'cosmic',
+          _ => 'gnome',
+        },
+        where,
+      ),
     );
     store.writeJson(stateFile, saved);
   }
