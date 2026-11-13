@@ -231,3 +231,11 @@ No add-on runs code.
   existing routes. Running sections and the footer filter use open windows on
   COSMIC and Omarchy; background process marks remain in groups. GNOME/generic
   keep process matching. The release bundles the helper beside the app.
+
+- **2026-11-13 — Shared AI helper:** Ask AI offers every installed agent of Maprisma's helpers catalog
+  (`/usr/lib/maprisma/data/helpers.json` when at least as new, else the shipped copy from
+  `tools/gen-helpers`), found on PATH, in ~/.local/bin, ~/.npm-global/bin or through mise. Claude Code, Codex,
+  Antigravity, pi and Hermes keep the Launcher's stricter setups; other entries run by the catalog's argv,
+  unverified ones say "(untested)". The helper is the shared choice of all Maprisma apps
+  (`maprisma-ai/settings.json`, key `helper`), set from Ask AI's drop-down, Settings › Apps & AI and Maprisma
+  Manager › AI; the old `ask_helper` is read until that file exists.

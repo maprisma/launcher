@@ -238,7 +238,10 @@
     "Removes the packages {0} with {1}, in a terminal that asks for your password.": "Entfernt die Pakete {0} mit {1}, in einem Terminal, das nach deinem Passwort fragt.",
     "Uninstall all": "Alle deinstallieren",
     "{0} and {1} more": "{0} und {1} weitere",
-    "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} stammt aus dem Paket {1}, das {2} noch brauchen. pacman entfernt es nicht ohne sie."
+    "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} stammt aus dem Paket {1}, das {2} noch brauchen. pacman entfernt es nicht ohne sie.",
+    " (untested)": " (ungetestet)",
+    "AI helper": "KI-Helfer",
+    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Gilt für alle Maprisma-Apps; auch in Maprisma Manager › KI."
   },
   "es": {
     "\u0004Shortcuts of {0} app": [
@@ -479,7 +482,10 @@
     "Removes the packages {0} with {1}, in a terminal that asks for your password.": "Quita los paquetes {0} con {1}, en un terminal que pide tu contraseña.",
     "Uninstall all": "Desinstalar todas",
     "{0} and {1} more": "{0} y {1} más",
-    "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} viene del paquete {1}, que {2} aún necesitan. pacman no lo quitará sin ellos."
+    "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} viene del paquete {1}, que {2} aún necesitan. pacman no lo quitará sin ellos.",
+    " (untested)": " (sin probar)",
+    "AI helper": "Asistente de IA",
+    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Se aplica a todas las apps de Maprisma; también en Maprisma Manager › IA."
   },
   "fr": {
     "\u0004Shortcuts of {0} app": [
@@ -720,7 +726,10 @@
     "Removes the packages {0} with {1}, in a terminal that asks for your password.": "Supprime les paquets {0} avec {1}, dans un terminal qui demande ton mot de passe.",
     "Uninstall all": "Tout désinstaller",
     "{0} and {1} more": "{0} et {1} de plus",
-    "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} vient du paquet {1}, dont {2} ont encore besoin. pacman ne le supprimera pas sans eux."
+    "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} vient du paquet {1}, dont {2} ont encore besoin. pacman ne le supprimera pas sans eux.",
+    " (untested)": " (non testé)",
+    "AI helper": "Assistant IA",
+    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "S’applique à toutes les apps Maprisma ; aussi dans Maprisma Manager › IA."
   },
   "it": {
     "\u0004Shortcuts of {0} app": [
@@ -961,7 +970,10 @@
     "Removes the packages {0} with {1}, in a terminal that asks for your password.": "Rimuove i pacchetti {0} con {1}, in un terminale che chiede la tua password.",
     "Uninstall all": "Disinstalla tutte",
     "{0} and {1} more": "{0} e altri {1}",
-    "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} proviene dal pacchetto {1}, che serve ancora a {2}. pacman non lo rimuove senza di loro."
+    "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} proviene dal pacchetto {1}, che serve ancora a {2}. pacman non lo rimuove senza di loro.",
+    " (untested)": " (non testato)",
+    "AI helper": "Assistente IA",
+    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Vale per tutte le app Maprisma; anche in Maprisma Manager › IA."
   },
   "nl": {
     "\u0004Shortcuts of {0} app": [
@@ -1202,7 +1214,10 @@
     "Removes the packages {0} with {1}, in a terminal that asks for your password.": "Verwijdert de pakketten {0} met {1}, in een terminal die om je wachtwoord vraagt.",
     "Uninstall all": "Alles verwijderen",
     "{0} and {1} more": "{0} en {1} meer",
-    "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} komt uit het pakket {1}, dat {2} nog nodig hebben. pacman verwijdert het niet zonder hen."
+    "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} komt uit het pakket {1}, dat {2} nog nodig hebben. pacman verwijdert het niet zonder hen.",
+    " (untested)": " (niet getest)",
+    "AI helper": "AI-helper",
+    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Geldt voor alle Maprisma-apps; ook in Maprisma Manager › AI."
   },
   "pl": {
     "\u0004Shortcuts of {0} app": [
@@ -1448,7 +1463,10 @@
     "Removes the packages {0} with {1}, in a terminal that asks for your password.": "Usuwa pakiety {0} za pomocą {1}, w terminalu, który pyta o hasło.",
     "Uninstall all": "Odinstaluj wszystkie",
     "{0} and {1} more": "{0} i {1} więcej",
-    "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} pochodzi z pakietu {1}, którego wciąż potrzebują {2}. pacman nie usunie go bez nich."
+    "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} pochodzi z pakietu {1}, którego wciąż potrzebują {2}. pacman nie usunie go bez nich.",
+    " (untested)": " (nieprzetestowany)",
+    "AI helper": "Asystent AI",
+    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Dotyczy wszystkich aplikacji Maprisma; także w Maprisma Manager › AI."
   },
   "pt": {
     "\u0004Shortcuts of {0} app": [
@@ -1689,6 +1707,9 @@
     "Removes the packages {0} with {1}, in a terminal that asks for your password.": "Remove os pacotes {0} com {1}, num terminal que pede a tua palavra-passe.",
     "Uninstall all": "Desinstalar todas",
     "{0} and {1} more": "{0} e mais {1}",
-    "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} vem do pacote {1}, de que {2} ainda precisam. O pacman não o remove sem eles."
+    "{0} comes from the package {1}, which {2} still need. pacman will not remove it without them.": "{0} vem do pacote {1}, de que {2} ainda precisam. O pacman não o remove sem eles.",
+    " (untested)": " (não testado)",
+    "AI helper": "Assistente de IA",
+    "Applies to all Maprisma apps; also in Maprisma Manager › AI.": "Aplica-se a todas as apps Maprisma; também no Maprisma Manager › IA."
   }
 }

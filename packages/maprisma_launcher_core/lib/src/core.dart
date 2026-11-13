@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 
 import 'admin.dart';
 import 'apps.dart';
+import 'ai_choice.dart';
 import 'ask_ai.dart';
 import 'bounded.dart';
 import 'appimage_updates.dart';
@@ -584,9 +585,17 @@ final class CoreService {
       if (!foldable.contains(gid)) throw ServiceError('bad_params');
       groups.toggleCollapsed(data, gid);
     }),
-    'ask.helpers': (_) async => {
-      'helpers': helperStates(session, piOnline: await _piOnlineNow()),
-      'chosen': settings.raw()['ask_helper'],
+    'ask.helpers': (_) => _askHelpers(),
+    // The shared helper choice of all Maprisma apps (ai_choice.dart).
+    'ai.helper.set': (params) async {
+      final value = params['helper'];
+      if (value is! String || !validAiChoice(value)) throw ServiceError('bad_params');
+      try {
+        writeAiChoice(session, value);
+      } on FileSystemException catch (e) {
+        throw ServiceError('write_failed', e.message);
+      }
+      return _askHelpers();
     },
     'ask.run': _askRun,
     'ask.cancel': (_) async {
@@ -598,7 +607,8 @@ final class CoreService {
           .where((h) => h.command == params['command'])
           .firstOrNull;
       final terminal = desktop.terminal();
-      if (helper == null || terminal == null) throw ServiceError('bad_params');
+      // A catalog helper has no sign-in command here.
+      if (helper == null || helper.login.isEmpty || terminal == null) throw ServiceError('bad_params');
       // The helper's own sign-in, from the table: no text of the user in it.
       if (!await startDetached([
         ...terminal,
@@ -1070,6 +1080,20 @@ final class CoreService {
     };
   }
 
+  /// Ask AI's helpers, the shared choice (`choice`: "auto" or an id; before
+  /// the shared file exists, the Launcher's former `ask_helper`) and the
+  /// helper it means now (`chosen`, null when none is installed).
+  Future<Map<String, dynamic>> _askHelpers() async {
+    final states = await helperStates(session, piOnline: await _piOnlineNow());
+    final choice = readAiChoice(session, legacy: settings.raw()['ask_helper']);
+    return {
+      'helpers': states,
+      'choice': choice,
+      'chosen': resolveAiChoice(choice, states),
+      'shared_file': p.join(aiSettingsDir(session), aiSettingsName),
+    };
+  }
+
   /// Ask AI: one click, at most two answers, never a retry. The helper only
   /// sees facts; every name it returns is checked here.
   Future<Map<String, dynamic>> _askRun(Map<String, dynamic> params) async {
@@ -1077,10 +1101,10 @@ final class CoreService {
     if (request.length > 2000) throw ServiceError('bad_params');
     final command = _string(params, 'helper');
     final piOnline = await _piOnlineNow();
-    final state = helperStates(
+    final state = (await helperStates(
       session,
       piOnline: piOnline,
-    ).where((h) => h['command'] == command).firstOrNull;
+    )).where((h) => h['command'] == command).firstOrNull;
     if (state == null || state['installed'] != true) {
       throw ServiceError('no_helper');
     }
@@ -1090,10 +1114,6 @@ final class CoreService {
     final language = params['language'] is String
         ? params['language'] as String
         : null;
-    settings.store.writeJson('settings.json', {
-      ...settings.raw(),
-      'ask_helper': command,
-    });
     if (_apps.isEmpty) await _listApps();
     // An Ask AI request must see updates even if the background check is still running.
     if (RegExp(

@@ -46,6 +46,10 @@ class _SettingsPageState extends State<SettingsPage> {
   /// The dock (Omarchy only): dock.state.
   Map<String, dynamic>? dock;
 
+  /// Ask AI's helpers and the shared choice of all Maprisma apps
+  /// (ask.helpers); null until read.
+  Map<String, dynamic>? ai;
+
   @override
   void initState() {
     super.initState();
@@ -56,6 +60,46 @@ class _SettingsPageState extends State<SettingsPage> {
     widget.core('dock.state').then((r) {
       if (mounted) setState(() => dock = r);
     }).ignore();
+    widget.core('ask.helpers').then((r) {
+      if (mounted && r['helpers'] is List) setState(() => ai = r);
+    }).ignore();
+  }
+
+  /// The shared helper choice (maprisma-ai/settings.json), the same as Ask
+  /// AI's drop-down and Maprisma Manager › AI.
+  Future<void> _setHelper(String value) async {
+    try {
+      final r = await widget.core('ai.helper.set', {'helper': value});
+      if (mounted) setState(() => ai = r);
+    } on ServiceError {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Could not save the setting'))));
+      }
+    }
+  }
+
+  /// Automatic first, then every installed helper; Automatic names the one it means now.
+  Widget _helperChoice() {
+    final installed = [
+      for (final h in ai!['helpers'] as List)
+        if (h is Map && h['installed'] == true && h['command'] is String) h,
+    ];
+    if (installed.isEmpty) return Text(tr('Not installed'), key: const ValueKey('ai-helper-none'));
+    String label(Map h) =>
+        '${h['name']}${h['verified'] == false ? tr(' (untested)') : ''}${h['signed_in'] == true ? '' : ' (${tr('needs sign-in')})'}';
+    final choice = ai!['choice'];
+    final now = installed.where((h) => h['command'] == ai!['chosen']).firstOrNull;
+    return KeyedSubtree(
+      key: const ValueKey('ai-helper'),
+      child: _dropdown<String>(
+        installed.any((h) => h['command'] == choice) ? choice as String : 'auto',
+        [
+          ('auto', now == null ? tr('Automatic') : '${tr('Automatic')} · ${label(now)}'),
+          for (final h in installed) (h['command'] as String, label(h)),
+        ],
+        _setHelper,
+      ),
+    );
   }
 
   /// A dock setting; switched on, the dock starts (a running one re-reads).
@@ -743,6 +787,12 @@ class _SettingsPageState extends State<SettingsPage> {
                       onChanged: (v) => _set('ai_enabled', v),
                     ),
                   ),
+                  if (ai != null)
+                    _row(
+                      tr('AI helper'),
+                      tr('Applies to all Maprisma apps; also in Maprisma Manager › AI.'),
+                      _helperChoice(),
+                    ),
                   if (managers.isNotEmpty)
                     _row(
                       tr('Package managers'),

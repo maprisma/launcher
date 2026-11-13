@@ -53,7 +53,12 @@ class AskPage extends StatefulWidget {
 class _AskPageState extends State<AskPage> {
   final request = TextEditingController();
   List<Map<String, dynamic>> helpers = [];
+
+  /// The helper an Ask uses now (the core's `chosen`).
   String? helper;
+
+  /// The shared choice of all Maprisma apps: "auto" or a helper id.
+  String choice = 'auto';
   bool asking = false;
   Map<String, dynamic>? result;
   String? error;
@@ -302,22 +307,46 @@ class _AskPageState extends State<AskPage> {
     );
   }
 
+  /// The helpers and the shared choice (read again each time the page opens).
   Future<void> _loadHelpers() async {
     final r = await widget.core('ask.helpers');
-    if (!mounted) return;
-    setState(() {
-      helpers = [
-        for (final h in r['helpers'] as List) Map<String, dynamic>.from(h),
-      ];
-      final usable = helpers.where((h) => h['installed'] == true).toList();
-      final chosen = r['chosen'] as String?;
-      helper = usable.any((h) => h['command'] == chosen)
-          ? chosen
-          : (usable.where((h) => h['signed_in'] == true).firstOrNull ??
-                    usable.firstOrNull)?['command']
-                as String?;
-    });
+    if (mounted) setState(() => _takeHelpers(r));
   }
+
+  void _takeHelpers(Map<String, dynamic> r) {
+    helpers = [
+      for (final h in r['helpers'] as List) Map<String, dynamic>.from(h),
+    ];
+    choice = r['choice'] is String ? r['choice'] as String : 'auto';
+    helper = r['chosen'] as String?;
+  }
+
+  /// A new choice goes to the shared file (Maprisma Manager › AI and every
+  /// Maprisma app use the same one).
+  Future<void> _choose(String value) async {
+    try {
+      final r = await widget.core('ai.helper.set', {'helper': value});
+      if (mounted) setState(() => _takeHelpers(r));
+    } on ServiceError {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('Could not save the setting'))),
+        );
+      }
+    }
+  }
+
+  /// The drop-down's value: the shared choice, or Automatic when the chosen
+  /// helper is not installed here.
+  String get _shownChoice => helpers.any(
+        (h) => h['installed'] == true && h['command'] == choice,
+      )
+      ? choice
+      : 'auto';
+
+  /// A helper's name, "(untested)" when the catalog's entry was never tried.
+  static String helperLabel(Map h) =>
+      '${h['name']}${h['verified'] == false ? tr(' (untested)') : ''}';
 
   Map<String, dynamic>? get chosen =>
       helpers.where((h) => h['command'] == helper).firstOrNull;
@@ -565,7 +594,7 @@ class _AskPageState extends State<AskPage> {
                             const Icon(Icons.smart_toy_outlined, size: 14),
                             const SizedBox(width: 4),
                             Text(
-                              '${h['name']}',
+                              helperLabel(h),
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
@@ -653,10 +682,19 @@ class _AskPageState extends State<AskPage> {
                     Text(tr('Helper:')),
                     const SizedBox(width: 8),
                     DropdownButton<String>(
+                      key: const ValueKey('ask-helper'),
                       borderRadius: BorderRadius.circular(corners(context)),
-                      value: helper,
+                      value: _shownChoice,
                       underline: const SizedBox.shrink(),
                       items: [
+                        DropdownMenuItem(
+                          value: 'auto',
+                          child: Text(
+                            chosen == null
+                                ? tr('Automatic')
+                                : '${tr('Automatic')} · ${helperLabel(chosen!)}',
+                          ),
+                        ),
                         for (final h in helpers.where(
                           (h) => h['installed'] == true,
                         ))
@@ -674,7 +712,7 @@ class _AskPageState extends State<AskPage> {
                                   const SizedBox(width: 8),
                                 ],
                                 Text(
-                                  '${h['name']}${h['signed_in'] == true ? '' : ' (${tr('needs sign-in')})'}',
+                                  '${helperLabel(h)}${h['signed_in'] == true ? '' : ' (${tr('needs sign-in')})'}',
                                 ),
                               ],
                             ),
@@ -682,7 +720,7 @@ class _AskPageState extends State<AskPage> {
                       ],
                       onChanged: asking
                           ? null
-                          : (v) => setState(() => helper = v),
+                          : (v) => v == null ? null : _choose(v),
                     ),
                     const SizedBox(width: 8),
                     Expanded(

@@ -6,6 +6,14 @@
 /// on the user's click: one Ask is at most two answers, never a retry.
 /// Prompt isolation as Maprisma's smart_card.dart (`<request>` tags, `<`
 /// replaced, names and descriptions are data).
+///
+/// The helpers: every agent of Maprisma's shared helpers catalog
+/// (helpers_catalog.dart) with an `ask` whose program is installed, in the
+/// catalog's order. Claude Code, Codex, Antigravity, pi and Hermes keep the
+/// Launcher's own stricter setups ([ownHelpers]); the others run by the
+/// catalog's `ask` argv (prompt as one argument, or on stdin when it says so);
+/// `verified: false` ones are shown "(untested)". Which one is used is the
+/// shared choice of all Maprisma apps (ai_choice.dart).
 library;
 
 import 'dart:async';
@@ -17,6 +25,7 @@ import 'package:path/path.dart' as p;
 
 import 'bounded.dart';
 import 'desktop_entries.dart';
+import 'helpers_catalog.dart';
 import 'posix.dart';
 import 'shortcuts.dart' show keyMapKey, modOrder;
 
@@ -30,9 +39,43 @@ typedef Helper = ({
   List<String> env,
   String login,
   String note,
+  // A helper of Maprisma's catalog run by its `ask` argv (null: one of the
+  // Launcher's own, with their stricter argv, sign-in check and handling).
+  CatalogHelper? catalog,
+  // false: the catalog's entry was not tried with the agent yet ("(untested)").
+  bool verified,
 });
 
-const helpers = <Helper>[
+/// The helpers in the catalog's order: the Launcher's own ([ownHelpers]) where
+/// the catalog names them, every other entry with an `ask` as the catalog runs
+/// it; own helpers the catalog lacks come last.
+List<Helper> get helpers => helpersFrom(helpersCatalog());
+
+List<Helper> helpersFrom(HelpersCatalog catalog) {
+  final out = <Helper>[
+    for (final e in catalog.helpers) ownHelpers.where((h) => h.command == e.id).firstOrNull ?? catalogHelper(e),
+  ];
+  for (final h in ownHelpers) {
+    if (!out.any((o) => o.command == h.command)) out.add(h);
+  }
+  return out;
+}
+
+/// A catalog entry as a helper: its id is its `command` here (the id the
+/// Launcher and the shared choice use); its sign-in can't be told here.
+Helper catalogHelper(CatalogHelper e) => (
+  command: e.id,
+  name: e.name,
+  argv: e.argv,
+  files: const [],
+  env: const [],
+  login: '',
+  note: '',
+  catalog: e,
+  verified: e.verified,
+);
+
+const ownHelpers = <Helper>[
   (
     command: 'claude',
     name: 'Claude Code',
@@ -54,6 +97,8 @@ const helpers = <Helper>[
     env: ['ANTHROPIC_API_KEY'],
     login: 'claude auth login',
     note: 'No tools: it only reads what Maprisma Launcher sends.',
+    catalog: null,
+    verified: true,
   ),
   (
     command: 'codex',
@@ -79,6 +124,8 @@ const helpers = <Helper>[
     env: ['OPENAI_API_KEY'],
     login: 'codex login',
     note: 'Read-only sandbox.',
+    catalog: null,
+    verified: true,
   ),
   (
     command: 'agy',
@@ -89,6 +136,8 @@ const helpers = <Helper>[
     env: ['GEMINI_API_KEY'],
     login: 'agy',
     note: 'Read-only plan mode: it can read files, it cannot change any.',
+    catalog: null,
+    verified: true,
   ),
   (
     command: 'pi',
@@ -110,6 +159,8 @@ const helpers = <Helper>[
     env: ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY'],
     login: 'pi',
     note: 'No tools, MCP servers, extensions or project files.',
+    catalog: null,
+    verified: true,
   ),
   (
     command: 'hermes',
@@ -122,6 +173,8 @@ const helpers = <Helper>[
     env: ['OPENROUTER_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY'],
     login: 'hermes',
     note: 'Only its in-memory task list: no files, terminal, web or MCP.',
+    catalog: null,
+    verified: true,
   ),
 ];
 
@@ -173,7 +226,7 @@ const helpers = <Helper>[
 /// pi's usable models right now (`pi --list-models`: signed-in providers and
 /// local ones), bounded; speech and the like left out.
 Future<List<({String provider, String model})>?> piListedModels(Session session) async {
-  final pi = session.which('pi');
+  final pi = await findHelperCommand('pi', session.home, session.environment);
   if (pi == null) return const [];
   final out = await readBoundedText(
     [pi, '--list-models'],
@@ -254,26 +307,39 @@ const askTimeout = Duration(minutes: 4);
 const maxAnswerBytes = 256 * 1024;
 
 /// Which helpers are there, and whether one seems signed in (0 tokens).
-List<Map<String, dynamic>> helperStates(
+/// Programs are found on PATH, in ~/.local/bin, ~/.npm-global/bin or through
+/// mise ([findHelperCommand]). Every own helper is listed (installed or not,
+/// for the sign-up hints); a catalog helper only when installed, and then it
+/// counts as signed in (only an Ask can tell).
+Future<List<Map<String, dynamic>>> helperStates(
   Session session, {
   List<({String provider, String model})> piOnline = const [],
-}) {
-  final pi = session.which('pi') != null ? piModels(session) : null;
-  final hermes = session.which('hermes') != null ? hermesModel(session) : null;
+}) async {
+  final all = helpers;
+  final commands = {for (final h in all) h.argv.first}.toList();
+  final paths = await Future.wait([
+    for (final c in commands) findHelperCommand(c, session.home, session.environment),
+  ]);
+  final found = {for (var i = 0; i < commands.length; i++) commands[i]: paths[i]};
+  final pi = found['pi'] != null ? piModels(session) : null;
+  final hermes = found['hermes'] != null ? hermesModel(session) : null;
   final piLocalDefault = pi != null && pi.local.any((m) => m.provider == pi.provider && m.model == pi.model);
   return [
-    for (final h in helpers)
-      if (h.command != 'pi' || pi != null)
+    for (final h in all)
+      if ((h.command != 'pi' || pi != null) && (h.catalog == null || found[h.argv.first] != null))
         {
           'command': h.command,
+          if (h.catalog != null) 'catalog': true,
+          'verified': h.verified,
           // pi and Hermes with their default model; a local default needs no sign-in.
           'name': h.command == 'pi' && pi?.model != null
               ? 'pi · ${pi!.model}'
               : h.command == 'hermes' && hermes?.model != null
               ? 'Hermes · ${hermes!.model}'
               : h.name,
-          'installed': session.which(h.command) != null,
+          'installed': found[h.argv.first] != null,
           'signed_in':
+              h.catalog != null ||
               (h.command == 'pi' && piLocalDefault) ||
               (h.command == 'hermes' && hermes?.local != null) ||
               h.env.any((e) => (session.environment[e] ?? '').isNotEmpty) ||
@@ -293,6 +359,7 @@ List<Map<String, dynamic>> helperStates(
           'signed_in': true,
           'local': true,
           'login': '',
+          'verified': true,
           'note': 'On this PC (${m.provider}): no tokens, nothing leaves the computer.',
         },
     // pi's online models it can use now (a provider signed in, e.g. DeepSeek).
@@ -306,6 +373,7 @@ List<Map<String, dynamic>> helperStates(
           'installed': true,
           'signed_in': true,
           'login': '',
+          'verified': true,
           'note': 'Through pi (${m.provider}): uses that provider\'s plan or tokens.',
         },
   ];
@@ -538,8 +606,14 @@ final class AskRunner {
     // `pi:<provider>/<model>`: one of pi's local models (only one it lists now).
     final base = command.startsWith('pi:') ? 'pi' : command;
     final helper = helpers.firstWhere((h) => h.command == base, orElse: () => throw StateError('unknown helper'));
-    final binary = session.which(base);
+    final binary = await findHelperCommand(helper.argv.first, session.home, session.environment);
     if (binary == null) throw StateError('not installed');
+    final catalog = helper.catalog;
+    // A catalog helper takes the prompt as one argument (unless its entry says stdin).
+    final promptInArgv = catalog != null && !catalog.stdin;
+    if (promptInArgv && utf8.encode(prompt).length > argvPromptMax) {
+      throw StateError('The question is too long for this helper.');
+    }
     final extra = <String>[];
     if (base == 'pi') {
       final pi = piModels(session);
@@ -574,12 +648,14 @@ final class AskRunner {
     }
 
     removeAnswer();
-    final argv = [
-      binary,
-      for (final a in helper.argv.skip(1))
-        a == '{answer}' ? answerFile : a,
-      ...extra,
-    ];
+    final argv = catalog != null
+        ? catalogAskArgv(catalog, binary, prompt)
+        : [
+            binary,
+            for (final a in helper.argv.skip(1))
+              a == '{answer}' ? answerFile : a,
+            ...extra,
+          ];
     var ok = false;
     var result = '';
     try {
@@ -600,7 +676,7 @@ final class AskRunner {
       final errDone = process.stderr.drain<void>();
       process.stdin.done.ignore();
       try {
-        process.stdin.add(utf8.encode(prompt));
+        if (!promptInArgv) process.stdin.add(utf8.encode(prompt));
       } on Object {
         // It went away; its exit code says how.
       }

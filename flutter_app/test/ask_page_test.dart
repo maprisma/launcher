@@ -10,7 +10,24 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   final asked = <Map<String, dynamic>>[];
   var helpersReady = true;
+  var sharedChoice = 'auto';
   List<String>? savedPrompts;
+  // As the core: the shared choice when installed, else the first ready one.
+  Map<String, dynamic> helperState() {
+    final helpers = [
+      {'command': 'claude', 'name': 'Claude Code', 'installed': helpersReady, 'signed_in': helpersReady, 'verified': true},
+      {'command': 'agy', 'name': 'Antigravity', 'installed': false, 'signed_in': false, 'verified': true},
+      if (helpersReady)
+        {'command': 'gemini', 'name': 'Gemini CLI', 'installed': true, 'signed_in': true, 'catalog': true, 'verified': false},
+    ];
+    final installed = [for (final h in helpers) if (h['installed'] == true) h['command']];
+    return {
+      'helpers': helpers,
+      'choice': sharedChoice,
+      'chosen': installed.contains(sharedChoice) ? sharedChoice : installed.firstOrNull,
+    };
+  }
+
   Future<Map<String, dynamic>> fake(String method, [Map<String, dynamic> params = const {}]) async {
     asked.add({'method': method, ...params});
     if (method == 'settings.set' && params['key'] == 'ask_prompts') {
@@ -19,12 +36,11 @@ void main() {
     }
     if (method == 'settings.get' || method == 'settings.set') return {'ask_prompts': savedPrompts};
     return switch (method) {
-      'ask.helpers' => {
-        'helpers': [
-          {'command': 'claude', 'name': 'Claude Code', 'installed': helpersReady, 'signed_in': helpersReady},
-          {'command': 'agy', 'name': 'Antigravity', 'installed': false, 'signed_in': false},
-        ],
-      },
+      'ask.helpers' => helperState(),
+      'ai.helper.set' => (() {
+        sharedChoice = params['helper'] as String;
+        return helperState();
+      })(),
       'ask.run' when '${params['request']}'.contains('shortcuts of all') => {
         'action': 'shortcuts',
         'apps': ['k1'],
@@ -413,5 +429,34 @@ void main() {
     await tester.pumpAndSettle();
     final set = asked.where((a) => a['method'] == 'shortcuts.set').single;
     expect([set['key'], set['mods'], set['combo_key']], ['k1', ['SUPER', 'ALT'], 'P']);
+  });
+
+  testWidgets('the Helper drop-down shows the shared choice and writes it', (tester) async {
+    asked.clear();
+    sharedChoice = 'auto';
+    addTearDown(() => sharedChoice = 'auto');
+    await tester.pumpWidget(MaterialApp(home: AskPage(core: fake, apps: apps, actions: actions())));
+    await tester.pumpAndSettle();
+    expect(find.text('Automatic · Claude Code'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('ask-helper')));
+    await tester.pumpAndSettle();
+    // Automatic first, then every installed helper; an untested catalog entry says so.
+    expect(find.text('Gemini CLI (untested)'), findsOneWidget);
+    expect(find.text('Antigravity'), findsNothing, reason: 'not installed');
+    await tester.tap(find.text('Gemini CLI (untested)').last);
+    await tester.pumpAndSettle();
+    expect(asked.where((a) => a['method'] == 'ai.helper.set').single['helper'], 'gemini');
+    expect(sharedChoice, 'gemini');
+    await tester.enterText(find.byType(TextField), 'Suggest a photo app');
+    await tester.tap(find.byTooltip('Ask'));
+    await tester.pumpAndSettle();
+    expect(asked.where((a) => a['method'] == 'ask.run').last['helper'], 'gemini');
+
+    // Chosen elsewhere (Maprisma Manager › AI), not installed here: Automatic is shown, the file stays.
+    sharedChoice = 'grok';
+    await tester.pumpWidget(MaterialApp(home: AskPage(key: UniqueKey(), core: fake, apps: apps, actions: actions())));
+    await tester.pumpAndSettle();
+    expect(find.text('Automatic · Claude Code'), findsOneWidget);
+    expect(sharedChoice, 'grok');
   });
 }
