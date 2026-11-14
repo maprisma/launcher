@@ -14,6 +14,7 @@ import 'core_call.dart';
 import 'dock_app.dart';
 import 'esc_close.dart';
 import 'window_size.dart';
+import 'window_style.dart';
 import 'window_shots.dart';
 import 'i18n.dart';
 
@@ -319,6 +320,7 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
     windowFocused.addListener(_onFocus);
     windowFocused.addListener(_focusLook);
     _lookTimer = Timer.periodic(const Duration(seconds: 5), (_) => _lookTick());
+    _windowStyle = WindowStyleWatcher();
     clickedOutside.addListener(_onOutside);
     PopupGuard.changed.addListener(_syncGrab);
     HardwareKeyboard.instance.addHandler(_shotKey);
@@ -337,6 +339,7 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
     windowFocused.removeListener(_onFocus);
     windowFocused.removeListener(_focusLook);
     _lookTimer?.cancel();
+    _windowStyle?.dispose();
     clickedOutside.removeListener(_onOutside);
     PopupGuard.changed.removeListener(_syncGrab);
     HardwareKeyboard.instance.removeHandler(_shotKey);
@@ -357,6 +360,9 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
   /// Maprisma Theme can change the scheme at any time: the look is read again every few
   /// seconds while the window is up (a hidden popup waits until it is shown again).
   Timer? _lookTimer;
+
+  /// Maprisma Settings › App windows: see-through windows for all Maprisma apps (window_style.dart).
+  WindowStyleWatcher? _windowStyle;
 
   void _lookTick() {
     if (popup && !windowFocused.value) return;
@@ -389,6 +395,12 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
   @override
   Widget build(BuildContext context) {
     final radius = cornerRadius(cornersSetting, look['rounding'] as int?);
+    final style = _windowStyle;
+    if (style == null) return _app(context, radius, 1);
+    return ValueListenableBuilder<double>(valueListenable: style, builder: (context, alpha, _) => _app(context, radius, alpha));
+  }
+
+  Widget _app(BuildContext context, double radius, double alpha) {
     return ValueListenableBuilder(
       valueListenable: I18n.changed,
       builder: (context, _, _) => MaterialApp(
@@ -399,7 +411,7 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
         builder: (context, child) => RepaintBoundary(key: _shotArea, child: _esc.wrap(child!)),
         title: 'Maprisma Launcher',
         debugShowCheckedModeBanner: false,
-        theme: appTheme(MediaQuery.platformBrightnessOf(context), look['colors'] as Map? ?? {}, radius),
+        theme: withWindowAlpha(appTheme(MediaQuery.platformBrightnessOf(context), look['colors'] as Map? ?? {}, radius), alpha),
         home: AppsPage(
           core: widget.core,
           desktop: '${look['desktop'] ?? ''}',
