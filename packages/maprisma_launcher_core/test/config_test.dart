@@ -88,6 +88,12 @@ void main() {
     expect(() => settings.set('window_size', [1000]), throwsArgumentError);
     store.writeJson('settings.json', {...settings.raw(), 'window_size': ['x', 3]});
     expect(settings.read()['window_size'], isNull);
+    // Hyprland: the window's place, [x, y] whole numbers (may be negative).
+    expect(settings.read()['window_position'], isNull);
+    settings.set('window_position', [-20, 42]);
+    expect(settings.read()['window_position'], [-20, 42]);
+    expect(() => settings.set('window_position', [1.5, 2]), throwsArgumentError);
+    expect(() => settings.set('window_position', [200000, 2]), throwsArgumentError);
     expect(settings.read()['screenshot_key'], isTrue);
     expect(settings.read()['close_outside'], isTrue);
     expect(settings.read()['screenshot_folder'], isNull);

@@ -171,6 +171,8 @@ final class Settings {
       'size': _size(data['size']),
       // The window's size outside popup mode (GTK's, title bar included), as the user left it.
       'window_size': _size(data['window_size']),
+      // Hyprland, outside popup mode: where the user left the window ([x, y]), null when missing or broken.
+      'window_position': _position(data['window_position']),
       // F12 saves a picture of the window (as in Maprisma); on by default.
       'screenshot_key': data['screenshot_key'] != false,
       'ai_enabled': data['ai_enabled'] != false,
@@ -203,6 +205,13 @@ final class Settings {
   /// An absolute folder path, or null (~/Pictures/MaprismaLauncher).
   static String? _folder(Object? value) =>
       value is String && value.startsWith('/') && value.length <= 4096 && !value.contains('\x00') ? value : null;
+
+  /// A window place `[x, y]` (Hyprland's layout pixels, may be negative), or null.
+  static List<int>? _position(Object? value) => value is List &&
+          value.length == 2 &&
+          value.every((v) => v is int && v.abs() <= 100000)
+      ? [value[0] as int, value[1] as int]
+      : null;
 
   static List<int>? _size(Object? value) => value is List &&
           value.length == 2 &&
@@ -301,6 +310,9 @@ final class Settings {
         stored = value;
       case 'size' || 'window_size':
         stored = _size(value);
+        if (stored == null) throw ArgumentError(key);
+      case 'window_position':
+        stored = _position(value);
         if (stored == null) throw ArgumentError(key);
       case 'icon_size':
         if (value is! Map || iconSizeChoices[value['view']] == null) throw ArgumentError(key);

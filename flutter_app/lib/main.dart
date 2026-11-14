@@ -135,6 +135,17 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
     tiled: () => tiledByMaprismaTiling('com.maprisma.Launcher'),
   );
 
+  /// Hyprland, outside popup mode: the window's place, kept and put back each time it shows
+  /// (window_size.dart). The popup is centred by the core's window.popup instead.
+  late final _windowPlace = WindowPlaceKeeper(
+    saved: parseWindowPosition(widget.settings['window_position']),
+    save: (x, y) async {
+      if (popup) return;
+      final fresh = await widget.core('settings.set', {'key': 'window_position', 'value': [x, y]});
+      if (mounted) setState(() => settings = Map<String, dynamic>.from(fresh));
+    },
+  );
+
   /// Whether clicking outside the popup hides it (Settings › Close on click outside).
   bool get closeOutside => settings['close_outside'] != false;
 
@@ -325,6 +336,7 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
     PopupGuard.changed.addListener(_syncGrab);
     HardwareKeyboard.instance.addHandler(_shotKey);
     _esc.attach();
+    if (!popup) _windowPlace.start();
     WidgetsBinding.instance.addPostFrameCallback((_) => _placePopup());
     _syncTitlebar();
   }
@@ -345,6 +357,7 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
     HardwareKeyboard.instance.removeHandler(_shotKey);
     _esc.detach();
     _windowSize.dispose();
+    _windowPlace.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -354,6 +367,7 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!popup) _windowPlace.lifecycle(AppLifecycleStateName.values.byName(state.name));
     if (state == AppLifecycleState.resumed) _reloadLook();
   }
 
