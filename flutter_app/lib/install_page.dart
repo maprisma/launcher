@@ -65,7 +65,7 @@ class _InstallPageState extends State<InstallPage> {
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text(text)));
 
-  String _managerLabel(String id) => id == 'github' ? 'GitHub' :
+  String _managerLabel(String id) => id == 'local' ? tr('AppImage in Downloads') : id == 'github' ? 'GitHub' :
       managers.where((m) => m['id'] == id).firstOrNull?['label'] as String? ?? id;
 
   Future<void> _review(Map found) =>
@@ -215,7 +215,9 @@ void tell(String text) => ScaffoldMessenger.of(context)
           const SizedBox(height: 12),
           Text(trf('From: {0}', [managerLabel])),
           const SizedBox(height: 8),
-          if (plan['github'] == true) ...[
+          if (plan['local'] == true) ...[
+            Text(tr('Copies to Applications. No network or password is needed.')),
+          ] else if (plan['github'] == true) ...[
             SelectableText('${found['repository']}'),
             Text('${found['asset']}'),
             Text(tr('Downloads to Applications and verifies SHA-256. No password is needed.')),
@@ -246,11 +248,24 @@ void tell(String text) => ScaffoldMessenger.of(context)
       )),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Cancel'))),
-        FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(tr('Install in terminal'))),
+        FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(tr(plan['local'] == true ? 'Install' : 'Install in terminal'))),
       ],
     ),
   );
   if (go != true || !context.mounted) return;
+  if (plan['local'] == true) {
+    try {
+      await core('packages.install', {'manager': 'local', 'package': found['package']});
+      onInstalled?.call();
+    } on ServiceError catch (e) {
+      tell(switch (e.reason) {
+        'the file changed since the review' => tr('The file changed since the review.'),
+        'Destination already exists' => tr('A different file already exists at the destination.'),
+        _ => trf('That did not work ({0}).', [e.code]),
+      });
+    }
+    return;
+  }
   // In the app's own terminal; an outside one only when that cannot run here.
   final code = await runInTerminal(
     context,

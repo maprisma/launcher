@@ -9,6 +9,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import 'admin.dart';
+import 'local_appimages.dart';
 import 'apps.dart';
 import 'ai_choice.dart';
 import 'ask_ai.dart';
@@ -93,6 +94,7 @@ final class CoreService {
 
   /// The last search's results: only these can be installed.
   List<Found> _found = [];
+  final _localReviews = <String, Map<String, dynamic>>{};
   late final _ask = AskRunner(session);
   late final _iconChoices = IconChoices(session, store);
   late final _cosmic = CosmicWindows(session, executable);
@@ -733,6 +735,17 @@ final class CoreService {
     },
     'packages.install_plan': (params) async => _installPlan(params),
     'packages.install': (params) async {
+      if (params['manager'] == 'local') {
+        final plan = _localReviews['${params['package']}'];
+        if (plan == null) throw ServiceError('not_found');
+        try {
+          installLocalAppImage(plan);
+        } on FileSystemException catch (e) {
+          throw ServiceError('local_install_failed', e.message);
+        }
+        await _listApps();
+        return {'started': true, 'installed': true};
+      }
       final plan = await _installPlan(params);
       final command = plan['argv'] as List<String>;
       if (desktop.terminal() == null) throw ServiceError('no_terminal');
@@ -1106,7 +1119,15 @@ final class CoreService {
     List<String> queries,
     List<String> managers,
   ) async {
-    final results = <Found>[];
+    final results = <Found>[
+      for (final f in await downloadedAppImages(session))
+        if (queries.any(
+          (q) =>
+              q.toLowerCase().contains('${f['name']}'.toLowerCase()) ||
+              '${f['package']}'.toLowerCase().contains(q.toLowerCase()),
+        ))
+          f,
+    ];
     var githubUnavailable = false;
     void add(Iterable<Found> found) {
       for (final f in found) {
@@ -1329,6 +1350,7 @@ final class CoreService {
             },
     ];
     final managers = _enabledManagers();
+    final downloaded = await downloadedAppImages(session);
     String text;
     try {
       text = await _ask.run(
@@ -1338,6 +1360,15 @@ final class CoreService {
           request: request,
           answer: answer,
           installed: facts(const []),
+          downloaded: [
+            for (final f in downloaded)
+              {
+                'manager': 'local',
+                'package': f['package'],
+                'name': f['name'],
+                'size': f['size'],
+              },
+          ],
           managers: managers,
           language: language,
         ),
@@ -1360,7 +1391,10 @@ final class CoreService {
         final combined = await _searchApps([
           ...{if (literal) request, ...queries},
         ], managers);
-        final merged = combined.results;
+        final merged = [
+          ...downloaded,
+          ...combined.results.where((f) => f['manager'] != 'local'),
+        ];
         // Official repositories first, the AUR last (Antigravity's review, 6b).
         merged.sort(
           (a, b) =>
@@ -1404,6 +1438,11 @@ final class CoreService {
                     'description': '${f['description'] ?? ''}'.length > 120
                         ? '${f['description']}'.substring(0, 120)
                         : f['description'],
+                    if (f['manager'] == 'local') ...{
+                      'name': f['name'],
+                      'size': f['size'],
+                      'installable': true,
+                    },
                     if (f['manager'] == 'github')
                       'installable': f['installable'],
                     if (f['aur'] == true) 'aur': true,
@@ -1538,8 +1577,15 @@ final class CoreService {
         .where((f) => f['manager'] == manager && f['package'] == package)
         .firstOrNull;
     if (found == null ||
-        (manager != 'github' && !_enabledManagers().contains(manager))) {
+        (manager != 'github' &&
+            manager != 'local' &&
+            !_enabledManagers().contains(manager))) {
       throw ServiceError('not_found');
+    }
+    if (manager == 'local') {
+      final plan = localInstallPlan(session, found);
+      _localReviews[package] = plan;
+      return plan;
     }
     // The app's own terminal needs no outside one; packages.install does.
     final terminal = desktop.terminal();
@@ -1592,7 +1638,9 @@ final class CoreService {
             .where((f) => f['manager'] == manager && f['package'] == package)
             .firstOrNull;
         if (found == null ||
-            (manager != 'github' && !_enabledManagers().contains(manager))) {
+            (manager != 'github' &&
+                manager != 'local' &&
+                !_enabledManagers().contains(manager))) {
           throw ServiceError('not_found');
         }
         final argv = manager == 'github'

@@ -258,3 +258,13 @@ No add-on runs code.
   github.com/owner/repo". Off or another helper: no web call; "nothing found" says why. Codex (`--search` keeps
   its shell tool) and Antigravity (no tool selection) have no web-only mode, so they are not offered.
 
+
+## Downloaded AppImages (2026-11-14, ask-local-appimage)
+
+- Added a bounded, owner-checked Downloads source to Ask AI and Install apps search.
+- Local review records source, size, SHA-256 and destination; install copies offline,
+  checks the reviewed content on an opened descriptor, syncs and atomically publishes
+  without overwriting other files. Standalone scanning also recognizes type-2 magic.
+- Core regression tests use temporary homes; Flutter covers the source label and
+  direct install review. Socket-dependent suites cannot run fully in the restricted
+  agent sandbox; see the task report for validation results.

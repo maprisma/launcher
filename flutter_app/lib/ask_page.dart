@@ -1356,6 +1356,8 @@ class _AskPageState extends State<AskPage> {
   /// A pick's source label: AUR, GitHub or the package manager.
   static String _source(Map pick) => pick['aur'] == true
       ? 'AUR'
+      : pick['manager'] == 'local'
+      ? tr('AppImage in Downloads')
       : pick['manager'] == 'github'
       ? 'GitHub'
       : '${pick['manager']}';

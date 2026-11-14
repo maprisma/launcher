@@ -100,6 +100,64 @@ final class Posix {
     }
   }
 
+  /// Stream a descriptor checked for regular type, size and owner; never follow links.
+  bool streamOwned(
+    String path,
+    int cap,
+    int uid,
+    void Function(List<int>) chunk,
+  ) {
+    final fd =
+        _withPath(
+          path,
+          (name) => _open(
+            name,
+            _rdonly | _nonBlock | _noCtty | _cloexec | _noFollow,
+            0,
+          ),
+        ) ??
+        -1;
+    if (fd < 0) return false;
+    final buffer = calloc<Uint8>(65536);
+    try {
+      final info = _fstat(fd);
+      if (info == null ||
+          info.$1 & 0xf000 != 0x8000 ||
+          info.$2 > cap ||
+          info.$3 != uid) {
+        return false;
+      }
+      var total = 0;
+      while (true) {
+        final n = _read(fd, buffer, 65536);
+        if (n < 0) return false;
+        if (n == 0) return total == info.$2;
+        total += n;
+        if (total > cap) return false;
+        chunk(Uint8List.fromList(buffer.asTypedList(n)));
+      }
+    } finally {
+      calloc.free(buffer);
+      _close(fd);
+    }
+  }
+
+  /// Linux renameat2(RENAME_NOREPLACE): never overwrite a competing destination.
+  bool renameNew(String source, String target) {
+    final rename = _lib
+        .lookupFunction<
+          Int Function(Int, Pointer<Utf8>, Int, Pointer<Utf8>, Uint32),
+          int Function(int, Pointer<Utf8>, int, Pointer<Utf8>, int)
+        >('renameat2');
+    return _withPath(
+          source,
+          (a) =>
+              _withPath(target, (b) => rename(-100, a, -100, b, 1) == 0) ??
+              false,
+        ) ??
+        false;
+  }
+
   T? _withPath<T>(String path, T Function(Pointer<Utf8>) action) {
     if (path.isEmpty || path.contains('\x00')) return null;
     final native = path.toNativeUtf8();
@@ -172,14 +230,18 @@ final class Posix {
     }
   }
 
-  /// (mode, size) of an open descriptor.
-  (int, int)? _fstat(int fd) {
+  /// (mode, size, uid) of an open descriptor.
+  (int, int, int)? _fstat(int fd) {
     final buffer = calloc<Uint8>(256);
     final empty = ''.toNativeUtf8();
     try {
       if (_statx(fd, empty, _emptyPath, 0x7ff, buffer) != 0) return null;
       final data = ByteData.sublistView(buffer.asTypedList(256));
-      return (data.getUint16(28, Endian.host), data.getUint64(40, Endian.host));
+      return (
+        data.getUint16(28, Endian.host),
+        data.getUint64(40, Endian.host),
+        data.getUint32(20, Endian.host),
+      );
     } finally {
       calloc.free(buffer);
       calloc.free(empty);
@@ -188,8 +250,14 @@ final class Posix {
 
   /// The bytes of a regular file of at most [cap] bytes, else null:
   /// O_NONBLOCK so a FIFO cannot block, the type and size checked on the
-  /// opened descriptor, the read stops after cap + 1 bytes.
-  Uint8List? readRegular(String path, int cap, {bool follow = true}) {
+  /// opened descriptor, the read stops after cap + 1 bytes. With [prefix],
+  /// larger regular files are allowed but only their first [cap] bytes are read.
+  Uint8List? readRegular(
+    String path,
+    int cap, {
+    bool follow = true,
+    bool prefix = false,
+  }) {
     final fd =
         _withPath(
           path,
@@ -203,14 +271,20 @@ final class Posix {
     if (fd < 0) return null;
     try {
       final info = _fstat(fd);
-      if (info == null || info.$1 & 0xf000 != 0x8000 || info.$2 > cap) {
+      if (info == null ||
+          info.$1 & 0xf000 != 0x8000 ||
+          (!prefix && info.$2 > cap)) {
         return null;
       }
       final buffer = calloc<Uint8>(min(cap + 1, 65536));
       final bytes = BytesBuilder(copy: false);
       try {
-        while (bytes.length <= cap) {
-          final count = _read(fd, buffer, min(cap + 1 - bytes.length, 65536));
+        while (bytes.length < (prefix ? cap : cap + 1)) {
+          final count = _read(
+            fd,
+            buffer,
+            min((prefix ? cap : cap + 1) - bytes.length, 65536),
+          );
           if (count < 0) return null;
           if (count == 0) break;
           bytes.add(Uint8List.fromList(buffer.asTypedList(count)));

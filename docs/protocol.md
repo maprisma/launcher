@@ -100,3 +100,22 @@ selection is used until a window snapshot can be obtained.
 App search uses bounded spacing/hyphen alternatives (search_terms.dart). `packages.search` and Ask AI include public GitHub repositories (no credentials; metadata cached for five minutes, at most 40 entries). Only x86_64/arm64 AppImages of the latest stable release with a published `sha256:` asset digest are installable; the download is checked with `sha256sum` and linked into `~/Applications` without replacing a file or running it.
 
 Web discovery is a shared setting, not a per-question switch: `web_search: true` in `maprisma-ai/settings.json` (Maprisma Settings › AI) and a helper with a web-only mode (only Claude Code: `--tools WebSearch,WebFetch`, `--allowedTools WebSearch,WebFetch`, hooks and MCP still off). Then `ask.run` asks the web when an install request found nothing in the packages and on GitHub, or straight away when the request names a website (a URL or a domain, not github.com). The helper may only name `https://github.com/owner/repo` identities and the page it found them on; the core resolves their latest stable release itself and the GUI shows "Found on the web: site → github.com/owner/repo" and the usual install review. Web answers never supply commands or download links. Setting off: `web_search: off`; another helper: `web_search: unsupported` (Codex's `--search` and Antigravity have no web-only mode).
+
+Downloaded AppImages are also a `packages.search` / `ask.run` source with
+`manager: "local"`, `package` equal to the exact listed filename, derived `name`,
+`size` (bytes), and `installable: true`. Downloads is read from the regular,
+non-symlink `~/.config/user-dirs.dirs` (64 KiB maximum), otherwise `~/Downloads`.
+The scan examines at most 50 immediate entries, accepts user-owned regular files
+up to 2 GiB by `.AppImage` / `.appimage` suffix or ELF + type-2 magic, and excludes
+installed filenames or SHA-256 matches in the standalone AppImage directories.
+
+`packages.install_plan` accepts listed local ids and retains a review snapshot;
+it returns `local: true`, `source`, `size`, `sha256`, `uid`, `destination`
+(`~/Applications/<filename>`), an empty `argv`, and a human-readable `command`.
+`packages.install` for local requires that snapshot and runs directly without a
+terminal or network. It rechecks the opened source's ownership, type, size and
+SHA-256, copies to a staging file on the destination filesystem, fsyncs, chmods
+755 and atomically renames without replacing an existing destination. Identical
+destinations are accepted; differing destinations are refused. Changed sources
+return `local_install_failed` with reason `the file changed since the review`.
+Success returns `{started: true, installed: true}` and rescans standalone apps.

@@ -254,7 +254,11 @@
     "Found on the web: {0}": "Im Web gefunden: {0}",
     "Web search is off (Maprisma Settings › AI).": "Die Websuche ist aus (Maprisma Settings › KI).",
     "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "Die Websuche braucht Claude Code als KI-Helfer (Maprisma Settings › KI).",
-    "Popups need Hyprland: on this desktop the Launcher always opens as a normal window.": "Popups brauchen Hyprland: auf diesem Desktop öffnet sich der Launcher immer als normales Fenster."
+    "Popups need Hyprland: on this desktop the Launcher always opens as a normal window.": "Popups brauchen Hyprland: auf diesem Desktop öffnet sich der Launcher immer als normales Fenster.",
+    "AppImage in Downloads": "AppImage in Downloads",
+    "Copies to Applications. No network or password is needed.": "Kopiert nach Applications. Netzwerk und Passwort sind nicht nötig.",
+    "The file changed since the review.": "Die Datei hat sich seit der Prüfung geändert.",
+    "A different file already exists at the destination.": "Am Ziel existiert bereits eine andere Datei."
   },
   "es": {
     "\u0004Shortcuts of {0} app": [
@@ -511,7 +515,11 @@
     "Found on the web: {0}": "Encontrado en la web: {0}",
     "Web search is off (Maprisma Settings › AI).": "La búsqueda web está desactivada (Maprisma Settings › IA).",
     "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "La búsqueda web necesita Claude Code como asistente de IA (Maprisma Settings › IA).",
-    "Popups need Hyprland: on this desktop the Launcher always opens as a normal window.": "Las ventanas emergentes necesitan Hyprland: en este escritorio el Launcher siempre se abre como ventana normal."
+    "Popups need Hyprland: on this desktop the Launcher always opens as a normal window.": "Las ventanas emergentes necesitan Hyprland: en este escritorio el Launcher siempre se abre como ventana normal.",
+    "AppImage in Downloads": "AppImage en Descargas",
+    "Copies to Applications. No network or password is needed.": "Se copia a Applications. No se necesita red ni contraseña.",
+    "The file changed since the review.": "El archivo ha cambiado desde la revisión.",
+    "A different file already exists at the destination.": "Ya existe un archivo diferente en el destino."
   },
   "fr": {
     "\u0004Shortcuts of {0} app": [
@@ -768,7 +776,11 @@
     "Found on the web: {0}": "Trouvé sur le Web : {0}",
     "Web search is off (Maprisma Settings › AI).": "La recherche Web est désactivée (Maprisma Settings › IA).",
     "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "La recherche Web nécessite Claude Code comme assistant IA (Maprisma Settings › IA).",
-    "Popups need Hyprland: on this desktop the Launcher always opens as a normal window.": "Les fenêtres surgissantes nécessitent Hyprland : sur ce bureau, le Launcher s’ouvre toujours en fenêtre normale."
+    "Popups need Hyprland: on this desktop the Launcher always opens as a normal window.": "Les fenêtres surgissantes nécessitent Hyprland : sur ce bureau, le Launcher s’ouvre toujours en fenêtre normale.",
+    "AppImage in Downloads": "AppImage dans Téléchargements",
+    "Copies to Applications. No network or password is needed.": "Copie dans Applications. Aucun réseau ni mot de passe nécessaire.",
+    "The file changed since the review.": "Le fichier a changé depuis la vérification.",
+    "A different file already exists at the destination.": "Un fichier différent existe déjà à la destination."
   },
   "it": {
     "\u0004Shortcuts of {0} app": [
@@ -1025,7 +1037,11 @@
     "Found on the web: {0}": "Trovato sul web: {0}",
     "Web search is off (Maprisma Settings › AI).": "La ricerca web è disattivata (Maprisma Settings › IA).",
     "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "La ricerca web richiede Claude Code come assistente IA (Maprisma Settings › IA).",
-    "Popups need Hyprland: on this desktop the Launcher always opens as a normal window.": "I popup richiedono Hyprland: su questo desktop il Launcher si apre sempre come finestra normale."
+    "Popups need Hyprland: on this desktop the Launcher always opens as a normal window.": "I popup richiedono Hyprland: su questo desktop il Launcher si apre sempre come finestra normale.",
+    "AppImage in Downloads": "AppImage in Download",
+    "Copies to Applications. No network or password is needed.": "Copia in Applications. Non servono rete o password.",
+    "The file changed since the review.": "Il file è cambiato dopo la verifica.",
+    "A different file already exists at the destination.": "Esiste già un file diverso nella destinazione."
   },
   "nl": {
     "\u0004Shortcuts of {0} app": [
@@ -1282,7 +1298,11 @@
     "Found on the web: {0}": "Gevonden op het web: {0}",
     "Web search is off (Maprisma Settings › AI).": "Zoeken op het web staat uit (Maprisma Settings › AI).",
     "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "Zoeken op het web vereist Claude Code als AI-helper (Maprisma Settings › AI).",
-    "Popups need Hyprland: on this desktop the Launcher always opens as a normal window.": "Pop-ups hebben Hyprland nodig: op dit bureaublad opent de Launcher altijd als normaal venster."
+    "Popups need Hyprland: on this desktop the Launcher always opens as a normal window.": "Pop-ups hebben Hyprland nodig: op dit bureaublad opent de Launcher altijd als normaal venster.",
+    "AppImage in Downloads": "AppImage in Downloads",
+    "Copies to Applications. No network or password is needed.": "Kopieert naar Applications. Geen netwerk of wachtwoord nodig.",
+    "The file changed since the review.": "Het bestand is gewijzigd sinds de controle.",
+    "A different file already exists at the destination.": "Er bestaat al een ander bestand op de bestemming."
   },
   "pl": {
     "\u0004Shortcuts of {0} app": [
@@ -1544,7 +1564,11 @@
     "Found on the web: {0}": "Znaleziono w sieci: {0}",
     "Web search is off (Maprisma Settings › AI).": "Wyszukiwanie w sieci jest wyłączone (Maprisma Settings › AI).",
     "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "Wyszukiwanie w sieci wymaga Claude Code jako asystenta AI (Maprisma Settings › AI).",
-    "Popups need Hyprland: on this desktop the Launcher always opens as a normal window.": "Okienka wymagają Hyprlanda: na tym pulpicie Launcher zawsze otwiera się jako zwykłe okno."
+    "Popups need Hyprland: on this desktop the Launcher always opens as a normal window.": "Okienka wymagają Hyprlanda: na tym pulpicie Launcher zawsze otwiera się jako zwykłe okno.",
+    "AppImage in Downloads": "AppImage w Pobranych",
+    "Copies to Applications. No network or password is needed.": "Kopiuje do Applications. Sieć ani hasło nie są potrzebne.",
+    "The file changed since the review.": "Plik zmienił się od czasu sprawdzenia.",
+    "A different file already exists at the destination.": "W miejscu docelowym istnieje już inny plik."
   },
   "pt": {
     "\u0004Shortcuts of {0} app": [
@@ -1801,6 +1825,10 @@
     "Found on the web: {0}": "Encontrado na Web: {0}",
     "Web search is off (Maprisma Settings › AI).": "A pesquisa na Web está desligada (Maprisma Settings › IA).",
     "Web search needs Claude Code as the AI helper (Maprisma Settings › AI).": "A pesquisa na Web precisa do Claude Code como assistente de IA (Maprisma Settings › IA).",
-    "Popups need Hyprland: on this desktop the Launcher always opens as a normal window.": "Os popups precisam do Hyprland: neste ambiente de trabalho o Launcher abre sempre como janela normal."
+    "Popups need Hyprland: on this desktop the Launcher always opens as a normal window.": "Os popups precisam do Hyprland: neste ambiente de trabalho o Launcher abre sempre como janela normal.",
+    "AppImage in Downloads": "AppImage em Downloads",
+    "Copies to Applications. No network or password is needed.": "Copia para Applications. Não precisa de rede nem de senha.",
+    "The file changed since the review.": "O arquivo mudou desde a revisão.",
+    "A different file already exists at the destination.": "Já existe um arquivo diferente no destino."
   }
 }

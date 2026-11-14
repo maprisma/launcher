@@ -14,6 +14,12 @@ import 'desktop_entries.dart';
 import 'posix.dart';
 import 'shlex.dart';
 
+bool hasAppImageMagic(String path) {
+  final h = Posix.instance.readRegular(path, 11, follow: false, prefix: true);
+  return h != null && h.length == 11 && h[0] == 127 && h[1] == 69 && h[2] == 76 && h[3] == 70 &&
+      h[8] == 65 && h[9] == 73 && h[10] == 2;
+}
+
 const maxAppImageIconBytes = 2 * 1024 * 1024;
 
 const _noise = {
@@ -218,7 +224,7 @@ Future<List<Map<String, dynamic>>> scanStandaloneAppImages(
       for (final e in Directory(dir).listSync(followLinks: false)) {
         final name = p.basename(e.path);
         // pathlib's "*.[aA]…" needs at least the dot: ".AppImage" alone counts too.
-        if (pattern.hasMatch(name)) found.add(e.path);
+        if (pattern.hasMatch(name) || hasAppImageMagic(e.path)) found.add(e.path);
       }
     } on FileSystemException {
       continue;

@@ -481,12 +481,14 @@ String askPrompt({
   String? answer,
   required List<Map> installed,
   required List<String> managers,
+  List<Map> downloaded = const [],
   String? language,
 }) =>
     '$_rules\n\n'
     'Installed apps (id, name, description, origin, update available, can be removed, hidden from the '
     'launcher\'s list, global keyboard shortcuts that open it): '
     '${jsonEncode(installed)}\n'
+    'Downloaded AppImages (local source, installable offline; search by their app name): ${jsonEncode(downloaded)}\n'
     'Package managers the user allows: ${jsonEncode(managers)}\n\n'
     '${_request(request, answer)}\n'
     'Choose exactly one answer:\n'
@@ -538,7 +540,7 @@ String picksPrompt({
   String? language,
 }) =>
     '$_rules\n\n'
-    'Packages found across allowed package managers and public GitHub repositories (manager, package, version, description, installable; aur means '
+    'Packages found across allowed package managers, downloaded AppImages (manager local, only listed file ids; prefer these for Downloads requests, install offline) and public GitHub repositories (manager, package, version, description, installable; aur means '
     'a community build script, not checked by the distribution): ${jsonEncode(found)}\n'
     'Installed apps that may already fit (id, name, description): ${jsonEncode(installed)}\n\n'
     '${_request(request, answer)}\n'
