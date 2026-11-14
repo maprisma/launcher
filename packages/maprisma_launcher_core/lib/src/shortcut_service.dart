@@ -32,7 +32,7 @@ abstract class ShortcutBackend {
   Future<ShortcutBindings> snapshot(Map<String, dynamic> state, List<String> mainMods);
 
   /// Write the state to the desktop and save it; throws ServiceError.
-  Future<void> save(Map<String, dynamic> state);
+  Future<void> save(Map<String, dynamic> state, {void Function()? beforeChange});
 }
 
 /// Bounded `program args…`: stdout, or null when it fails.
@@ -94,7 +94,7 @@ final class GnomeBackend implements ShortcutBackend {
 
 
   @override
-  Future<void> save(Map<String, dynamic> state) async {
+  Future<void> save(Map<String, dynamic> state, {void Function()? beforeChange}) async {
     if (!await available()) throw ServiceError('not_available');
     // One save at a time across processes too: two launcher copies saving
     // together left KDE keys unregistered (2026-11-08).
@@ -102,17 +102,18 @@ final class GnomeBackend implements ShortcutBackend {
     final lock = await File(p.join(store.dir, 'shortcuts.lock')).open(mode: FileMode.append);
     try {
       await lock.lock(FileLock.blockingExclusive);
-      await _save(state);
+      await _save(state, beforeChange: beforeChange);
     } finally {
       await lock.close();
     }
   }
 
-  Future<void> _save(Map<String, dynamic> state) async {
+  Future<void> _save(Map<String, dynamic> state, {void Function()? beforeChange}) async {
     final previous = clean(store.readJson(stateFile))['applied'] as List;
     final saved = await applyGnome(
       state,
       settings,
+      beforeChange: beforeChange,
       previousApplied: [for (final a in previous) a as Map],
       ownPrefix: ownPrefix,
       command: command,
@@ -366,11 +367,12 @@ final class HyprBackend implements ShortcutBackend {
   /// save_and_apply: the state, the module, a reload; on a new
   /// configuration error the previous files come back and the error is raised.
   @override
-  Future<void> save(Map<String, dynamic> state) async {
+  Future<void> save(Map<String, dynamic> state, {void Function()? beforeChange}) async {
     if (!await available()) throw ServiceError('not_available');
     final oldState = File(store.path(stateFile)).existsSync() ? store.readJson(stateFile) : null;
     final oldLua = File(luaFile).existsSync() ? _read(luaFile) ?? '' : null;
     final before = await configErrors();
+    beforeChange?.call();
     writeTextAtomic(
       luaFile,
       renderLua(
@@ -597,7 +599,7 @@ final class ShortcutService {
     };
   }
 
-  Future<Map<String, dynamic>> _commit(Map<String, dynamic> state) async {
+  Future<Map<String, dynamic>> _commit(Map<String, dynamic> state, void Function()? beforeChange) async {
     final apps = state['apps'] as Map<String, dynamic>;
     // Entries with nothing left go; so do those whose app was uninstalled.
     apps.removeWhere(
@@ -606,7 +608,8 @@ final class ShortcutService {
           launchTargetMissing(e['launch'] as List),
     );
     try {
-      await backend!.save(state);
+      beforeChange?.call();
+      await backend!.save(state, beforeChange: beforeChange);
     } on ServiceError {
       rethrow;
     } on Object catch (e) {
@@ -638,7 +641,7 @@ final class ShortcutService {
   /// of another launcher shortcut moves here, a key of the desktop or the
   /// user's own shortcut is taken while this one exists. With `editing`, the
   /// shortcut being changed goes (a launcher one) or is turned off (another).
-  Future<Map<String, dynamic>> assign(Map app, Map<String, dynamic> params) => _locked(() async {
+  Future<Map<String, dynamic>> assign(Map app, Map<String, dynamic> params, {void Function()? beforeChange}) => _locked(() async {
     await _writable();
     if (appLaunchArgv(app) == null) throw ServiceError('bad_params');
     final combo = mapCombo(params);
@@ -681,7 +684,7 @@ final class ShortcutService {
       if (picked.isNotEmpty) 'label': actionName(app, picked),
     };
     (entry['shortcuts'] as List).add(added);
-    return {...await _commit(state), 'level': level, 'owner': owner};
+    return {...await _commit(state, beforeChange), 'level': level, 'owner': owner};
   });
 
   static Map<String, dynamic> _disabledFrom(Map bind) => {
@@ -692,7 +695,7 @@ final class ShortcutService {
   };
 
   /// remove_shortcut: the launcher shortcut goes; a key it took works again.
-  Future<Map<String, dynamic>> remove(Map app, Map<String, dynamic> params) => _locked(() async {
+  Future<Map<String, dynamic>> remove(Map app, Map<String, dynamic> params, {void Function()? beforeChange}) => _locked(() async {
     await _writable();
     final cid = comboId(anyCombo(params['combo']));
     final (state0, _) = await _snapshot(fresh: true);
@@ -701,11 +704,11 @@ final class ShortcutService {
     final before = (entry['shortcuts'] as List).length;
     entry['shortcuts'] = [for (final c in entry['shortcuts'] as List) if (comboId(c) != cid) c];
     if ((entry['shortcuts'] as List).length == before) throw ServiceError('not_found');
-    return _commit(state);
+    return _commit(state, beforeChange);
   });
 
   /// disable_external_shortcut: another binding that opens the app is turned off.
-  Future<Map<String, dynamic>> disable(Map app, Map<String, dynamic> params) => _locked(() async {
+  Future<Map<String, dynamic>> disable(Map app, Map<String, dynamic> params, {void Function()? beforeChange}) => _locked(() async {
     await _writable();
     final cid = comboId(anyCombo(params['combo']));
     final (state0, bindings) = await _snapshot(fresh: true);
@@ -713,18 +716,18 @@ final class ShortcutService {
     if (bind == null) throw ServiceError('not_found');
     final state = _copy(state0);
     (_appEntry(state, app)['disabled'] as List).add(_disabledFrom(bind));
-    return _commit(state);
+    return _commit(state, beforeChange);
   });
 
   /// restore_external_shortcut: a turned-off binding works again.
-  Future<Map<String, dynamic>> restore(Map app, Map<String, dynamic> params) => _locked(() async {
+  Future<Map<String, dynamic>> restore(Map app, Map<String, dynamic> params, {void Function()? beforeChange}) => _locked(() async {
     await _writable();
     final cid = comboId(anyCombo(params['combo']));
     final (state0, _) = await _snapshot(fresh: true);
     final state = _copy(state0);
     final entry = _appEntry(state, app);
     entry['disabled'] = [for (final c in entry['disabled'] as List) if (comboId(c) != cid) c];
-    return _commit(state);
+    return _commit(state, beforeChange);
   });
 
   /// Every shortcut that opens each of [apps] now, of any source (the

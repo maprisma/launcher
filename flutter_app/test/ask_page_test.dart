@@ -137,7 +137,7 @@ void main() {
     uninstallAll: (apps) async {},
     update: (app) async {},
     updateAppImage: (app) async {},
-    updateSystem: () async {},
+    updateSystem: ({String? proposal}) async {},
     details: (app) async {},
     updateKind: (app) => null,
     setHidden: (app, hidden) async {},
@@ -152,6 +152,70 @@ void main() {
     await tester.tap(find.byTooltip('Ask'));
     await tester.pumpAndSettle();
   }
+
+  testWidgets('rules disable an Ask install and link to the shared AI page', (tester) async {
+    Future<Map<String, dynamic>> restricted(String method, [Map<String, dynamic> params = const {}]) async {
+      if (method == 'ask.rules') { asked.add({'method': method}); return {'level': 'answers'}; }
+      return fake(method, params);
+    }
+    asked.clear();
+    helpersReady = true;
+    await tester.pumpWidget(MaterialApp(home: AskPage(core: restricted, apps: apps, actions: actions())));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'find paint');
+    await tester.tap(find.byTooltip('Ask'));
+    await tester.pumpAndSettle();
+    expect(asked.where((r) => r['method'] == 'ask.rules'), hasLength(1));
+    expect(find.text('Install…'), findsNothing);
+    final disabled = find.widgetWithText(TextButton, 'Switched off in Maprisma Settings › AI');
+    expect(tester.widget<TextButton>(disabled).onPressed, isNull);
+    expect(asked.where((r) => r['method'] == 'packages.install'), isEmpty);
+    await tester.tap(find.text('Maprisma Settings › AI'));
+    await tester.pumpAndSettle();
+    expect(asked.last['method'], 'ask.settings');
+  });
+
+  testWidgets('answers-only keeps shortcut answers readable and disables their mutations', (tester) async {
+    Future<Map<String, dynamic>> restricted(String method, [Map<String, dynamic> params = const {}]) async =>
+        method == 'ask.rules' ? {'level': 'answers'} : fake(method, params);
+    helpersReady = true;
+    await tester.pumpWidget(MaterialApp(home: AskPage(core: restricted, apps: apps, actions: actions())));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'shortcuts of all');
+    await tester.tap(find.byTooltip('Ask'));
+    await tester.pumpAndSettle();
+    expect(find.text('Shortcuts for Pinta'), findsOneWidget);
+    expect(find.text('Super'), findsWidgets);
+    expect(
+      tester.widget<IconButton>(find.ancestor(of: find.byTooltip('Remove this shortcut'), matching: find.byType(IconButton)).first).onPressed,
+      isNull,
+    );
+    expect(find.text('Switched off in Maprisma Settings › AI'), findsOneWidget);
+  });
+
+  testWidgets('Ask passes the core proposal through installed-app callbacks', (tester) async {
+    String? proposal;
+    final base = actions();
+    final withCapture = (
+      open: base.open, uninstall: base.uninstall, uninstallAll: base.uninstallAll,
+      update: base.update, updateAppImage: base.updateAppImage, updateSystem: base.updateSystem,
+      details: base.details, updateKind: base.updateKind,
+      setHidden: (Map app, bool hidden) async { proposal = app['proposal'] as String?; },
+    );
+    Future<Map<String, dynamic>> proposed(String method, [Map<String, dynamic> params = const {}]) async {
+      final r = await fake(method, params);
+      return method == 'ask.run' ? {...r, 'proposals': {'k4': 'core-id'}} : r;
+    }
+    helpersReady = true;
+    await tester.pumpWidget(MaterialApp(home: AskPage(core: proposed, apps: apps, actions: withCapture)));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'hidden');
+    await tester.tap(find.byTooltip('Ask'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Unhide'));
+    await tester.pumpAndSettle();
+    expect(proposal, 'core-id');
+  });
 
   testWidgets('no per-question web switch; nothing found says when web search is off or needs Claude Code',
       (tester) async {
@@ -258,7 +322,7 @@ void main() {
         await flatpak.future;
       },
       updateAppImage: (Map app) async => done.add('appimage ${app['name']}'),
-      updateSystem: () async => done.add('system'),
+      updateSystem: ({String? proposal}) async => done.add('system'),
       details: (Map app) async {},
       setHidden: (Map app, bool hidden) async {},
       updateKind: (Map app) => switch (app['key']) {
@@ -304,7 +368,7 @@ void main() {
         await flatpak.future;
       },
       updateAppImage: (Map app) async => done.add('appimage ${app['name']}'),
-      updateSystem: () async => done.add('system'),
+      updateSystem: ({String? proposal}) async => done.add('system'),
       details: (Map app) async {},
       setHidden: (Map app, bool hidden) async {},
       updateKind: (Map app) => switch (app['key']) {

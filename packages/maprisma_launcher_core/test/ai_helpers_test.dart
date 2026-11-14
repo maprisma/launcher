@@ -226,7 +226,7 @@ echo "the answer"
       expect(readAiChoice(s), 'auto');
       expect(() => writeAiChoice(s, '--evil'), throwsArgumentError);
       expect(() => writeAiChoice(s, ''), throwsArgumentError);
-      expect(Directory(p.dirname(w.shared)).listSync().map((e) => p.basename(e.path)), ['settings.json'],
+      expect(Directory(p.dirname(w.shared)).listSync().map((e) => p.basename(e.path)), unorderedEquals(['settings.json', 'settings.lock']),
           reason: 'no temporary file left');
     });
 

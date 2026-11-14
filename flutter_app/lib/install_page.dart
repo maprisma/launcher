@@ -196,7 +196,7 @@ void tell(String text) => ScaffoldMessenger.of(context)
   ..showSnackBar(SnackBar(content: Text(text)));
   Map<String, dynamic> plan;
   try {
-    plan = await core('packages.install_plan', {'manager': found['manager'], 'package': found['package']});
+    plan = await core('packages.install_plan', {'manager': found['manager'], 'package': found['package'], 'proposal': ?found['proposal']});
   } on ServiceError catch (e) {
     tell(trf('That did not work ({0}).', [e.code]));
     return;
@@ -255,7 +255,7 @@ void tell(String text) => ScaffoldMessenger.of(context)
   if (go != true || !context.mounted) return;
   if (plan['local'] == true) {
     try {
-      await core('packages.install', {'manager': 'local', 'package': found['package']});
+      await core('packages.install', {'manager': 'local', 'package': found['package'], 'proposal': ?found['proposal']});
       onInstalled?.call();
     } on ServiceError catch (e) {
       tell(switch (e.reason) {
@@ -270,11 +270,11 @@ void tell(String text) => ScaffoldMessenger.of(context)
   final code = await runInTerminal(
     context,
     core,
-    {'action': 'install', 'manager': found['manager'], 'package': found['package']},
+    {'action': 'install', 'manager': found['manager'], 'package': found['package'], 'proposal': ?found['proposal']},
     trf('Installing {0}…', [found['name'] ?? found['package']]),
     outside: () async {
       try {
-        await core('packages.install', {'manager': found['manager'], 'package': found['package']});
+        await core('packages.install', {'manager': found['manager'], 'package': found['package'], 'proposal': ?found['proposal']});
       } on ServiceError {
         tell(tr('No terminal found.'));
       }

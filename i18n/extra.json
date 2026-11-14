@@ -258,7 +258,9 @@
     "AppImage in Downloads": "AppImage in Downloads",
     "Copies to Applications. No network or password is needed.": "Kopiert nach Applications. Netzwerk und Passwort sind nicht nötig.",
     "The file changed since the review.": "Die Datei hat sich seit der Prüfung geändert.",
-    "A different file already exists at the destination.": "Am Ziel existiert bereits eine andere Datei."
+    "A different file already exists at the destination.": "Am Ziel existiert bereits eine andere Datei.",
+    "Switched off in Maprisma Settings › AI": "In Maprisma Settings › KI ausgeschaltet",
+    "Maprisma Settings › AI": "Maprisma Settings › KI"
   },
   "es": {
     "\u0004Shortcuts of {0} app": [
@@ -519,7 +521,9 @@
     "AppImage in Downloads": "AppImage en Descargas",
     "Copies to Applications. No network or password is needed.": "Se copia a Applications. No se necesita red ni contraseña.",
     "The file changed since the review.": "El archivo ha cambiado desde la revisión.",
-    "A different file already exists at the destination.": "Ya existe un archivo diferente en el destino."
+    "A different file already exists at the destination.": "Ya existe un archivo diferente en el destino.",
+    "Switched off in Maprisma Settings › AI": "Desactivado en Maprisma Settings › IA",
+    "Maprisma Settings › AI": "Maprisma Settings › IA"
   },
   "fr": {
     "\u0004Shortcuts of {0} app": [
@@ -780,7 +784,9 @@
     "AppImage in Downloads": "AppImage dans Téléchargements",
     "Copies to Applications. No network or password is needed.": "Copie dans Applications. Aucun réseau ni mot de passe nécessaire.",
     "The file changed since the review.": "Le fichier a changé depuis la vérification.",
-    "A different file already exists at the destination.": "Un fichier différent existe déjà à la destination."
+    "A different file already exists at the destination.": "Un fichier différent existe déjà à la destination.",
+    "Switched off in Maprisma Settings › AI": "Désactivé dans Maprisma Settings › IA",
+    "Maprisma Settings › AI": "Maprisma Settings › IA"
   },
   "it": {
     "\u0004Shortcuts of {0} app": [
@@ -1041,7 +1047,9 @@
     "AppImage in Downloads": "AppImage in Download",
     "Copies to Applications. No network or password is needed.": "Copia in Applications. Non servono rete o password.",
     "The file changed since the review.": "Il file è cambiato dopo la verifica.",
-    "A different file already exists at the destination.": "Esiste già un file diverso nella destinazione."
+    "A different file already exists at the destination.": "Esiste già un file diverso nella destinazione.",
+    "Switched off in Maprisma Settings › AI": "Disattivato in Maprisma Settings › IA",
+    "Maprisma Settings › AI": "Maprisma Settings › IA"
   },
   "nl": {
     "\u0004Shortcuts of {0} app": [
@@ -1302,7 +1310,9 @@
     "AppImage in Downloads": "AppImage in Downloads",
     "Copies to Applications. No network or password is needed.": "Kopieert naar Applications. Geen netwerk of wachtwoord nodig.",
     "The file changed since the review.": "Het bestand is gewijzigd sinds de controle.",
-    "A different file already exists at the destination.": "Er bestaat al een ander bestand op de bestemming."
+    "A different file already exists at the destination.": "Er bestaat al een ander bestand op de bestemming.",
+    "Switched off in Maprisma Settings › AI": "Uitgeschakeld in Maprisma Settings › AI",
+    "Maprisma Settings › AI": "Maprisma Settings › AI"
   },
   "pl": {
     "\u0004Shortcuts of {0} app": [
@@ -1568,7 +1578,9 @@
     "AppImage in Downloads": "AppImage w Pobranych",
     "Copies to Applications. No network or password is needed.": "Kopiuje do Applications. Sieć ani hasło nie są potrzebne.",
     "The file changed since the review.": "Plik zmienił się od czasu sprawdzenia.",
-    "A different file already exists at the destination.": "W miejscu docelowym istnieje już inny plik."
+    "A different file already exists at the destination.": "W miejscu docelowym istnieje już inny plik.",
+    "Switched off in Maprisma Settings › AI": "Wyłączone w Maprisma Settings › AI",
+    "Maprisma Settings › AI": "Maprisma Settings › AI"
   },
   "pt": {
     "\u0004Shortcuts of {0} app": [
@@ -1829,6 +1841,8 @@
     "AppImage in Downloads": "AppImage em Downloads",
     "Copies to Applications. No network or password is needed.": "Copia para Applications. Não precisa de rede nem de senha.",
     "The file changed since the review.": "O arquivo mudou desde a revisão.",
-    "A different file already exists at the destination.": "Já existe um arquivo diferente no destino."
+    "A different file already exists at the destination.": "Já existe um arquivo diferente no destino.",
+    "Switched off in Maprisma Settings › AI": "Desativado em Maprisma Settings › IA",
+    "Maprisma Settings › AI": "Maprisma Settings › IA"
   }
 }

@@ -12,7 +12,7 @@ A request is `{"id", "protocol": 1, "method", "params"}`, the answer `{"id", "re
 | `apps.launch` | `key` | `started`; errors `unknown_app`, `launch_failed` |
 | `apps.action` | `key`, `action` | as apps.launch, for one of the entry's own actions |
 | `apps.sections` | `view` (groups, origin), `keys` (the shown entries, in order) | `sections` [{`id`, `keys`}], plus the groups |
-| `apps.hide` | `key`, `hidden` | `hidden` |
+| `apps.hide` | `proposal`?, `key`, `hidden` | `hidden` |
 | `apps.facts` | — | `facts`: {app key: size, package, version, … (details.app_facts)} |
 | `apps.running` | — | `running` (app keys); on Omarchy and COSMIC also `states` {key: `active` (open windows) or `background`} |
 | `apps.windows` | `key` | `windows` (the app's Hyprland or COSMIC windows: `address`, `title`, `workspace`; empty on desktops without a window source) |
@@ -22,7 +22,7 @@ A request is `{"id", "protocol": 1, "method", "params"}`, the answer `{"id", "re
 | `apps.open_on_workspace` | `key`, `workspace` (int) | `started`; `bad_params`, `launch_failed` |
 | `workspaces.list` | — | `workspaces` (in use, with their apps), `free` (the next empty one) |
 | `window.popup` | `width`, `height` | Omarchy: the popup floated and centred (`placed`); elsewhere `placed` false |
-| `term.start` | `action` (`install` + `manager`, `package` from the last search; `uninstall` + `key`; `uninstall_all` + `keys`, `manager`: that manager's packages of the combined plan, minus blocked ones, in one line; `system`), `cols`?, `rows`? | `id`, `command` (shown); the program runs in a pseudo terminal (setsid -w -c, sudo asks there); `not_found`, `not_terminal` (nothing needs a terminal / the desktop's own updater), `no_pty`, `busy` (4 at once) |
+| `term.start` | `proposal`?, `action` (`install` + `manager`, `package` from the last search; `uninstall` + `key`; `uninstall_all` + `keys`, `manager`: that manager's packages of the combined plan, minus blocked ones, in one line; `system`), `cols`?, `rows`? | `id`, `command` (shown); the program runs in a pseudo terminal (setsid -w -c, sudo asks there); `not_found`, `not_terminal` (nothing needs a terminal / the desktop's own updater), `no_pty`, `busy` (4 at once) |
 | `term.read` | `id` | `data` (base64, the output since the last read, at most 1 MiB kept), `ended`, `code` |
 | `term.write` / `term.resize` / `term.close` | `id` + `data` (base64, ≤ 64 KiB) / `cols`, `rows` / — | `accepted`, `ended` / `resized` / `closed` (a running program gets a hangup) |
 | `apps.quit_check` | `key` | `label`: the app's own tray Quit entry (StatusNotifierItem menu), or null |
@@ -31,18 +31,20 @@ A request is `{"id", "protocol": 1, "method", "params"}`, the answer `{"id", "re
 | `admin.enable` | `on` | `enabled`; turning it on asks polkit for the password first (`not_confirmed`) |
 | `apps.admin_check` / `apps.admin_launch` | `key` | `can` / `started`; `not_enabled`, `launch_failed` |
 | `apps.uninstall_plan` | `key` | `kind` (null, `flatpak`, `package` + `manager`, `webapp`, `omarchy` + `how`, `trash`), `what`, `warnings`, `needed_by` (packages: installed packages that still need it) |
-| `apps.uninstall` | `key` | what the plan said: started in a terminal, or done |
+| `apps.uninstall` | `proposal`?, `key` | what the plan said: started in a terminal, or done |
 | `apps.uninstall_all_plan` | `keys` | `packages` (per `manager`: `what` (each once), `apps`, `omarchy`), `blocked` (`what`, `needed_by`, `apps`: other installed packages still need it, pacman would refuse), `others` (no terminal: trash, Flatpak, Omarchy entries), `skipped` (web apps, nothing owns it) |
 | `updates.check` | `force`? | `apps` {desktop path: [package, old, new]}, `flatpaks` {key: …}, `appimages` {key: release details}, `appimage_unknown` {key: reason}, `appimage_restorable` [keys], `checked` |
-| `updates.flatpak` | `key` | the updates; `bad_params`, `update_failed` |
-| `updates.appimage` | `key` | installs a verified newer AppImage from embedded GitHub update information at its existing path, keeping the previous binary as `.bak`; `no_update`, `busy`, `update_failed` |
-| `updates.appimage_restore` | `key` | swaps the previous AppImage back into its existing path; `busy`, `restore_failed` |
-| `updates.system` | — | `started` (the desktop's own updater); `no_updater` |
+| `updates.flatpak` | `proposal`?, `key` | the updates; `bad_params`, `update_failed` |
+| `updates.appimage` | `proposal`?, `key` | installs a verified newer AppImage from embedded GitHub update information at its existing path, keeping the previous binary as `.bak`; `no_update`, `busy`, `update_failed` |
+| `updates.appimage_restore` | `proposal`?, `key` | swaps the previous AppImage back into its existing path; `busy`, `restore_failed` |
+| `updates.system` | `proposal`? | `started` (the desktop's own updater); `no_updater` |
 | `packages.managers` | — | `managers` [{`id`, `label`, `program`, `enabled`}] |
 | `packages.search` | `query` | `results` of the enabled managers and public GitHub repositories (`manager: github`, `installable`), `github_unavailable` (GitHub failed; package results kept) |
-| `packages.install_plan` / `packages.install` | `manager`, `package` (from the last search) | `argv`, `command` (shown), `aur`, `github`? (a checksum-verified AppImage into `~/Applications`) / `started`; `not_found`, `no_terminal` |
+| `packages.install_plan` / `packages.install` | `proposal`?, `manager`, `package` (from the last search) | `argv`, `command` (shown), `aur`, `github`? (a checksum-verified AppImage into `~/Applications`) / `started`; `not_found`, `no_terminal` |
 | `ask.helpers` | — | `helpers` [{`command` (the helper id: every agent of Maprisma's helpers catalog with an `ask` — `/usr/lib/maprisma/data/helpers.json` when at least as new as the shipped copy — in its order; claude, codex, agy, pi and hermes with the Launcher's own stricter setups and always listed, other catalog agents only when installed; then `pi:<provider>/<model>` for pi's other models), `name`, `installed`, `signed_in` (a catalog agent: when installed), `local`? (runs on this PC), `catalog`? (run by the catalog's argv), `verified` (false: "(untested)"), `login`, `note`}], `choice` (the shared choice of all Maprisma apps, `${XDG_CONFIG_HOME:-~/.config}/maprisma-ai/settings.json` key `helper`: `auto` or an id; missing/invalid = `auto`; before that file exists, the Launcher's former `ask_helper`), `chosen` (the id it means now: the chosen one when installed, else the first installed that seems signed in, else the first installed; null when none), `web_search` (the shared file's boolean `web_search`, set in Maprisma Settings › AI; missing/invalid = false), `web_helpers` (helper ids with a web-only mode: `claude`), `shared_file` |
 | `ai.helper.set` | `helper` (`auto` or an id matching `^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,160}$`) | writes the shared choice (other keys kept; tmp + rename, folder 0700, file 0600) and answers as `ask.helpers`; `bad_params`, `write_failed` |
+| `ask.rules` | — | current shared rules: `level`, `actions`, `sources`, `folders`, `broken`; reads again on each call |
+| `ask.settings` | — | `started`: detached `maprisma-settings --page ai`, argv without a shell |
 | `ask.run` | `helper` (optional for an explicit GitHub request), `request`, `answer`?, `language`? | explicit GitHub listing/install requests or repository URLs search public repository names and descriptions (an installed helper may suggest close spelling corrections, checked lexically): picks include repositories without installers (`installable: false`, Open via `open.url`); compatible checksummed AppImage picks have `installable: true`, `manager: github`, `repository`, `asset`, `url`, `sha256`; `source: github`; API errors: `github_failed`. General searches include GitHub too (`github_unavailable` on a partial failure). Web discovery (below): `web: true`, `web_found` [{`site`?, `repository`}]; an install answer with no picks carries `web_search` `off` / `unsupported`. Otherwise the checked answer: `action` install (`picks`, `installed`, `summary`), remove / update / explain / hide / unhide (`apps`), list_hidden (`apps`: the hidden ones, from the core), shortcuts (`apps`; none named: every app with a shortcut, from the core), remove_shortcut (`apps`, `shortcut` label to mark), add_shortcut (`apps`: one, `mods`, `key`? — a proposal the shortcut card presets), update_system, clarify (`question`, `choices`), redirect (`hint`); `no_helper`, `helper_failed` (with the reason) |
 | `ask.cancel` / `ask.signin` | — / `command` | `cancelled` / `started` (the helper's login in a terminal; `bad_params` for a catalog agent, which has no login here) |
 | `icons.search` | `key`, `query` | `theme` [{`name`, `file`}], `online` [{`collection`, `slug`, `url`}] |
@@ -58,8 +60,8 @@ A request is `{"id", "protocol": 1, "method", "params"}`, the answer `{"id", "re
 | `groups.add` | `name`, `key`? | the groups, `result` = new id |
 | `groups.rename` / `groups.delete` / `groups.move` / `groups.reorder` / `groups.toggle` | `id` (+ `name` / `delta` ±1 / `target`, `after`) | the groups |
 | `shortcuts.state` | `key`, `mods`? (the key map's modifiers), `action`?, `editing`? ({`mods`, `key`, `action`, `external`}: the shortcut being changed), `fresh`? (read the desktop again) | `available`, `desktop` (GNOME, COSMIC, Omarchy; null on generic), `default_mods`, `actions`, `shortcuts` [{`mods`, `key`, `then`?, `label`, `source` (launcher, external), `action`, `replaces`, `duplicate` / `file`, `description`}], `disabled` [{…, `description`, `source`}], then `keys` [{`key`, `label`, `level`, `owner`}] for every key of the map (with `mods`) or `suggestions` (without) |
-| `shortcuts.set` | `key`, `mods`, `combo_key` (one of the key map's keys), `action`?, `editing`? | `saved`, `level`, `owner`; `refused` when the key already does this, `not_available`, `not_applied` (the desktop refused it; nothing changed) |
-| `shortcuts.remove` / `shortcuts.disable` / `shortcuts.restore` | `key`, `combo` {`mods`, `key`, `then`?} | `saved`; `not_found` |
+| `shortcuts.set` | `proposal`?, `key`, `mods`, `combo_key` (one of the key map's keys), `action`?, `editing`? | `saved`, `level`, `owner`; `refused` when the key already does this, `not_available`, `not_applied` (the desktop refused it; nothing changed) |
+| `shortcuts.remove` / `shortcuts.disable` / `shortcuts.restore` | `proposal`?, `key`, `combo` {`mods`, `key`, `then`?} | `saved`; `not_found` |
 | `shortcuts.labels` | — | `labels`: {app key: [combo labels]} of the launcher's shortcuts |
 | `shortcuts.default_mods` | `mods` (empty: back to Super + Shift) | `default_mods` |
 | `dock.state` | — | `settings` (dock_*: dock_core.settings), `bar` (shell.json's edge), `edge` (never the bar's), `sizes` {`band`, `item`, `room`, `grow`}, `available` (Omarchy, Hyprland and gtk-layer-shell), `reason` (`not_omarchy`, `no_layer_shell`), `look`, `indicator_color`, `corners`, `watch` (files the dock follows) |
@@ -119,3 +121,59 @@ SHA-256, copies to a staging file on the destination filesystem, fsyncs, chmods
 destinations are accepted; differing destinations are refused. Changed sources
 return `local_install_failed` with reason `the file changed since the review`.
 Success returns `{started: true, installed: true}` and rescans standalone apps.
+
+## Shared Ask AI rules and provenance
+
+Contract: [Settings' ask-ai-rules.md](../../maprisma-settings/docs/ask-ai-rules.md).
+`ask.run` attaches a random, session-only core-issued `proposal` to each install
+pick. Installed-app actions (including mutation controls inside shortcut and
+hidden-app lists) return `proposals: {appKey: id}`. Update answers also return
+`system_proposal` for the whole-system button. Each id binds the action id(s),
+target (exact package filename/id or app key, `system` for system updates), and
+install source. It survives reviews, shortcut edits, batch operations, embedded
+terminals and outside-terminal fallbacks. Manual operations omit `proposal`.
+
+Every execution route annotated above checks the id, action, target and source
+and re-reads the rules. It checks again after asynchronous preparation, before
+the first change (including AppImage downloads and shortcut desktop snapshots).
+`packages.install_plan` carries provenance through review but does not execute
+or log a step. Unknown, mismatched, expired (after core restart) or disabled
+proposals return `ask_ai_blocked` with message exactly
+`Switched off in Maprisma Settings › AI` and append `blocked` to the shared log.
+
+For `term.start` with `action: uninstall_all`, `proposal` is a map `{appKey: id}`
+covering every requested `keys` member, rather than one unbound batch id. The
+combined plan still excludes packages needed by other apps. After preparation,
+only the selected manager group's executed targets are logged, each with its own
+proposal as `op`. Other steps accept a single string id.
+
+Mapping: installs → `launcher.install` (sources pacman/aur/apt/dnf/zypper/flatpak/
+snap/github/local); uninstall → `launcher.remove`; per-app updates and restore →
+`launcher.update`; whole-system update → `launcher.update_system`; hide/unhide →
+`launcher.hide`; all four shortcut changes → `launcher.shortcuts`. All action
+switches in a proposal must allow execution. `ask.rules` supplies the GUI's
+current display state; disabled actions stay visible with the shared-settings
+link. Execution always checks the latest state independently of that display.
+
+Rules live in `${XDG_CONFIG_HOME:-~/.config}/maprisma-ai/settings.json`.
+Missing file/key means review/default allow; unreadable, oversized (>64 KiB) or
+malformed data is restrictive. Explicit JSON nulls are malformed (unlike absent
+keys), including null maps, levels and `ask_ai`. Unknown ids are ignored.
+Downloads off prevents both Ask-only scan paths and blocks previously issued
+local-install proposals, including cached reviews. Manual Install apps search
+and execution remain available. Source switches do not hide discoveries.
+
+The helper writer takes libc `flock(LOCK_EX)` on persistent `settings.lock`,
+reads under the lock, refuses an existing unreadable/malformed file, writes a
+0600 O_EXCL temp, fsyncs and renames. Other keys are preserved. Actions use
+`${XDG_STATE_HOME:-~/.local/state}/maprisma-ai/actions.jsonl`, with persistent
+`actions.lock` and the same libc flock. Owned regular descriptors are opened
+O_NOFOLLOW; complete UTF-8 records use `time`, `op`, `app: launcher`, `action`,
+`target` (max 200 characters), `result`. Rotation (>1000 lines or 1 MiB) keeps
+500 complete lines under the lock, with a synced exclusive temp and rename.
+Logging failures never prevent execution. Direct work logs `done`/`failed`;
+terminal handoff logs `started`. Embedded-terminal polling records known
+`done`/`failed` outcomes once; closing a running terminal logs `cancelled`.
+Detached terminal outcomes remain `started` because they cannot be observed.
+Merely displaying a disabled action or cancelling an unexecuted review creates
+no log entry.

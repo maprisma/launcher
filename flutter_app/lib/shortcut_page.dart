@@ -65,6 +65,7 @@ class ShortcutPage extends StatefulWidget {
     required this.core,
     required this.app,
     this.embedded = false,
+    this.readOnly = false,
     this.full = true,
     this.mods,
     this.comboKey,
@@ -73,6 +74,7 @@ class ShortcutPage extends StatefulWidget {
   final CoreCall core;
   final Map app;
   final bool embedded;
+  final bool readOnly;
   final bool full;
   final List<String>? mods;
   final String? comboKey;
@@ -233,10 +235,10 @@ class ShortcutPageState extends State<ShortcutPage> {
       mods.toSet().containsAll(a['mods'] as List);
 
   Future<bool> _commit(String method, Map<String, dynamic> params, String done) async {
-    if (busy) return false;
+    if (busy || widget.readOnly) return false;
     setState(() => busy = true);
     try {
-      await widget.core(method, {'key': widget.app['key'], ...params});
+      await widget.core(method, {'key': widget.app['key'], 'proposal': ?widget.app['proposal'], ...params});
       if (!mounted) return true;
       setState(() {
         message = done;
@@ -331,6 +333,7 @@ class ShortcutPageState extends State<ShortcutPage> {
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (widget.readOnly) return KeyEventResult.ignored;
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final keyboard = HardwareKeyboard.instance;
     final held = [
@@ -474,11 +477,11 @@ class ShortcutPageState extends State<ShortcutPage> {
             s,
             note: note,
             tag: tr('Launcher'),
-            onChange: () => change(s),
+            onChange: widget.readOnly ? null : () => change(s),
             button: IconButton(
               icon: const Icon(Icons.close, size: 18),
               tooltip: tr('Remove this shortcut') + (replaces.isNotEmpty ? ' — ${trf('“{0}” works again', [replaces])}' : ''),
-              onPressed: busy ? null : () => remove(s),
+              onPressed: busy || widget.readOnly ? null : () => remove(s),
             ),
           ),
         );
@@ -497,11 +500,11 @@ class ShortcutPageState extends State<ShortcutPage> {
             s,
             note: note,
             tag: file,
-            onChange: () => change(s),
+            onChange: widget.readOnly ? null : () => change(s),
             button: IconButton(
               icon: const Icon(Icons.close, size: 18),
               tooltip: tr('Turn off — you can turn it back on here'),
-              onPressed: busy ? null : () => turnOff(s),
+              onPressed: busy || widget.readOnly ? null : () => turnOff(s),
             ),
           ),
         );
@@ -519,7 +522,7 @@ class ShortcutPageState extends State<ShortcutPage> {
           note: tr('Turned off') + (description.isNotEmpty ? ' · ${trf('was “{0}”', [description])}' : ''),
           tag: '${s['source'] ?? desktop}',
           button: TextButton(
-            onPressed: busy ? null : () => turnOn(s),
+            onPressed: busy || widget.readOnly ? null : () => turnOn(s),
             child: Tooltip(message: tr('Use this shortcut again'), child: Text(tr('Turn on'))),
           ),
         ),
@@ -637,6 +640,7 @@ class ShortcutPageState extends State<ShortcutPage> {
       'desktop' => marks.update,
       _ => scheme.onSurfaceVariant,
     };
+    if (widget.readOnly) return _current();
     if (!full) {
       return [
         ..._current(),

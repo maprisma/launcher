@@ -5,6 +5,8 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
+import 'ask_ai_rules.dart';
 
 import 'package:path/path.dart' as p;
 
@@ -129,6 +131,13 @@ final class CoreService {
   /// The app's terminals (install, uninstall, system update), by id.
   final _terms = <String, PtySession>{};
   int _termCount = 0;
+  final _termProposals = <String, Map<String, dynamic>>{};
+  void _finishTerm(String id, PtySession pty, {bool closing = false}) {
+    if (!pty.ended && !closing) return;
+    final params = _termProposals.remove(id);
+    if (params != null) _logSteps('term.start', params,
+        !pty.ended ? 'cancelled' : pty.exitCode == 0 ? 'done' : 'failed');
+  }
 
   /// The dock's settings and pinned apps (settings.json, keys dock_*).
   late final dock = DockStore(store);
@@ -161,7 +170,7 @@ final class CoreService {
     String,
     Future<Map<String, dynamic>> Function(Map<String, dynamic>)
   >
-  routes = {
+  routes = _guardRoutes({
     'core.hello': (_) async => {
       'version': coreVersion,
       'protocol': protocolVersion,
@@ -308,12 +317,15 @@ final class CoreService {
     // update); the page shows the output and passes the keys on.
     'term.start': (params) async {
       final (argv, command) = await _termCommand(params);
+      _checkProposal('term.start', params);
       // Ended terminals nobody closed (the page went away): let them go.
       for (final id in [
         for (final e in _terms.entries)
           if (e.value.ended) e.key,
       ]) {
-        _terms.remove(id)?.close();
+        final ended = _terms.remove(id)!;
+        _finishTerm(id, ended);
+        ended.close();
       }
       _updatesAt = null; // An install or update changes what is out of date.
       if (_terms.values.where((t) => !t.ended).length >= 4) {
@@ -332,10 +344,12 @@ final class CoreService {
       );
       if (pty == null) throw ServiceError('no_pty');
       _terms[id] = pty;
+      if (params.containsKey('proposal')) _termProposals[id] = Map.of(params);
       return {'id': id, 'command': command};
     },
     'term.read': (params) async {
       final pty = _term(params);
+      _finishTerm('${params['id']}', pty);
       return {
         'data': base64Encode(pty.take()),
         'ended': pty.ended,
@@ -364,6 +378,7 @@ final class CoreService {
     },
     'term.close': (params) async {
       final pty = _terms.remove('${params['id']}');
+      if (pty != null) _finishTerm('${params['id']}', pty, closing: true);
       pty?.close();
       return {'closed': pty != null};
     },
@@ -476,7 +491,9 @@ final class CoreService {
         final release = (_updates['appimages'] as Map?)?[key];
         if (release is! Map) throw ServiceError('no_update');
         try {
-          await AppImageUpdates(session).install(app, release);
+          await AppImageUpdates(session).install(app, release, beforeChange: () => _checkProposal('updates.appimage', params));
+        } on ServiceError {
+          rethrow;
         } on Object catch (e) {
           throw ServiceError('update_failed', '$e');
         }
@@ -494,11 +511,13 @@ final class CoreService {
       final key = appKey(app);
       if (!_appImageBusy.add(key)) throw ServiceError('busy');
       try {
-        await AppImageUpdates(session).restore(app);
+        await AppImageUpdates(session).restore(app, beforeChange: () => _checkProposal('updates.appimage_restore', params));
         _updatesAt = null;
         _facts.invalidate();
         await _listApps();
         return _updatesView();
+      } on ServiceError {
+        rethrow;
       } on Object catch (e) {
         throw ServiceError('restore_failed', '$e');
       } finally {
@@ -610,7 +629,12 @@ final class CoreService {
       }
       return _askHelpers();
     },
-    'ask.run': _askRun,
+    'ask.run': (params) async => _propose(await _askRun(params)),
+    'ask.rules': (_) async {
+      final r = readAskAiRules(session);
+      return {'level': r.level, 'actions': r.actions, 'sources': r.sources, 'folders': r.folders, 'broken': r.broken};
+    },
+    'ask.settings': (_) async => {'started': await startDetached(['maprisma-settings', '--page', 'ai'], session)},
     'ask.cancel': (_) async {
       _ask.cancel();
       return {'cancelled': true};
@@ -747,6 +771,7 @@ final class CoreService {
         return {'started': true, 'installed': true};
       }
       final plan = await _installPlan(params);
+      _checkProposal('packages.install', params);
       final command = plan['argv'] as List<String>;
       if (desktop.terminal() == null) throw ServiceError('no_terminal');
       if (!await startDetached(command, session)) {
@@ -755,16 +780,16 @@ final class CoreService {
       return {'started': true};
     },
     'apps.uninstall_plan': (params) async => _uninstallPlan(_app(params)),
-    'apps.uninstall': (params) => _uninstall(_app(params)),
+    'apps.uninstall': (params) => _uninstall(_app(params), beforeChange: () => _checkProposal('apps.uninstall', params)),
     'apps.uninstall_all_plan': (params) async => _uninstallAllPlan(params),
     'shortcuts.state': (params) async => shortcuts.view(_app(params), params),
-    'shortcuts.set': (params) async => shortcuts.assign(_app(params), params),
+    'shortcuts.set': (params) async => shortcuts.assign(_app(params), params, beforeChange: () => _checkProposal('shortcuts.set', params)),
     'shortcuts.remove': (params) async =>
-        shortcuts.remove(_app(params), params),
+        shortcuts.remove(_app(params), params, beforeChange: () => _checkProposal('shortcuts.remove', params)),
     'shortcuts.disable': (params) async =>
-        shortcuts.disable(_app(params), params),
+        shortcuts.disable(_app(params), params, beforeChange: () => _checkProposal('shortcuts.disable', params)),
     'shortcuts.restore': (params) async =>
-        shortcuts.restore(_app(params), params),
+        shortcuts.restore(_app(params), params, beforeChange: () => _checkProposal('shortcuts.restore', params)),
     'shortcuts.labels': (_) => shortcuts.labels(),
     'shortcuts.default_mods': (params) async {
       final mods = ShortcutService.mods(params['mods']);
@@ -898,7 +923,109 @@ final class CoreService {
       }
       return settings.read();
     },
+  });
+
+  final _proposals = <String, ({Set<String> actions, String target, String? source})>{};
+
+  String _proposal(Set<String> actions, String target, [String? source]) {
+    final random = Random.secure();
+    final id = List.generate(24, (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
+    _proposals[id] = (actions: actions, target: target, source: source);
+    return id;
+  }
+
+  Map<String, dynamic> _propose(Map<String, dynamic> result) {
+    final r = Map<String, dynamic>.from(result);
+    final action = switch (r['action']) {
+      'install' => 'launcher.install',
+      'remove' => 'launcher.remove',
+      'hide' || 'unhide' || 'list_hidden' => 'launcher.hide',
+      'shortcuts' || 'add_shortcut' || 'remove_shortcut' => 'launcher.shortcuts',
+      'update' => 'launcher.update',
+      _ => null,
+    };
+    if (action == 'launcher.install') {
+      r['picks'] = [for (final raw in r['picks'] as List? ?? []) {
+        ...Map<String, dynamic>.from(raw),
+        'proposal': _proposal({action!}, '${raw['package']}', '${raw['manager']}'),
+      }];
+    } else if (action != null) {
+      r['proposals'] = {for (final key in r['apps'] as List? ?? [])
+        '$key': _proposal({action}, '$key')};
+    }
+    if (r['action'] == 'update' || r['action'] == 'update_system') {
+      r['system_proposal'] = _proposal({'launcher.update_system'}, 'system');
+    }
+    return r;
+  }
+
+  String? _stepAction(String method, Map<String, dynamic> params) => switch (method) {
+    'packages.install' => 'launcher.install',
+    'apps.uninstall' => 'launcher.remove',
+    'apps.hide' => 'launcher.hide',
+    'shortcuts.set' || 'shortcuts.remove' || 'shortcuts.disable' || 'shortcuts.restore' => 'launcher.shortcuts',
+    'updates.flatpak' || 'updates.appimage' || 'updates.appimage_restore' => 'launcher.update',
+    'updates.system' => 'launcher.update_system',
+    'term.start' => switch (params['action']) {
+      'install' => 'launcher.install',
+      'uninstall' || 'uninstall_all' => 'launcher.remove',
+      'system' => 'launcher.update_system',
+      _ => null,
+    },
+    _ => null,
   };
+
+  List<({String id, String action, String target, String? source})> _steps(String method, Map<String, dynamic> params) {
+    final action = _stepAction(method, params);
+    if (action == null || !params.containsKey('proposal')) return [];
+    final targets = params['action'] == 'uninstall_all'
+        ? (params['_ask_targets'] as List? ?? params['keys'] as List? ?? []).map((e) => '$e').toList()
+        : [action == 'launcher.install' ? '${params['package']}' : action == 'launcher.update_system' ? 'system' : '${params['key']}'];
+    return [for (final target in targets) (
+      id: params['proposal'] is Map ? '${(params['proposal'] as Map)[target]}' : '${params['proposal']}',
+      action: action,
+      target: target,
+      source: action == 'launcher.install' ? '${params['manager']}' : null,
+    )];
+  }
+
+  void _logSteps(String method, Map<String, dynamic> params, String result) {
+    for (final step in _steps(method, params)) {
+      appendAskAiLog(session, op: step.id, app: 'launcher', action: step.action,
+          target: step.source == null ? step.target : '${step.target} (${step.source})', result: result);
+    }
+  }
+
+  void _checkProposal(String method, Map<String, dynamic> params) {
+    for (final step in _steps(method, params)) {
+      final p = _proposals[step.id];
+      if (p == null || !p.actions.contains(step.action) || p.target != step.target ||
+          p.source != step.source || !askAiAllowed(session, step.action, source: step.source)) {
+        _logSteps(method, params, 'blocked');
+        throw ServiceError('ask_ai_blocked', 'Switched off in Maprisma Settings › AI');
+      }
+    }
+    if (params.containsKey('proposal') && _stepAction(method, params) == null && method == 'term.start') {
+      throw ServiceError('ask_ai_blocked', 'Switched off in Maprisma Settings › AI');
+    }
+  }
+
+  Map<String, Future<Map<String, dynamic>> Function(Map<String, dynamic>)> _guardRoutes(
+      Map<String, Future<Map<String, dynamic>> Function(Map<String, dynamic>)> routes) =>
+    routes.map((method, route) => MapEntry(method, (params) async {
+      params.remove('_ask_targets');
+      _checkProposal(method, params);
+      try {
+        final result = await route(params);
+        if (_stepAction(method, params) != null) {
+          _logSteps(method, params, method == 'term.start' || (result['started'] == true && result['installed'] != true) ? 'started' : 'done');
+        }
+        return result;
+      } catch (e) {
+        if (e is! ServiceError || e.code != 'ask_ai_blocked') _logSteps(method, params, 'failed');
+        rethrow;
+      }
+    }));
 
   /// The dock's settings, the edge it really uses (never the bar's), its
   /// sizes, the theme, and whether it can run here.
@@ -1117,10 +1244,10 @@ final class CoreService {
   /// lookup must not erase package results or masquerade as "no matches".
   Future<({List<Found> results, bool githubUnavailable})> _searchApps(
     List<String> queries,
-    List<String> managers,
+    List<String> managers, {bool ask = false}
   ) async {
     final results = <Found>[
-      for (final f in await downloadedAppImages(session))
+      for (final f in (ask && readAskAiRules(session).folders['downloads'] == false ? <Found>[] : await downloadedAppImages(session)))
         if (queries.any(
           (q) =>
               q.toLowerCase().contains('${f['name']}'.toLowerCase()) ||
@@ -1350,7 +1477,7 @@ final class CoreService {
             },
     ];
     final managers = _enabledManagers();
-    final downloaded = await downloadedAppImages(session);
+    final downloaded = readAskAiRules(session).folders['downloads'] == false ? <Found>[] : await downloadedAppImages(session);
     String text;
     try {
       text = await _ask.run(
@@ -1390,7 +1517,7 @@ final class CoreService {
             request.split(RegExp(r'\s+')).length <= 3;
         final combined = await _searchApps([
           ...{if (literal) request, ...queries},
-        ], managers);
+        ], managers, ask: true);
         final merged = [
           ...downloaded,
           ...combined.results.where((f) => f['manager'] != 'local'),
@@ -1688,6 +1815,7 @@ final class CoreService {
             .where((g) => g['manager'] == manager)
             .firstOrNull;
         if (group == null) throw ServiceError('not_terminal');
+        params['_ask_targets'] = [for (final app in group['apps'] as List) app['key']];
         final argv = _managers.removeManyCommand(
           manager,
           (group['what'] as List).cast<String>(),
@@ -1898,9 +2026,10 @@ final class CoreService {
     return null;
   }
 
-  Future<Map<String, dynamic>> _uninstall(Map app) async {
+  Future<Map<String, dynamic>> _uninstall(Map app, {void Function()? beforeChange}) async {
     final plan = await _uninstallPlan(app);
     final what = plan['what'] as String?;
+    beforeChange?.call();
     switch (plan['kind']) {
       case 'omarchy':
         final remover = session.which('omarchy-remove-launcher-entry')!;
@@ -2053,8 +2182,10 @@ final class CoreService {
 
   void dispose() {
     for (final t in _terms.values) {
+      _finishTerm(t.id, t, closing: true);
       t.close();
     }
     _terms.clear();
+    _proposals.clear();
   }
 }

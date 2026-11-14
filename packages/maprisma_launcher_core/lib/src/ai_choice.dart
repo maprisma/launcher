@@ -10,6 +10,8 @@
 library;
 
 import 'dart:io';
+import 'dart:convert';
+import 'posix.dart';
 
 import 'package:path/path.dart' as p;
 
@@ -58,9 +60,24 @@ const webSearchHelpers = {'claude'};
 /// Store [value] as the shared choice; other keys in the file stay.
 void writeAiChoice(Session session, String value) {
   if (!validAiChoice(value)) throw ArgumentError.value(value, 'helper');
-  final store = _store(session);
-  final old = store.readJson(aiSettingsName);
-  store.writeJson(aiSettingsName, {if (old is Map) ...old.cast<String, dynamic>(), 'helper': value});
+  final dir = Directory(aiSettingsDir(session))..createSync(recursive: true);
+  chmodPath(dir.path, 0x1c0);
+  final path = sharedAiFile(session);
+  Posix.instance.withFlock(p.join(dir.path, 'settings.lock'), () {
+    if (sharedFileBroken(session)) {
+      throw FileSystemException("the shared AI settings can't be read: not changed", path);
+    }
+    final values = {...?readSharedObject(session), 'helper': value};
+    final tmp = File(p.join(dir.path, '.settings.json.$pid.${DateTime.now().microsecondsSinceEpoch}.tmp'));
+    try {
+      if (!Posix.instance.writeNewPrivate(tmp.path, utf8.encode('${const JsonEncoder.withIndent('  ').convert(values)}\n'))) {
+        throw FileSystemException('Could not write shared AI settings', tmp.path);
+      }
+      tmp.renameSync(path);
+    } finally {
+      if (tmp.existsSync()) tmp.deleteSync();
+    }
+  });
 }
 
 /// The helper id to use for [choice] among [states] (helperStates' entries):
@@ -74,3 +91,18 @@ String? resolveAiChoice(String choice, List<Map<String, dynamic>> states) {
   }
   return ((installed.where((h) => h['signed_in'] == true).firstOrNull ?? installed.firstOrNull)?['command']) as String?;
 }
+
+String sharedAiFile(Session session) => p.join(aiSettingsDir(session), aiSettingsName);
+Map<String, dynamic>? readSharedObject(Session session) {
+  try {
+    final bytes = Posix.instance.readRegular(sharedAiFile(session), 64 * 1024);
+    if (bytes == null) return null;
+    final value = jsonDecode(utf8.decode(bytes));
+    return value is Map<String, dynamic> ? value : null;
+  } on Object {
+    return null;
+  }
+}
+bool sharedFileBroken(Session session) =>
+    FileSystemEntity.typeSync(sharedAiFile(session), followLinks: false) != FileSystemEntityType.notFound &&
+    readSharedObject(session) == null;

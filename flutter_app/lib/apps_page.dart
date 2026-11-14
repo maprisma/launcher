@@ -806,7 +806,7 @@ class AppsPageState extends State<AppsPage> {
 
   Future<void> _setHidden(Map app, bool hidden) async {
     try {
-      await widget.core('apps.hide', {'key': app['key'], 'hidden': hidden});
+      await widget.core('apps.hide', {'key': app['key'], 'proposal': ?app['proposal'], 'hidden': hidden});
       await _load();
     } on ServiceError catch (e) {
       _tell(trf('Could not save ({0}).', [e.code]));
@@ -1187,7 +1187,7 @@ class AppsPageState extends State<AppsPage> {
   Future<void> _uninstall(Map app) async {
     Map<String, dynamic> plan;
     try {
-      plan = await widget.core('apps.uninstall_plan', {'key': app['key']});
+      plan = await widget.core('apps.uninstall_plan', {'key': app['key'], 'proposal': ?app['proposal']});
     } on ServiceError catch (e) {
       _tell(trf('That did not work ({0}).', [e.code]));
       return;
@@ -1328,7 +1328,7 @@ class AppsPageState extends State<AppsPage> {
       final code = await runInTerminal(
         context,
         widget.core,
-        {'action': 'uninstall', 'key': app['key']},
+        {'action': 'uninstall', 'key': app['key'], 'proposal': ?app['proposal']},
         trf('Uninstalling {0}…', [app['name']]),
         outside: () => _uninstallOutside(app),
       );
@@ -1472,14 +1472,14 @@ class AppsPageState extends State<AppsPage> {
       await runInTerminal(
         context,
         widget.core,
-        {'action': 'uninstall_all', 'manager': g['manager'], 'keys': keys},
+        {'action': 'uninstall_all', 'manager': g['manager'], 'keys': keys, if (apps.any((a) => a['proposal'] != null)) 'proposal': {for (final a in apps) a['key']: a['proposal']}},
         trf('Uninstalling {0}…', [(g['what'] as List).join(', ')]),
       );
     }
     final failed = <Object?>[];
     for (final a in others) {
       try {
-        await widget.core('apps.uninstall', {'key': a['key']});
+        await widget.core('apps.uninstall', {'key': a['key'], 'proposal': ?apps.where((app) => app['key'] == a['key']).firstOrNull?['proposal']});
       } on ServiceError {
         failed.add(a['name']);
       }
@@ -1495,7 +1495,7 @@ class AppsPageState extends State<AppsPage> {
   Future<void> _uninstallOutside(Map app, {String? kind, String? what}) async {
     if (kind == 'flatpak') _tell(trf('Uninstalling {0}…', [app['name']]));
     try {
-      final result = await widget.core('apps.uninstall', {'key': app['key']});
+      final result = await widget.core('apps.uninstall', {'key': app['key'], 'proposal': ?app['proposal']});
       if (result['done'] == true) {
         _tell(
           kind == 'trash'
@@ -1692,7 +1692,7 @@ class AppsPageState extends State<AppsPage> {
   Future<void> _updateFlatpak(Map app) async {
     _tell(trf('Updating {0}…', [app['name']]));
     try {
-      final result = await widget.core('updates.flatpak', {'key': app['key']});
+      final result = await widget.core('updates.flatpak', {'key': app['key'], 'proposal': ?app['proposal']});
       if (!mounted) return;
       setState(() => updates = result);
       _tell(trf('{0} updated', [app['name']]));
@@ -1710,7 +1710,7 @@ class AppsPageState extends State<AppsPage> {
     if (release is! Map || !mounted) return;
     _tell(trf('Updating {0}…', [app['name']]));
     try {
-      final result = await widget.core('updates.appimage', {'key': app['key']});
+      final result = await widget.core('updates.appimage', {'key': app['key'], 'proposal': ?app['proposal']});
       if (!mounted) return;
       setState(() => updates = result);
       _tell(trf('{0} updated', [app['name']]));
@@ -1725,6 +1725,7 @@ class AppsPageState extends State<AppsPage> {
   Future<void> _restoreAppImage(Map app) async {
     try {
       final result = await widget.core('updates.appimage_restore', {
+        'proposal': ?app['proposal'],
         'key': app['key'],
       });
       if (!mounted) return;
@@ -1738,15 +1739,15 @@ class AppsPageState extends State<AppsPage> {
 
   /// update_system: the desktop's updater, or the package manager's full
   /// update in a terminal (never one package alone on Arch).
-  Future<void> _updateSystem() async {
+  Future<void> _updateSystem({String? proposal}) async {
     final go = await _askUpdateSystem();
     if (go != true || !mounted) return;
     final code = await runInTerminal(
       context,
       widget.core,
-      const {'action': 'system'},
+      {'action': 'system', 'proposal': ?proposal},
       tr('System update'),
-      outside: _updateSystemOutside,
+      outside: () => _updateSystemOutside(proposal: proposal),
     );
     if (code != null) {
       await _load();
@@ -1777,9 +1778,9 @@ class AppsPageState extends State<AppsPage> {
   );
 
   /// The desktop's own updater (GNOME Software) or an outside terminal.
-  Future<void> _updateSystemOutside() async {
+  Future<void> _updateSystemOutside({String? proposal}) async {
     try {
-      await widget.core('updates.system');
+      await widget.core('updates.system', {'proposal': ?proposal});
       widget.onHide?.call();
     } on ServiceError {
       _tell(tr('Could not start the update'));

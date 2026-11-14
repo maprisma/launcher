@@ -620,11 +620,12 @@ bool sameAccel(Object? a, Object? b) {
 }
 
 /// _take: remove accel from the binding at where; true when it was there.
-Future<bool> takeKey(KeySettings settings, String where, String accel) async {
+Future<bool> takeKey(KeySettings settings, String where, String accel, {void Function()? beforeChange}) async {
   if (where.startsWith('custom:')) {
     final path = where.substring(7);
     if (!(await settings.customPaths()).contains(path)) return false;
     if (!sameAccel((await settings.readCustom(path))['binding'], accel)) return false;
+    beforeChange?.call();
     await settings.writeCustom(path, {'binding': ''});
     return true;
   }
@@ -633,15 +634,17 @@ Future<bool> takeKey(KeySettings settings, String where, String accel) async {
   final current = await settings.getStrv(schema, key);
   final kept = [for (final a in current) if (!sameAccel(a, accel)) a];
   if (kept.length == current.length) return false;
+  beforeChange?.call();
   await settings.setStrv(schema, key, kept);
   return true;
 }
 
 /// _give_back: put accel back on the binding at where (unless it got another key since).
-Future<void> giveBack(KeySettings settings, String where, String accel) async {
+Future<void> giveBack(KeySettings settings, String where, String accel, {void Function()? beforeChange}) async {
   if (where.startsWith('custom:')) {
     final path = where.substring(7);
     if ((await settings.customPaths()).contains(path) && ((await settings.readCustom(path))['binding'] ?? '').isEmpty) {
+      beforeChange?.call();
       await settings.writeCustom(path, {'binding': accel});
     }
     return;
@@ -649,7 +652,10 @@ Future<void> giveBack(KeySettings settings, String where, String accel) async {
   final i = where.indexOf(':');
   final schema = where.substring(0, i), key = where.substring(i + 1);
   final current = [for (final a in await settings.getStrv(schema, key)) if (a.isNotEmpty) a];
-  if (!current.any((a) => sameAccel(a, accel))) await settings.setStrv(schema, key, [...current, accel]);
+  if (!current.any((a) => sameAccel(a, accel))) {
+    beforeChange?.call();
+    await settings.setStrv(schema, key, [...current, accel]);
+  }
 }
 
 /// The keys other bindings hold that a launcher shortcut of [state] uses,
@@ -733,10 +739,15 @@ Future<Map<String, dynamic>> applyGnome(
   required List<Map> previousApplied,
   required String ownPrefix,
   required String Function(List<String> launch, String action) command,
+  void Function()? beforeChange,
   bool takeConflicts = false,
   bool stableSlots = false,
   bool Function(String where)? owns,
 }) async {
+  var checked = false;
+  void check() {
+    if (!checked) { beforeChange?.call(); checked = true; }
+  }
   // One shortcuts.json serves every desktop of a shared home: a key taken on
   // COSMIC (cosmic.shortcuts:…) means nothing to KDE's kglobalaccel and the
   // reverse. Bindings of another desktop are never taken or given back here;
@@ -761,13 +772,13 @@ Future<Map<String, dynamic>> applyGnome(
   }
 
   for (final (where, accel) in (previous.difference(wanted).toList()..sort(order))) {
-    await giveBack(settings, where, accel);
+    await giveBack(settings, where, accel, beforeChange: check);
   }
   for (final item in (wanted.toList()..sort(order))) {
     // With [takeConflicts] a key taken before is taken again when the
     // desktop bound it again since (KDE does).
     final known = previous.contains(item) && !takeConflicts;
-    if (known || await takeKey(settings, item.$1, item.$2) || previous.contains(item)) {
+    if (known || await takeKey(settings, item.$1, item.$2, beforeChange: check) || previous.contains(item)) {
       applied.add({'where': item.$1, 'accel': item.$2});
     }
   }
@@ -797,17 +808,18 @@ Future<Map<String, dynamic>> applyGnome(
   if (!stableSlots) {
     for (final values in desired) {
       final path = '$customBase$ownPrefix${written.length}/';
+      check();
       await settings.writeCustom(path, values);
       written.add(path);
     }
     for (final stale in oldOwn) {
-      if (!written.contains(stale)) await settings.resetCustom(stale);
+      if (!written.contains(stale)) { check(); await settings.resetCustom(stale); }
     }
   } else {
     final slots = stableSlotPaths(desired, {for (final path in oldOwn) path: await settings.readCustom(path)}, ownPrefix);
     // Stale ones go first: one of them may still hold a key a new one wants.
     for (final stale in oldOwn) {
-      if (!slots.contains(stale)) await settings.resetCustom(stale);
+      if (!slots.contains(stale)) { check(); await settings.resetCustom(stale); }
     }
     for (var i = 0; i < desired.length; i++) {
       final current = oldOwn.contains(slots[i]) ? await settings.readCustom(slots[i]) : null;
@@ -815,10 +827,11 @@ Future<Map<String, dynamic>> applyGnome(
           current['name'] == desired[i]['name'] &&
           current['command'] == desired[i]['command'] &&
           sameAccel(current['binding'], desired[i]['binding']);
-      if (!same) await settings.writeCustom(slots[i], desired[i]);
+      if (!same) { check(); await settings.writeCustom(slots[i], desired[i]); }
       written.add(slots[i]);
     }
   }
+  check();
   await settings.setCustomPaths([...paths, ...written]);
   await settings.sync();
   return {...state, 'applied': [...applied, ...foreign]};

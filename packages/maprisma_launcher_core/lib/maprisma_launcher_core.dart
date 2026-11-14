@@ -36,3 +36,5 @@ export 'src/shortcuts.dart';
 export 'src/shortcuts_hypr.dart';
 export 'src/shortcut_service.dart';
 export 'src/screenshot.dart';
+
+export 'src/ask_ai_rules.dart';

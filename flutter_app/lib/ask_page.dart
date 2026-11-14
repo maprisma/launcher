@@ -20,7 +20,7 @@ typedef AppActions = ({
   Future<void> Function(List<Map> apps) uninstallAll,
   Future<void> Function(Map app) update,
   Future<void> Function(Map app) updateAppImage,
-  Future<void> Function() updateSystem,
+  Future<void> Function({String? proposal}) updateSystem,
   Future<void> Function(Map app) details,
 
   /// Hide from the launcher's list (true) or show again (false).
@@ -63,6 +63,7 @@ class _AskPageState extends State<AskPage> {
   bool asking = false;
   Map<String, dynamic>? result;
   String? error;
+  Map<String, dynamic> rules = {};
   String? lastRequest;
 
   /// What dictation heard so far (shown greyed under the field); empty: nothing.
@@ -385,7 +386,8 @@ class _AskPageState extends State<AskPage> {
         'language': I18n.language,
         'answer': ?answer,
       });
-      if (mounted) setState(() => result = r);
+      final currentRules = await widget.core('ask.rules');
+      if (mounted) setState(() { rules = currentRules; result = r; });
     } on ServiceError catch (e) {
       if (mounted) {
         setState(
@@ -881,24 +883,54 @@ class _AskPageState extends State<AskPage> {
     );
   }
 
-  Widget _appRow(Map app, List<Widget> buttons) => ListTile(
-    leading: AppIcon(app['icon_file'] as String?, size: 32),
-    title: Text('${app['name']}'),
-    subtitle: Text(
-      tr(app['description'] as String? ?? ''),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-    ),
-    trailing: Wrap(spacing: 4, children: buttons),
-  );
+  bool _allowed(String action, {String? source}) => rules['level'] != 'answers' &&
+      (rules['actions'] as Map?)?[action] != false &&
+      (source == null || (rules['sources'] as Map?)?[source] != false) &&
+      (source != 'local' || (rules['folders'] as Map?)?['downloads'] != false);
+
+  Widget _gate(String action, Widget child, {String? source}) => _allowed(action, source: source)
+      ? child : AskAiBlocked(core: widget.core);
+
+  Widget _gateUpdates(List<Map> apps, Widget child) => apps.every((app) {
+    final kind = widget.actions.updateKind(app);
+    return kind == 'package' ? _allowed('launcher.update_system') :
+        (kind == 'flatpak' || kind == 'appimage') ? _allowed('launcher.update') : true;
+  }) ? child : AskAiBlocked(core: widget.core);
+
+  Future<void> _systemUpdate() => widget.actions.updateSystem(proposal: result?['system_proposal'] as String?);
+
+  String? _rowAction(Map app) => switch (result?['action']) {
+    'hide' || 'unhide' || 'list_hidden' => 'launcher.hide',
+    'remove' => 'launcher.remove',
+    'update' => switch (widget.actions.updateKind(app)) {
+      'package' => 'launcher.update_system',
+      'flatpak' || 'appimage' => 'launcher.update',
+      _ => null,
+    },
+    _ => null,
+  };
+
+  Widget _appRow(Map app, List<Widget> buttons) {
+    final action = _rowAction(app);
+    final blocked = action != null && !_allowed(action);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      ListTile(
+        leading: AppIcon(app['icon_file'] as String?, size: 32),
+        title: Text('${app['name']}'),
+        subtitle: Text(tr(app['description'] as String? ?? ''), maxLines: 1, overflow: TextOverflow.ellipsis),
+        trailing: blocked ? null : Wrap(spacing: 4, children: buttons),
+      ),
+      if (blocked) AskAiBlocked(core: widget.core),
+    ]);
+  }
 
   Widget _result(ColorScheme scheme, Map<String, dynamic> r) {
     final a = widget.actions;
     final apps = [
-      for (final k in (r['apps'] as List? ?? const [])) ?widget.apps[k],
+      for (final k in (r['apps'] as List? ?? const [])) if (widget.apps[k] case final app?) {...app, 'proposal': ?(r['proposals'] as Map?)?[k]},
     ];
     final installed = [
-      for (final k in (r['installed'] as List? ?? const [])) ?widget.apps[k],
+      for (final k in (r['installed'] as List? ?? const [])) if (widget.apps[k] case final app?) {...app, 'proposal': ?(r['proposals'] as Map?)?[k]},
     ];
     final children = <Widget>[
       if (r['github_unavailable'] == true)
@@ -979,6 +1011,8 @@ class _AskPageState extends State<AskPage> {
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (pick['installed'] != true && (pick['manager'] != 'github' || pick['installable'] == true) && !_allowed('launcher.install', source: '${pick['manager']}'))
+                      AskAiBlocked(core: widget.core),
                     if ('${pick['reason'] ?? ''}'.isNotEmpty)
                       Text('${pick['reason']}'),
                     Text(
@@ -1012,6 +1046,8 @@ class _AskPageState extends State<AskPage> {
                         Icons.check_circle,
                         color: markColors(context).running,
                       )
+                    : !_allowed('launcher.install', source: '${pick['manager']}')
+                    ? null
                     : TextButton(
                         onPressed: () => reviewInstall(
                           context,
@@ -1067,10 +1103,10 @@ class _AskPageState extends State<AskPage> {
                     ),
                   )
                 else if (apps.length > 1)
-                  TextButton(
+                  _gate('launcher.remove', TextButton(
                     onPressed: () => _uninstallAll(apps),
                     child: Text(tr('Uninstall all')),
-                  ),
+                  )),
               ],
             ),
           ),
@@ -1115,12 +1151,12 @@ class _AskPageState extends State<AskPage> {
                     ),
                   )
                 else
-                  TextButton(
+                  _gateUpdates(apps, TextButton(
                     onPressed: updatable.isEmpty || updating.isNotEmpty
                         ? null
                         : () => _updateAll(apps),
                     child: Text(tr('Update all')),
-                  ),
+                  )),
               ],
             ),
           ),
@@ -1164,7 +1200,7 @@ class _AskPageState extends State<AskPage> {
                 ),
                 // A package: on Arch never alone, so with the whole system.
                 'package' => TextButton(
-                  onPressed: a.updateSystem,
+                  onPressed: _systemUpdate,
                   child: Text(tr('Update system…')),
                 ),
                 _ => Text(
@@ -1178,10 +1214,10 @@ class _AskPageState extends State<AskPage> {
         children.add(
           Align(
             alignment: Alignment.centerLeft,
-            child: TextButton(
-              onPressed: a.updateSystem,
+            child: _gate('launcher.update_system', TextButton(
+              onPressed: _systemUpdate,
               child: Text(tr('Update system…')),
-            ),
+            )),
           ),
         );
       case 'update_system':
@@ -1195,10 +1231,10 @@ class _AskPageState extends State<AskPage> {
         children.add(
           Align(
             alignment: Alignment.centerLeft,
-            child: FilledButton(
-              onPressed: a.updateSystem,
+            child: _gate('launcher.update_system', FilledButton(
+              onPressed: _systemUpdate,
               child: Text(tr('Update system…')),
-            ),
+            )),
           ),
         );
       case 'explain':
@@ -1247,7 +1283,7 @@ class _AskPageState extends State<AskPage> {
         }
         for (final app in apps) {
           children.add(
-            ShortcutPage(
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [ShortcutPage(
               // A new answer: new cards.
               key: ValueKey(
                 'ask-shortcuts-${identityHashCode(r)}-${app['key']}',
@@ -1255,6 +1291,7 @@ class _AskPageState extends State<AskPage> {
               core: widget.core,
               app: app,
               embedded: true,
+              readOnly: !_allowed('launcher.shortcuts'),
               full: adding,
               mods: adding
                   ? (r['mods'] as List? ?? const []).cast<String>()
@@ -1262,6 +1299,8 @@ class _AskPageState extends State<AskPage> {
               comboKey: adding ? r['key'] as String? : null,
               highlight: label.isEmpty ? null : label,
             ),
+              if (!_allowed('launcher.shortcuts')) AskAiBlocked(core: widget.core),
+            ]),
           );
         }
       case 'clarify':
@@ -1338,7 +1377,7 @@ class _AskPageState extends State<AskPage> {
           system = true;
         }
       }
-      if (system && mounted) a.updateSystem();
+      if (system && mounted) _systemUpdate();
     } finally {
       if (mounted) setState(() => updatingAll = false);
     }
@@ -1365,5 +1404,19 @@ class _AskPageState extends State<AskPage> {
   Widget _section(String title) => Padding(
     padding: const EdgeInsets.only(top: 8),
     child: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+  );
+}
+
+/// A denied proposal remains visible and points to the shared switches.
+class AskAiBlocked extends StatelessWidget {
+  const AskAiBlocked({super.key, required this.core});
+  final CoreCall core;
+  @override
+  Widget build(BuildContext context) => Wrap(
+    crossAxisAlignment: WrapCrossAlignment.center,
+    children: [
+      TextButton(onPressed: null, child: Text(tr('Switched off in Maprisma Settings › AI'))),
+      TextButton(onPressed: () => core('ask.settings'), child: Text(tr('Maprisma Settings › AI'))),
+    ],
   );
 }

@@ -158,6 +158,56 @@ final class Posix {
         false;
   }
 
+  /// Bounded tail of an owned regular file, checked on its no-follow descriptor.
+  (Uint8List, int)? readOwnedTail(String path, int cap) {
+    final fd = _withPath(path, (name) => _open(name,
+        _rdonly | _nonBlock | _noFollow | _cloexec, 0)) ?? -1;
+    if (fd < 0) return null;
+    try {
+      final info = _fstat(fd);
+      if (info == null || info.$1 & 0xf000 != 0x8000 || info.$3 != uid) return null;
+      final start = max(0, info.$2 - cap);
+      if (_seek(fd, start, 0) != start) return null;
+      final size = info.$2 - start;
+      final buffer = calloc<Uint8>(max(1, size));
+      try {
+        var done = 0;
+        while (done < size) {
+          final n = _read(fd, buffer + done, size - done);
+          if (n <= 0) return null;
+          done += n;
+        }
+        return (Uint8List.fromList(buffer.asTypedList(size)), info.$2);
+      } finally { calloc.free(buffer); }
+    } finally { _close(fd); }
+  }
+  static final _seek = _lib.lookupFunction<Int64 Function(Int, Int64, Int), int Function(int, int, int)>('lseek');
+
+  /// Append one complete record through a no-follow, owned regular descriptor.
+  bool appendPrivate(String path, List<int> bytes) {
+    final fd = _withPath(path, (name) => _open(name,
+        0x1 | 0x40 | 0x400 | _nonBlock | _noFollow | _cloexec, 0x180)) ?? -1;
+    if (fd < 0) return false;
+    final buffer = calloc<Uint8>(bytes.length);
+    try {
+      final info = _fstat(fd);
+      if (info == null || info.$1 & 0xf000 != 0x8000 || info.$3 != uid) return false;
+      if (_fchmod(fd, 0x180) != 0) return false;
+      buffer.asTypedList(bytes.length).setAll(0, bytes);
+      var done = 0;
+      while (done < bytes.length) {
+        final n = _write(fd, buffer + done, bytes.length - done);
+        if (n <= 0) return false;
+        done += n;
+      }
+      return true;
+    } finally {
+      calloc.free(buffer);
+      _close(fd);
+    }
+  }
+  static final _fchmod = _lib.lookupFunction<Int Function(Int, Uint32), int Function(int, int)>('fchmod');
+
   T? _withPath<T>(String path, T Function(Pointer<Utf8>) action) {
     if (path.isEmpty || path.contains('\x00')) return null;
     final native = path.toNativeUtf8();
@@ -198,11 +248,15 @@ final class Posix {
     final fd =
         _withPath(
           lockPath,
-          (name) => _open(name, 0x1 | 0x40 | _noFollow | _cloexec, 0x180),
+          (name) => _open(name, 0x1 | 0x40 | _nonBlock | _noFollow | _cloexec, 0x180),
         ) ??
         -1;
     if (fd < 0) throw FileSystemException('Could not open the lock', lockPath);
     try {
+      final info = _fstat(fd);
+      if (info == null || info.$1 & 0xf000 != 0x8000 || info.$3 != uid || _fchmod(fd, 0x180) != 0) {
+        throw FileSystemException('Invalid lock file', lockPath);
+      }
       if (_flock(fd, 2) != 0) {
         throw FileSystemException('Could not lock', lockPath);
       }
@@ -318,4 +372,10 @@ String? which(String program, Map<String, String> environment) {
     }
   }
   return null;
+}
+
+final _chmod = DynamicLibrary.open('libc.so.6').lookupFunction<Int Function(Pointer<Utf8>, Uint32), int Function(Pointer<Utf8>, int)>('chmod');
+bool chmodPath(String path, int mode) {
+  final name = path.toNativeUtf8();
+  try { return _chmod(name, mode) == 0; } finally { calloc.free(name); }
 }

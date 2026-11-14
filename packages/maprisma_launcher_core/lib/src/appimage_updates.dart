@@ -403,7 +403,7 @@ final class AppImageUpdates {
   }
 
   /// Download and verify, then replace the binary at its stable path.
-  Future<void> install(Map app, Map release) async {
+  Future<void> install(Map app, Map release, {void Function()? beforeChange}) async {
     final old = programPath(app, session);
     if (old == null) {
       throw const FileSystemException('Not an installed user AppImage');
@@ -412,13 +412,13 @@ final class AppImageUpdates {
       throw const FileSystemException('Update already running');
     }
     try {
-      await _install(app, release, old);
+      await _install(app, release, old, beforeChange);
     } finally {
       _activePaths.remove(old);
     }
   }
 
-  Future<void> _install(Map app, Map release, String old) async {
+  Future<void> _install(Map app, Map release, String old, void Function()? beforeChange) async {
     if (!p.isWithin(session.home, old) ||
         !old.toLowerCase().endsWith('.appimage') ||
         !privateUpdateDirectory(p.dirname(old)) ||
@@ -534,6 +534,7 @@ final class AppImageUpdates {
             throw const FileSystemException('Invalid update version record');
           }
         }
+        beforeChange?.call();
         if (!absentWithoutFollowingLinks('$old.bak')) {
           if (FileSystemEntity.typeSync('$old.bak', followLinks: false) !=
               FileSystemEntityType.file) {
@@ -596,13 +597,14 @@ final class AppImageUpdates {
         FileSystemEntity.typeSync('$path.bak', followLinks: false) == FileSystemEntityType.file;
   }
 
-  Future<void> restore(Map app) async {
+  Future<void> restore(Map app, {void Function()? beforeChange}) async {
     final path = programPath(app, session);
     if (path == null || !canRestore(app)) {
       throw const FileSystemException('No previous version');
     }
     if (!_activePaths.add(path)) throw const FileSystemException('Update already running');
     try {
+      beforeChange?.call();
       await _restore(path);
     } finally {
       _activePaths.remove(path);

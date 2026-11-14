@@ -268,3 +268,18 @@ No add-on runs code.
 - Core regression tests use temporary homes; Flutter covers the source label and
   direct install review. Socket-dependent suites cannot run fully in the restricted
   agent sandbox; see the task report for validation results.
+
+
+## Shared Ask AI rules (2026-11-14, ask-ai-rules)
+
+- Core-issued per-target proposals bind Ask actions to their target/source; every
+  Launcher execution boundary enforces the current shared rules, including after
+  asynchronous preparation. Manual operations omit provenance and stay unrestricted.
+- Ask results fetch current rules, retain disabled suggestions with a Settings AI
+  link, and carry ids through reviews, shortcut cards, batches and both terminal paths.
+- Shared helper writes and action logs use persistent libc flock locks; corrupt
+  shared settings cannot be overwritten by a helper change. Downloads denial is
+  scoped to Ask discovery and AI local installs, including cached reviews.
+- Regression coverage uses temporary homes, synthetic helper/package data and two
+  concurrent writer processes. See protocol.md for parameters and docs/reviews/
+  ask-ai-rules-implementation.md for validation and implementation differences.

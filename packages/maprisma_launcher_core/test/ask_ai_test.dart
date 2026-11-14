@@ -217,7 +217,7 @@ fi
       Future<Map> ask(String request) async {
         final r = await call('ask.run', {'request': request, 'helper': 'claude'});
         expect(r['error'], isNull, reason: '$r');
-        return r['result'] as Map;
+        return Map.of(r['result'] as Map)..remove('proposals');
       }
 
       // Nothing hidden yet: an empty list; "hide writer" offers Writer (a999 is dropped).
@@ -253,7 +253,7 @@ fi
       Future<Map> ask(String request) async {
         final r = await call('ask.run', {'request': request, 'helper': 'claude'});
         expect(r['error'], isNull, reason: '$r');
-        return r['result'] as Map;
+        return Map.of(r['result'] as Map)..remove('proposals');
       }
 
       // A generic desktop has no shortcuts: none listed.
@@ -306,7 +306,7 @@ fi
       expect(pis.every((h) => h['local'] == true && h['signed_in'] == true), isTrue);
 
       final r = await call('ask.run', {'request': 'which apps are hidden?', 'helper': 'pi:llama-local/gemma-4-12B-it-QAT-Q4_0'});
-      expect(r['result'], {'action': 'list_hidden', 'apps': []}, reason: '$r');
+      expect(r['result'], {'action': 'list_hidden', 'apps': [], 'proposals': {}}, reason: '$r');
       final argv = File(p.join(home.path, 'pi-argv.txt')).readAsLinesSync();
       expect(argv, containsAllInOrder(['-p', '--no-session', '--no-tools', '--no-mcp', '--no-extensions', '--no-context-files']));
       expect(argv.sublist(argv.length - 5), ['--offline', '--provider', 'llama-local', '--model', 'gemma-4-12B-it-QAT-Q4_0']);
