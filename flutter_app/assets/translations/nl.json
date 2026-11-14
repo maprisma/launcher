@@ -480,6 +480,7 @@
  "{0} default": "{0}-standaard",
  "{0} is a web app installed in {1}, so only {1} can uninstall it: open the app and choose ⋮ → Uninstall, or right-click it on {2} and choose Remove.": "{0} is een web-app die in {1} is geïnstalleerd, dus alleen {1} kan hem verwijderen: open de app en kies ⋮ → Verwijderen, of klik er met rechts op in {2} en kies Verwijderen.",
  "{0} is in the trash.": "{0} staat in de prullenbak.",
+ "{0} is installed.": "{0} is geïnstalleerd.",
  "{0} is one of your default apps.": "{0} is een van je standaard-apps.",
  "{0} of {1} apps": "{0} van {1} apps",
  "{0} updated": "{0} bijgewerkt",

@@ -184,7 +184,9 @@ class _InstallPageState extends State<InstallPage> {
 
 /// The review before an install (Install apps and Ask AI): what, from where,
 /// the exact command the terminal runs, the AUR warning; then the terminal.
-Future<void> reviewInstall(
+/// Reviews and installs [found]; true when it was installed (the local copy or a terminal that
+/// ended well), so the caller can show it as done.
+Future<bool> reviewInstall(
 BuildContext context,
 CoreCall core,
 Map found,
@@ -199,9 +201,9 @@ void tell(String text) => ScaffoldMessenger.of(context)
     plan = await core('packages.install_plan', {'manager': found['manager'], 'package': found['package'], 'proposal': ?found['proposal']});
   } on ServiceError catch (e) {
     tell(trf('That did not work ({0}).', [e.code]));
-    return;
+    return false;
   }
-  if (!context.mounted) return;
+  if (!context.mounted) return false;
   final scheme = Theme.of(context).colorScheme;
   final go = await showDialog<bool>(
     context: context,
@@ -252,11 +254,13 @@ void tell(String text) => ScaffoldMessenger.of(context)
       ],
     ),
   );
-  if (go != true || !context.mounted) return;
+  if (go != true || !context.mounted) return false;
   if (plan['local'] == true) {
     try {
       await core('packages.install', {'manager': 'local', 'package': found['package'], 'proposal': ?found['proposal']});
       onInstalled?.call();
+      if (context.mounted) tell(trf('{0} is installed.', [found['name'] ?? found['package']]));
+      return true;
     } on ServiceError catch (e) {
       tell(switch (e.reason) {
         'the file changed since the review' => tr('The file changed since the review.'),
@@ -264,7 +268,7 @@ void tell(String text) => ScaffoldMessenger.of(context)
         _ => trf('That did not work ({0}).', [e.code]),
       });
     }
-    return;
+    return false;
   }
   // In the app's own terminal; an outside one only when that cannot run here.
   final code = await runInTerminal(
@@ -281,4 +285,5 @@ void tell(String text) => ScaffoldMessenger.of(context)
     },
   );
   if (code == 0) onInstalled?.call();
+  return code == 0;
 }

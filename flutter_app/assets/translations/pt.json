@@ -480,6 +480,7 @@
  "{0} default": "Padrão do {0}",
  "{0} is a web app installed in {1}, so only {1} can uninstall it: open the app and choose ⋮ → Uninstall, or right-click it on {2} and choose Remove.": "{0} é um app web instalado no {1}, então só o {1} pode desinstalá-lo: abra o app e escolha ⋮ → Desinstalar, ou clique com o botão direito nele em {2} e escolha Remover.",
  "{0} is in the trash.": "{0} está no lixo.",
+ "{0} is installed.": "{0} está instalado.",
  "{0} is one of your default apps.": "{0} é uma das suas apps padrão.",
  "{0} of {1} apps": "{0} de {1} apps",
  "{0} updated": "{0} atualizado",

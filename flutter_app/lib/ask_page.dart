@@ -71,6 +71,9 @@ class _AskPageState extends State<AskPage> {
 
   /// Flatpaks being updated now (their row shows a spinner).
   final Set<String> updating = {};
+
+  /// Suggestions installed from this page (manager:package): shown as done.
+  final Set<String> installedHere = {};
   bool updatingAll = false;
   bool uninstallingAll = false;
 
@@ -1046,15 +1049,24 @@ class _AskPageState extends State<AskPage> {
                         Icons.check_circle,
                         color: markColors(context).running,
                       )
+                    : installedHere.contains('${pick['manager']}:${pick['package']}')
+                    ? Row(
+                        key: const ValueKey('pick-done'),
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check_circle, color: markColors(context).running),
+                          const SizedBox(width: 8),
+                          Text(tr('Done')),
+                        ],
+                      )
                     : !_allowed('launcher.install', source: '${pick['manager']}')
                     ? null
                     : TextButton(
-                        onPressed: () => reviewInstall(
-                          context,
-                          widget.core,
-                          pick,
-                          _source(pick),
-                        ),
+                        onPressed: () async {
+                          if (await reviewInstall(context, widget.core, pick, _source(pick)) && mounted) {
+                            setState(() => installedHere.add('${pick['manager']}:${pick['package']}'));
+                          }
+                        },
                         child: Text(tr('Install…')),
                       ),
               ),

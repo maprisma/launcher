@@ -487,6 +487,7 @@
  "{0} default": "Domyślny {0}",
  "{0} is a web app installed in {1}, so only {1} can uninstall it: open the app and choose ⋮ → Uninstall, or right-click it on {2} and choose Remove.": "{0} to aplikacja webowa zainstalowana w {1}, więc tylko {1} może ją odinstalować: otwórz aplikację i wybierz ⋮ → Odinstaluj albo kliknij ją prawym przyciskiem na {2} i wybierz Usuń.",
  "{0} is in the trash.": "{0} jest w koszu.",
+ "{0} is installed.": "{0} jest zainstalowany.",
  "{0} is one of your default apps.": "{0} jest jedną z twoich domyślnych aplikacji.",
  "{0} of {1} apps": "{0} z {1} aplikacji",
  "{0} updated": "Zaktualizowano {0}",

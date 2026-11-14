@@ -63,6 +63,15 @@ void main() {
         }],
         'web_found': [{'site': 'getartcraft.com', 'repository': 'storytold/pdfcraft'}],
       },
+      'ask.run' when '${params['request']}' == 'install the taskmanager appimage' => {
+        'action': 'install', 'picks': [{
+          'manager': 'local', 'package': 'TaskManagerOG-1.1.1-x86_64.AppImage', 'description': 'The task manager AppImage.',
+        }],
+      },
+      'packages.install_plan' when params['manager'] == 'local' => {
+        'local': true, 'command': '/Downloads/TaskManagerOG.AppImage → /Applications/TaskManagerOG.AppImage',
+      },
+      'packages.install' when params['manager'] == 'local' => {'installed': true},
       'ask.run' when '${params['request']}'.startsWith('zzqq') => {
         'action': 'install', 'picks': [], 'installed': [], 'queries': ['zzqq'],
         'web_search': '${params['request']}'.endsWith('agy') ? 'unsupported' : 'off',
@@ -236,6 +245,21 @@ void main() {
     expect(find.text('Downloads to Applications and verifies SHA-256. No password is needed.'), findsOneWidget);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('an AppImage from Downloads: after Install the row says Done, not Install… again', (tester) async {
+    await askFor(tester, 'install the taskmanager appimage');
+    expect(find.text('AppImage in Downloads'), findsOneWidget);
+    await tester.tap(find.text('Install…'));
+    await tester.pumpAndSettle();
+    expect(find.text('Copies to Applications. No network or password is needed.'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Install'));
+    await tester.pumpAndSettle();
+    expect(asked.where((a) => a['method'] == 'packages.install'), hasLength(1));
+    expect(find.text('Install…'), findsNothing);
+    expect(find.byKey(const ValueKey('pick-done')), findsOneWidget);
+    expect(find.text('Done'), findsOneWidget);
+    expect(find.text('TaskManagerOG-1.1.1-x86_64.AppImage is installed.'), findsOneWidget);
   });
 
   testWidgets('listing shows repositories without installers and opens the source', (tester) async {
