@@ -299,7 +299,7 @@ class _TerminalPageState extends State<TerminalPage> {
                   child: SelectableText(
                     command,
                     maxLines: 1,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(fontFamily: 'monospace', color: scheme.onSurfaceVariant),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(fontFamily: monoFont(context), color: scheme.onSurfaceVariant),
                   ),
                 ),
               Padding(
@@ -332,7 +332,7 @@ class _TerminalPageState extends State<TerminalPage> {
                     focusNode: keys,
                     autofocus: true,
                     theme: _theme(scheme),
-                    textStyle: const TerminalStyle(fontSize: 13),
+                    textStyle: TerminalStyle(fontSize: 13, fontFamily: monoFont(context)),
                     onSecondaryTapDown: (_, _) async {
                       final selected = controller.selection;
                       if (selected != null) {

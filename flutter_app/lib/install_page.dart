@@ -229,7 +229,7 @@ void tell(String text) => ScaffoldMessenger.of(context)
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(color: scheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(cornerSizes(context).control)),
-            child: SelectableText('${plan['command']}', style: const TextStyle(fontFamily: 'monospace')),
+            child: SelectableText('${plan['command']}', style: TextStyle(fontFamily: monoFont(context))),
           ),
           if (plan['aur'] == true) ...[
             const SizedBox(height: 12),

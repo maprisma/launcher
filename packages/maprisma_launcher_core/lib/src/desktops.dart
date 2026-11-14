@@ -101,8 +101,51 @@ abstract class Desktop {
     'colors': await themeColors(),
     'rounding': await windowRounding(),
     'icon_theme': await iconTheme(),
+    'fonts': await fonts(),
   };
+
+  // --- fonts (the same in every Maprisma app; Maprisma Theme's Font & effects sets them) ------
+
+  /// The desktop's interface and monospace font families, `{ui, mono}`, each left out when it
+  /// can't be read: COSMIC's CosmicTk interface_font / monospace_font, KDE's kdeglobals font /
+  /// fixed, elsewhere (Hyprland, GNOME) GTK's gsettings font-name / monospace-font-name, asked at
+  /// most every 30 s.
+  Future<Map<String, String>> fonts() async {
+    final (ui, mono) = await fontFamilies();
+    return {'ui': ?cleanFont(ui), 'mono': ?cleanFont(mono)};
+  }
+
+  /// The raw (interface, monospace) families; GTK's gsettings here, the desktops override it.
+  Future<(String?, String?)> fontFamilies() async {
+    final now = clock();
+    final cached = _gtkFonts;
+    if (cached != null && now.difference(cached.at).abs() < fontsTtl) return cached.value;
+    Future<String?> get(String key) async {
+      final v = await _gsetting(session, 'org.gnome.desktop.interface', key);
+      return v.isEmpty ? null : pangoFamily(v);
+    }
+
+    final value = (await get('font-name'), await get('monospace-font-name'));
+    _gtkFonts = (at: now, value: value);
+    return value;
+  }
+
+  /// How long gsettings' answer about the fonts is kept (the look is re-read every few seconds).
+  static const fontsTtl = Duration(seconds: 30);
+  ({DateTime at, (String?, String?) value})? _gtkFonts;
+
+  /// The time for the caches (fonts, Hyprland's corners); tests set their own.
+  DateTime Function() clock = DateTime.now;
 }
+
+/// A font family as the look carries it: trimmed, null when empty or absurdly long.
+String? cleanFont(String? v) {
+  final t = v?.trim();
+  return t == null || t.isEmpty || t.length > 100 ? null : t;
+}
+
+/// A Pango font ("Noto Sans  10", "Hack, 10") without its size.
+String pangoFamily(String font) => font.trim().replaceFirst(RegExp(r',?\s+\d+(\.\d+)?$'), '').trim();
 
 /// The session's desktop names, lower case: `XDG_CURRENT_DESKTOP`, or when a
 /// launch lost it, the session hints `XDG_SESSION_DESKTOP` / `DESKTOP_SESSION`
@@ -484,6 +527,17 @@ final class CosmicDesktop extends Desktop {
     if (value == null || value.isEmpty) return 'Cosmic';
     return value.replaceAll('"', '');
   }
+
+  /// CosmicTk's interface_font / monospace_font `family`.
+  @override
+  Future<(String?, String?)> fontFamilies() async {
+    String? family(String key) {
+      final text = _config('com.system76.CosmicTk', key);
+      return text == null ? null : ronField(text, 'family')?.replaceAll('"', '');
+    }
+
+    return (family('interface_font'), family('monospace_font'));
+  }
 }
 
 // --- KDE Plasma ------------------------------------------------------------------
@@ -560,6 +614,13 @@ final class KdeDesktop extends Desktop {
 
   @override
   Future<String?> iconTheme() async => kdeIniValue(_kdeglobals, 'Icons', 'Theme') ?? 'breeze';
+
+  /// kdeglobals [General] font / fixed (a Qt font: the family is its first comma field).
+  @override
+  Future<(String?, String?)> fontFamilies() async {
+    final text = _kdeglobals;
+    return (kdeIniValue(text, 'General', 'font')?.split(',').first, kdeIniValue(text, 'General', 'fixed')?.split(',').first);
+  }
 
   /// Discover's update page first.
   @override
@@ -642,8 +703,6 @@ final class GenericDesktop extends Desktop {
   /// How long a `hyprctl` answer about the corners is kept.
   static const roundingTtl = Duration(seconds: 30);
 
-  /// The time for [roundingTtl]; tests set their own.
-  DateTime Function() clock = DateTime.now;
   DateTime? _roundingAt;
   int? _rounding;
 

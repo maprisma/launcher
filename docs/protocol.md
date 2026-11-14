@@ -7,7 +7,7 @@ A request is `{"id", "protocol": 1, "method", "params"}`, the answer `{"id", "re
 | Route | Params | Result |
 |---|---|---|
 | `core.hello` | — | `version`, `protocol`, `desktop`, `imported` (what the first start copied) |
-| `desktop.look` | — | `desktop` (omarchy, gnome, cosmic, generic), `colors` (background, foreground, accent, selection, muted, red, yellow, orange, green; empty on generic), `rounding` (px or null), `icon_theme` |
+| `desktop.look` | — | `desktop` (omarchy, gnome, cosmic, generic), `colors` (background, foreground, accent, selection, muted, red, yellow, orange, green; empty on generic), `rounding` (px or null), `icon_theme`, `fonts` (`ui`, `mono`: the desktop's interface and monospace families, each left out when unknown) |
 | `apps.list` | — | `apps`: the scan (keys as launcher_core.parse_desktop_files) plus `key`, `icon_file`, `hidden`, `group`, `origin`, `roles`; `icon_theme`; the groups |
 | `apps.launch` | `key` | `started`; errors `unknown_app`, `launch_failed` |
 | `apps.action` | `key`, `action` | as apps.launch, for one of the entry's own actions |

@@ -59,6 +59,10 @@ void main() {
         '${Platform.environment['FLUTTER_ROOT'] ?? '/opt/flutter'}/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf',
       ]);
       look = await call(core, 'desktop.look');
+      // the desktop's fonts (desktop.look fonts) under their own names, as the window asks for them
+      for (final family in [...((look['fonts'] as Map?) ?? const {}).values]) {
+        await loadFont('$family', [fcMatch('$family'), fcMatch('$family:bold')]);
+      }
       list = await call(core, 'apps.list');
       facts = await call(core, 'apps.facts');
       await call(core, 'settings.set', {'key': 'view', 'value': view.name});

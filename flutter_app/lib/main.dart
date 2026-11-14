@@ -411,7 +411,7 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
         builder: (context, child) => RepaintBoundary(key: _shotArea, child: _esc.wrap(child!)),
         title: 'Maprisma Launcher',
         debugShowCheckedModeBanner: false,
-        theme: withWindowAlpha(appTheme(MediaQuery.platformBrightnessOf(context), look['colors'] as Map? ?? {}, radius), alpha),
+        theme: withWindowAlpha(appTheme(MediaQuery.platformBrightnessOf(context), look['colors'] as Map? ?? {}, radius, fonts: look['fonts'] as Map?), alpha),
         home: AppsPage(
           core: widget.core,
           desktop: '${look['desktop'] ?? ''}',

@@ -85,7 +85,7 @@ class DockApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
     color: Colors.transparent,
-    theme: appTheme(Brightness.dark, (state['look'] as Map?)?['colors'] as Map? ?? const {}, 12),
+    theme: appTheme(Brightness.dark, (state['look'] as Map?)?['colors'] as Map? ?? const {}, 12, fonts: (state['look'] as Map?)?['fonts'] as Map?),
     home: DockView(core: core, state: state, eventsPath: eventsPath, surface: surface),
   );
 }
