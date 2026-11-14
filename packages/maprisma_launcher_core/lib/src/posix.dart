@@ -183,16 +183,44 @@ final class Posix {
   }
   static final _seek = _lib.lookupFunction<Int64 Function(Int, Int64, Int), int Function(int, int, int)>('lseek');
 
-  /// Append one complete record through a no-follow, owned regular descriptor.
+  /// Remove an unterminated tail, then append one complete newline-delimited record
+  /// through a no-follow, owned regular descriptor. Caller must hold the log lock.
   bool appendPrivate(String path, List<int> bytes) {
     final fd = _withPath(path, (name) => _open(name,
-        0x1 | 0x40 | 0x400 | _nonBlock | _noFollow | _cloexec, 0x180)) ?? -1;
+        0x2 | 0x40 | 0x400 | _nonBlock | _noFollow | _cloexec, 0x180)) ?? -1;
     if (fd < 0) return false;
     final buffer = calloc<Uint8>(bytes.length);
     try {
       final info = _fstat(fd);
       if (info == null || info.$1 & 0xf000 != 0x8000 || info.$3 != uid) return false;
       if (_fchmod(fd, 0x180) != 0) return false;
+      // Scan backwards in bounded chunks, even when the partial record exceeds
+      // the rotation limit. Truncate bytes, without decoding a possibly split UTF-8 tail.
+      final tail = calloc<Uint8>(65536);
+      try {
+        var end = info.$2;
+        var completeEnd = 0;
+        while (end > 0) {
+          final start = max(0, end - 65536);
+          final size = end - start;
+          if (_seek(fd, start, 0) != start) return false;
+          var read = 0;
+          while (read < size) {
+            final n = _read(fd, tail + read, size - read);
+            if (n <= 0) return false;
+            read += n;
+          }
+          final newline = tail.asTypedList(size).lastIndexOf(10);
+          if (newline >= 0) {
+            completeEnd = start + newline + 1;
+            break;
+          }
+          end = start;
+        }
+        if (completeEnd != info.$2 && _ftruncate(fd, completeEnd) != 0) return false;
+      } finally {
+        calloc.free(tail);
+      }
       buffer.asTypedList(bytes.length).setAll(0, bytes);
       var done = 0;
       while (done < bytes.length) {
@@ -207,6 +235,7 @@ final class Posix {
     }
   }
   static final _fchmod = _lib.lookupFunction<Int Function(Int, Uint32), int Function(int, int)>('fchmod');
+  static final _ftruncate = _lib.lookupFunction<Int Function(Int, Int64), int Function(int, int)>('ftruncate');
 
   T? _withPath<T>(String path, T Function(Pointer<Utf8>) action) {
     if (path.isEmpty || path.contains('\x00')) return null;

@@ -175,6 +175,97 @@ printf '{"action":"ACTION","apps":["%s"]}\n' "$writer"
     },
   );
 
+  test('shared settings reads enforce the byte limit for every consumer', () {
+    const json = '{"helper":"claude","web_search":true,"ask_ai":{}}';
+    getSettings().parent.createSync(recursive: true);
+    getSettings().writeAsStringSync(json.padRight(65536));
+    expect(readAiChoice(session), 'claude');
+    expect(readAiWebSearch(session), isTrue);
+    expect(askAiAllowed(session, 'launcher.hide'), isTrue);
+    getSettings().writeAsStringSync(' ', mode: FileMode.append);
+    expect(readSharedObject(session), isNull);
+    expect(readAiChoice(session), 'auto');
+    expect(readAiWebSearch(session), isFalse);
+    expect(askAiAllowed(session, 'launcher.hide'), isFalse);
+    expect(
+      () => writeAiChoice(session, 'codex'),
+      throwsA(isA<FileSystemException>()),
+    );
+    expect(getSettings().lengthSync(), 65537);
+  });
+
+  test(
+    'linked settings are unreadable and restrictive, and the writer refuses them',
+    () {
+      final target = File('${home.path}/settings-target')
+        ..writeAsStringSync(
+          jsonEncode({
+            'helper': 'claude',
+            'web_search': true,
+            'ask_ai': {'level': 'review'},
+          }),
+        );
+      final original = target.readAsStringSync();
+      getSettings().parent.createSync(recursive: true);
+      final link = Link(getSettings().path)..createSync(target.path);
+      for (final dangling in [false, true]) {
+        if (dangling) target.deleteSync();
+        expect(readSharedObject(session), isNull);
+        expect(sharedFileBroken(session), isTrue);
+        expect(readAskAiRules(session).broken, isTrue);
+        expect(askAiAllowed(session, 'launcher.hide'), isFalse);
+        expect(readAiChoice(session, legacy: 'codex'), 'auto');
+        expect(readAiWebSearch(session), isFalse);
+        expect(
+          () => writeAiChoice(session, 'codex'),
+          throwsA(isA<FileSystemException>()),
+        );
+        expect(link.targetSync(), target.path);
+        if (!dangling) expect(target.readAsStringSync(), original);
+      }
+    },
+  );
+
+  test('log append removes partial tails and preserves complete records', () {
+    final file = File(askAiLogFile(session));
+    file.parent.createSync(recursive: true);
+    final complete =
+        '${jsonEncode({'time': 'old', 'app': 'launcher', 'action': 'launcher.hide', 'op': 'old'})}\n';
+    for (final prefix in ['', complete]) {
+      for (final tail in [
+        '',
+        '{"time":',
+        'x' * (askAiLogBytes + 1),
+        '\u00e4',
+      ]) {
+        file.writeAsStringSync('$prefix$tail');
+        // Include invalid UTF-8 left by an interrupted write.
+        if (tail == '\u00e4')
+          file.writeAsBytesSync([0xc3], mode: FileMode.append);
+        appendAskAiLog(
+          session,
+          op: 'new',
+          app: 'launcher',
+          action: 'launcher.hide',
+          target: 'test',
+          result: 'done',
+        );
+        final raw = file.readAsStringSync();
+        expect(raw.startsWith(prefix), isTrue);
+        final records = raw
+            .trim()
+            .split('\n')
+            .map((line) => jsonDecode(line) as Map)
+            .toList();
+        expect(records.map((record) => record['op']), [
+          if (prefix.isNotEmpty) 'old',
+          'new',
+        ]);
+        expect(readAskAiLog(session).first['op'], 'new');
+      }
+    }
+  });
+
   test(
     'core proposal binding, re-read on execution, blocked log, manual remains allowed',
     () async {
