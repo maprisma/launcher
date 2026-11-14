@@ -480,7 +480,9 @@ final class CoreService {
       if (width is! int || height is! int) throw ServiceError('bad_params');
       if (!_hyprland.available)
         return {'placed': false, 'reason': 'not Hyprland'};
-      return _hyprland.placePopup(pid, width, height);
+      // Where the user left it (x, y, both or neither), else centred.
+      final x = params['x'], y = params['y'];
+      return _hyprland.placePopup(pid, width, height, at: x is int && y is int ? (x, y) : null);
     },
     'updates.check': (params) => _checkUpdates(force: params['force'] == true),
     'updates.appimage': (params) async {

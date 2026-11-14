@@ -271,8 +271,8 @@ final class Hyprland {
 
   /// The popup (Omarchy, as the old App Manager's card): this process's
   /// window floated, sized and centred in the focused monitor's free area.
-  Future<Map<String, dynamic>> placePopup(int processId, int width, int height) async {
-    final g = popupGeometry(await _list('monitors'), await clients(), processId, width, height);
+  Future<Map<String, dynamic>> placePopup(int processId, int width, int height, {(int, int)? at}) async {
+    final g = popupGeometry(await _list('monitors'), await clients(), processId, width, height, at: at);
     if (g == null) return {'placed': false, 'reason': 'no window yet'};
     final window = "window='address:${g.address}'";
     for (final lua in [
@@ -286,15 +286,17 @@ final class Hyprland {
   }
 }
 
-/// Where the popup goes: centred in the focused monitor's free area (the
-/// bar's space reserved), its size kept inside it. Logical pixels.
+/// Where the popup goes: where the user left it ([at], its top left) while that keeps at least
+/// 48 px on a monitor, else centred in the focused monitor's free area (the bar's space
+/// reserved), its size kept inside it. Logical pixels.
 ({String address, int x, int y, int width, int height})? popupGeometry(
   List monitors,
   List clients,
   int processId,
   int width,
-  int height,
-) {
+  int height, {
+  (int, int)? at,
+}) {
   final own = clients.whereType<Map>().where((c) => c['pid'] == processId && _address.hasMatch('${c['address']}')).firstOrNull;
   final monitor =
       monitors.whereType<Map>().where((m) => m['focused'] == true).firstOrNull ?? monitors.whereType<Map>().firstOrNull;
@@ -309,5 +311,16 @@ final class Hyprland {
   const gap = 10;
   final w = width.clamp(420, freeW - 2 * gap > 420 ? freeW - 2 * gap : 420);
   final h = height.clamp(300, freeH - 2 * gap > 300 ? freeH - 2 * gap : 300);
+  if (at != null) {
+    final (ax, ay) = at;
+    for (final m in monitors.whereType<Map>()) {
+      final s = m['scale'] is num && (m['scale'] as num) > 0 ? (m['scale'] as num).toDouble() : 1.0;
+      final mx = number(m['x']), my = number(m['y']);
+      final mw = (number(m['width']) / s).floor(), mh = (number(m['height']) / s).floor();
+      if (ax + w - 48 >= mx && ax + 48 <= mx + mw && ay >= my && ay + 48 <= my + mh) {
+        return (address: '${own['address']}', x: ax, y: ay, width: w, height: h);
+      }
+    }
+  }
   return (address: '${own['address']}', x: left + (freeW - w) ~/ 2, y: top + (freeH - h) ~/ 2, width: w, height: h);
 }

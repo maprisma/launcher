@@ -135,12 +135,12 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
     tiled: () => tiledByMaprismaTiling('com.maprisma.Launcher'),
   );
 
-  /// Hyprland, outside popup mode: the window's place, kept and put back each time it shows
-  /// (window_size.dart). The popup is centred by the core's window.popup instead.
+  /// Hyprland: the window's place, kept while it is shown (window_size.dart). The window is put
+  /// back by the keeper each time it shows; the popup by the core's window.popup, which gets the
+  /// place (else it centres the popup).
   late final _windowPlace = WindowPlaceKeeper(
     saved: parseWindowPosition(widget.settings['window_position']),
     save: (x, y) async {
-      if (popup) return;
       final fresh = await widget.core('settings.set', {'key': 'window_position', 'value': [x, y]});
       if (mounted) setState(() => settings = Map<String, dynamic>.from(fresh));
     },
@@ -226,7 +226,8 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
     // Just shown: Hyprland may not list the window for a moment.
     for (var i = 0; i < 10; i++) {
       try {
-        final done = await widget.core('window.popup', {'width': width, 'height': height});
+        final at = parseWindowPosition(settings['window_position']);
+        final done = await widget.core('window.popup', {'width': width, 'height': height, if (at != null) 'x': at.$1, if (at != null) 'y': at.$2});
         if (done['placed'] == true || done['reason'] != 'no window yet') {
           _syncGrab();
           return;
@@ -336,7 +337,7 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
     PopupGuard.changed.addListener(_syncGrab);
     HardwareKeyboard.instance.addHandler(_shotKey);
     _esc.attach();
-    if (!popup) _windowPlace.start();
+    _windowPlace.start();
     WidgetsBinding.instance.addPostFrameCallback((_) => _placePopup());
     _syncTitlebar();
   }
