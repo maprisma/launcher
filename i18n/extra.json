@@ -262,7 +262,10 @@
     "Switched off in Maprisma Settings › AI": "In Maprisma Settings › KI ausgeschaltet",
     "Maprisma Settings › AI": "Maprisma Settings › KI",
     "Done": "Erledigt",
-    "{0} is installed.": "{0} ist installiert."
+    "{0} is installed.": "{0} ist installiert.",
+    "Follow the desktop": "Wie der Desktop",
+    "Glassy (blurred)": "Glas (unscharf)",
+    "Solid": "Deckend"
   },
   "es": {
     "\u0004Shortcuts of {0} app": [
@@ -527,7 +530,10 @@
     "Switched off in Maprisma Settings › AI": "Desactivado en Maprisma Settings › IA",
     "Maprisma Settings › AI": "Maprisma Settings › IA",
     "Done": "Hecho",
-    "{0} is installed.": "{0} está instalado."
+    "{0} is installed.": "{0} está instalado.",
+    "Follow the desktop": "Como el escritorio",
+    "Glassy (blurred)": "Cristal (desenfocado)",
+    "Solid": "Opacas"
   },
   "fr": {
     "\u0004Shortcuts of {0} app": [
@@ -792,7 +798,10 @@
     "Switched off in Maprisma Settings › AI": "Désactivé dans Maprisma Settings › IA",
     "Maprisma Settings › AI": "Maprisma Settings › IA",
     "Done": "Terminé",
-    "{0} is installed.": "{0} est installé."
+    "{0} is installed.": "{0} est installé.",
+    "Follow the desktop": "Comme le bureau",
+    "Glassy (blurred)": "Verre (flouté)",
+    "Solid": "Opaques"
   },
   "it": {
     "\u0004Shortcuts of {0} app": [
@@ -1057,7 +1066,10 @@
     "Switched off in Maprisma Settings › AI": "Disattivato in Maprisma Settings › IA",
     "Maprisma Settings › AI": "Maprisma Settings › IA",
     "Done": "Fatto",
-    "{0} is installed.": "{0} è installato."
+    "{0} is installed.": "{0} è installato.",
+    "Follow the desktop": "Come il desktop",
+    "Glassy (blurred)": "Vetro (sfocato)",
+    "Solid": "Opache"
   },
   "nl": {
     "\u0004Shortcuts of {0} app": [
@@ -1322,7 +1334,10 @@
     "Switched off in Maprisma Settings › AI": "Uitgeschakeld in Maprisma Settings › AI",
     "Maprisma Settings › AI": "Maprisma Settings › AI",
     "Done": "Klaar",
-    "{0} is installed.": "{0} is geïnstalleerd."
+    "{0} is installed.": "{0} is geïnstalleerd.",
+    "Follow the desktop": "Zoals het bureaublad",
+    "Glassy (blurred)": "Glas (vervaagd)",
+    "Solid": "Dekkend"
   },
   "pl": {
     "\u0004Shortcuts of {0} app": [
@@ -1592,7 +1607,10 @@
     "Switched off in Maprisma Settings › AI": "Wyłączone w Maprisma Settings › AI",
     "Maprisma Settings › AI": "Maprisma Settings › AI",
     "Done": "Gotowe",
-    "{0} is installed.": "{0} jest zainstalowany."
+    "{0} is installed.": "{0} jest zainstalowany.",
+    "Follow the desktop": "Jak pulpit",
+    "Glassy (blurred)": "Szkło (rozmyte)",
+    "Solid": "Nieprzezroczyste"
   },
   "pt": {
     "\u0004Shortcuts of {0} app": [
@@ -1857,6 +1875,9 @@
     "Switched off in Maprisma Settings › AI": "Desativado em Maprisma Settings › IA",
     "Maprisma Settings › AI": "Maprisma Settings › IA",
     "Done": "Concluído",
-    "{0} is installed.": "{0} está instalado."
+    "{0} is installed.": "{0} está instalado.",
+    "Follow the desktop": "Como o ambiente de trabalho",
+    "Glassy (blurred)": "Vidro (desfocado)",
+    "Solid": "Opacas"
   }
 }
