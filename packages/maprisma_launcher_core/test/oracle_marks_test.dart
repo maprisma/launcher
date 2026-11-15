@@ -13,6 +13,7 @@ void main() {
   test('marks equal newapps.py, updates.py, launcher_core and details', () async {
     const day = 86400;
     final spec = {
+      'new_days': newDays,
       'notes': [
         [['a', 'b'], 1000 * day, {}],
         [['a', 'b', 'c', 'd', 'e'], 1001 * day, {'d': 990 * day, 'e': 1000 * day + 5}],

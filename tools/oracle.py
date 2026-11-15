@@ -323,6 +323,8 @@ def main(argv):
         use("gnome-launcher")
         import newapps, updates, details, launcher_core
         spec = json.load(sys.stdin)
+        # Deliberate difference: the port's star lasts newDays (1), the reference's 7.
+        newapps.NEW_DAYS = spec.get("new_days", newapps.NEW_DAYS)
         out = {}
         data = newapps.empty()
         steps = []

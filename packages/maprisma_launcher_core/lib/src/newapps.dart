@@ -1,11 +1,11 @@
 /// Newly installed apps, marked with a star (reference newapps.py).
 /// seen.json remembers when each entry (desktop id) was first seen. The
 /// first look records everything already there as old, so only later
-/// installs count as new. An entry stays new for [newDays], or until it is
-/// opened from App Manager.
+/// installs count as new. An entry stays new for [newDays] (one day, Uwe; the
+/// reference says seven), or until it is opened from App Manager.
 library;
 
-const newDays = 7;
+const newDays = 1;
 const maxSeenEntries = 5000;
 const seenKinds = ['apps', 'plugins'];
 
