@@ -103,6 +103,9 @@ void main() {
     settings.set('close_after_launch', false);
     expect(settings.read()['close_after_launch'], isFalse);
     expect(() => settings.set('close_after_launch', 'yes'), throwsArgumentError);
+    expect(settings.read()['github_source'], isTrue);
+    settings.set('github_source', false);
+    expect(settings.read()['github_source'], isFalse);
     settings.set('screenshot_folder', '/tmp/shots');
     expect(settings.read()['screenshot_key'], isFalse);
     expect(settings.read()['close_outside'], isFalse);

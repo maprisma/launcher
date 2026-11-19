@@ -498,7 +498,7 @@ String askPrompt({
     'and short descriptions: give real app names (for photo editing for example gimp, krita, darktable), not '
     'the user\'s phrase. Preserve partial names and offer close spelling corrections when useful; '
     'for named apps try spacing/hyphen variants. Never replace a named app with an unrelated alternative. '
-    'Public GitHub repositories are searched too; do not claim only package-manager installs are supported.\n'
+    '${managers.contains('github') ? 'Public GitHub repositories are searched too; do not claim only package-manager installs are supported.' : 'GitHub is switched off as an app source.'}\n'
     '{"action": "remove", "apps": ["<ids of installed apps>"]}\n'
     '{"action": "update", "apps": ["<ids of installed apps with update: true>"]}\n'
     'Use update to answer which installed apps have updates, or to update named apps. Only apps with '

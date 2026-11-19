@@ -120,7 +120,7 @@ class _InstallPageState extends State<InstallPage> {
             alignment: Alignment.centerLeft,
             child: Text(
               enabled.isEmpty
-                  ? tr('No package manager is enabled (Settings › Package managers).')
+                  ? tr('No app source is enabled (Settings › App sources).')
                   : trf('Searches: {0}', [enabled]),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
             ),

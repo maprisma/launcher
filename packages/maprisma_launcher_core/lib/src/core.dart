@@ -1271,16 +1271,21 @@ final class CoreService {
     for (final query in queries) {
       add(await _managers.search(query, managers));
     }
-    for (final query in queries.take(2)) {
-      try {
-        add(await githubReleases.search(query));
-      } on Object {
-        githubUnavailable = true;
-        break;
+    if (_githubOn) {
+      for (final query in queries.take(2)) {
+        try {
+          add(await githubReleases.search(query));
+        } on Object {
+          githubUnavailable = true;
+          break;
+        }
       }
     }
-    return (results: results, githubUnavailable: githubUnavailable);
+    return (results: rankFound(results, queries), githubUnavailable: githubUnavailable);
   }
+
+  /// Settings › App sources › GitHub (on by default).
+  bool get _githubOn => settings.read()['github_source'] != false;
 
   /// Web discovery (shared setting on, a web-only helper): the helper may only
   /// name official GitHub repositories and the page it found them on; the
@@ -1378,6 +1383,7 @@ final class CoreService {
         : null;
     // Preserve an explicit GitHub source instead of substituting unrelated packages.
     final github = githubQuery(request);
+    if (github != null && !_githubOn) throw ServiceError('github_off');
     if (github != null) {
       try {
         // A helper may correct spelling, but only nearby names survive the
@@ -1498,7 +1504,7 @@ final class CoreService {
                 'size': f['size'],
               },
           ],
-          managers: managers,
+          managers: [...managers, if (_githubOn) 'github'],
           language: language,
         ),
       );
@@ -1520,21 +1526,22 @@ final class CoreService {
         final combined = await _searchApps([
           ...{if (literal) request, ...queries},
         ], managers, ask: true);
-        final merged = [
-          ...downloaded,
-          ...combined.results.where((f) => f['manager'] != 'local'),
-        ];
-        // Official repositories first, the AUR last (Antigravity's review, 6b).
-        merged.sort(
-          (a, b) =>
-              (a['aur'] == true ? 1 : 0).compareTo(b['aur'] == true ? 1 : 0),
+        // Best name matches first (the helper's queries name the app; a broad
+        // one like "code" must not push the app itself out of the list), and
+        // within the same match official repositories before the AUR
+        // (Antigravity's review, 6b). Downloaded AppImages stay in front.
+        final ranked = rankFound(
+          combined.results.where((f) => f['manager'] != 'local').toList(),
+          [...{if (literal) request, ...queries}],
+          aurLast: true,
         );
+        final merged = [...downloaded, ...ranked];
         final found = merged.take(maxSearchResults).toList();
         _found = found;
         final already = first['installed'] as List;
         if (found.isEmpty) {
           // Nothing in the packages or on GitHub: the web, when it is on.
-          if (web == 'on' && !combined.githubUnavailable) {
+          if (web == 'on' && _githubOn && !combined.githubUnavailable) {
             return {
               ...await _webDiscovery(command, request, language),
               'installed': toKeys(already),
@@ -1693,6 +1700,8 @@ final class CoreService {
               'program': p.basename(program),
               'enabled': enabled.contains(id),
             },
+        // Not a program: public GitHub releases (checksummed AppImages).
+        {'id': 'github', 'label': 'GitHub', 'program': '', 'enabled': _githubOn},
       ],
     };
   }
@@ -1706,6 +1715,7 @@ final class CoreService {
         .where((f) => f['manager'] == manager && f['package'] == package)
         .firstOrNull;
     if (found == null ||
+        (manager == 'github' && !_githubOn) ||
         (manager != 'github' &&
             manager != 'local' &&
             !_enabledManagers().contains(manager))) {

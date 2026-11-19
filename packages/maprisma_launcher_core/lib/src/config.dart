@@ -183,6 +183,8 @@ final class Settings {
       'close_outside': data['close_outside'] != false,
       // After starting an app the window hides (on by default).
       'close_after_launch': data['close_after_launch'] != false,
+      // App sources: public GitHub releases next to the package managers (on by default).
+      'github_source': data['github_source'] != false,
       // The package managers the user allows (null: the defaults, see Managers).
       'package_managers': data['package_managers'] is List
           ? [for (final m in data['package_managers'] as List) if (managerIds.contains(m)) m]
@@ -247,7 +249,7 @@ final class Settings {
     final data = raw();
     for (final key in const [
       'view', 'wide_layout', 'shown_layouts', 'corners', 'icon_sizes', 'app_icon_size',
-      'view_buttons', 'filter_field', 'running_first', 'language', 'screenshot_key', 'screenshot_folder', 'package_managers', 'window_mode', 'close_outside', 'close_after_launch', 'header_order', 'ai_enabled',
+      'view_buttons', 'filter_field', 'running_first', 'language', 'screenshot_key', 'screenshot_folder', 'package_managers', 'window_mode', 'close_outside', 'close_after_launch', 'github_source', 'header_order', 'ai_enabled',
     ]) {
       data.remove(key);
     }
@@ -299,7 +301,7 @@ final class Settings {
         }
         stored = _folder(value);
         if (stored == null) throw ArgumentError(key);
-      case 'running_first' || 'view_buttons' || 'filter_field' || 'screenshot_key' || 'ai_enabled' || 'close_outside' || 'close_after_launch':
+      case 'running_first' || 'view_buttons' || 'filter_field' || 'screenshot_key' || 'ai_enabled' || 'close_outside' || 'close_after_launch' || 'github_source':
         if (value is! bool) throw ArgumentError(key);
         stored = value;
       case 'language':

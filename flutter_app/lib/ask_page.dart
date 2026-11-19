@@ -397,6 +397,8 @@ class _AskPageState extends State<AskPage> {
           () => error = e.code == 'helper_failed'
               // Why, when the core knows (e.g. the local model server did not start).
               ? [tr('The helper did not answer.'), ?_why(e.reason)].join(' ')
+              : e.code == 'github_off'
+              ? tr('GitHub is switched off as an app source. Switch it on in Settings › App sources.')
               : trf('That did not work ({0}).', [e.code]),
         );
       }

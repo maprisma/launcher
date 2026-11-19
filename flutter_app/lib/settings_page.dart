@@ -812,9 +812,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   if (managers.isNotEmpty)
                     _row(
-                      tr('Package managers'),
+                      tr('App sources'),
                       tr(
-                        'Which package managers Install apps (and later Ask AI) may use. The AUR is off until you choose it: community build scripts, not checked by the distribution.',
+                        'Where Install apps and Ask AI look for apps: your package managers and public GitHub releases (only AppImages with a checksum are installed). The AUR is off until you choose it: community build scripts, not checked by the distribution.',
                       ),
                       Wrap(
                         spacing: 8,
@@ -826,11 +826,16 @@ class _SettingsPageState extends State<SettingsPage> {
                               label: Text(m['id'] == 'aur' ? 'AUR (${m['program']})' : '${m['label']}'),
                               selected: m['enabled'] == true,
                               onSelected: (on) async {
-                                final next = [
-                                  for (final x in managers)
-                                    if (x['id'] == m['id'] ? on : x['enabled'] == true) x['id'],
-                                ];
-                                await _set('package_managers', next);
+                                if (m['id'] == 'github') {
+                                  await _set('github_source', on);
+                                } else {
+                                  final next = [
+                                    for (final x in managers)
+                                      if (x['id'] != 'github' && (x['id'] == m['id'] ? on : x['enabled'] == true))
+                                        x['id'],
+                                  ];
+                                  await _set('package_managers', next);
+                                }
                                 await _loadManagers();
                               },
                             ),
