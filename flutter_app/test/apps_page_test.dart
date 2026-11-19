@@ -2,6 +2,7 @@
 /// moving an entry to a new group, hiding.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -449,6 +450,66 @@ void main() {
     await settle(tester);
     expect(find.byTooltip('Gruppen (Strg+G)'), findsOneWidget);
     expect(find.text('3 von 3 Apps'), findsOneWidget);
+  });
+
+  testWidgets('close after starting an app: on by default (any desktop), off in Settings', (tester) async {
+    tester.view.physicalSize = const Size(1500, 1150);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final launched = <String>[];
+    Future<Map<String, dynamic>> fake(String method, [Map<String, dynamic> params = const {}]) async {
+      if (method == 'apps.launch') {
+        launched.add('${params['key']}');
+        return {'started': true};
+      }
+      return call(method, params);
+    }
+
+    var hides = 0;
+    Future<void> start(Key key) async {
+      await tester.pumpWidget(MaterialApp(
+        home: AppsPage(key: key, core: fake, desktop: 'generic', onHide: () => hides++),
+      ));
+      await settle(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyW);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyR);
+      await settle(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await settle(tester);
+    }
+
+    expect((await tester.runAsync(() => call('settings.get')))!['close_after_launch'], isTrue);
+    await tester.runAsync(() => call('settings.set', {'key': 'filter_field', 'value': false}));
+    await start(GlobalKey<AppsPageState>());
+    expect(launched, hasLength(1));
+    expect(hides, 1);
+
+    // Off: the app starts, the Launcher stays.
+    await tester.runAsync(() => call('settings.set', {'key': 'close_after_launch', 'value': false}));
+    await start(GlobalKey<AppsPageState>());
+    expect(launched, hasLength(2));
+    expect(hides, 1);
+  });
+
+  testWidgets('Settings: the "Close after starting an app" switch saves the setting', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final key = GlobalKey<AppsPageState>();
+    await tester.pumpWidget(MaterialApp(home: AppsPage(key: key, core: call, desktop: 'generic')));
+    await settle(tester);
+    unawaited(key.currentState!.openSettings());
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('settings-section-general')));
+    await settle(tester);
+    final toggle = find.byKey(const ValueKey('close-after-launch'));
+    await tester.ensureVisible(toggle);
+    expect(tester.widget<Switch>(toggle).value, isTrue);
+    await tester.tap(toggle);
+    await settle(tester);
+    expect(tester.widget<Switch>(toggle).value, isFalse);
+    expect((await tester.runAsync(() => call('settings.get')))!['close_after_launch'], isFalse);
+    expect(key.currentState!.closeAfterLaunch, isFalse);
   });
 
   testWidgets('filter field off: typing still filters, the title shows it', (tester) async {

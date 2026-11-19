@@ -96,9 +96,13 @@ void main() {
     expect(() => settings.set('window_position', [200000, 2]), throwsArgumentError);
     expect(settings.read()['screenshot_key'], isTrue);
     expect(settings.read()['close_outside'], isTrue);
+    expect(settings.read()['close_after_launch'], isTrue);
     expect(settings.read()['screenshot_folder'], isNull);
     settings.set('screenshot_key', false);
     settings.set('close_outside', false);
+    settings.set('close_after_launch', false);
+    expect(settings.read()['close_after_launch'], isFalse);
+    expect(() => settings.set('close_after_launch', 'yes'), throwsArgumentError);
     settings.set('screenshot_folder', '/tmp/shots');
     expect(settings.read()['screenshot_key'], isFalse);
     expect(settings.read()['close_outside'], isFalse);

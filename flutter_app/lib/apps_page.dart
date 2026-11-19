@@ -686,6 +686,8 @@ class AppsPageState extends State<AppsPage> {
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text(text)));
 
+  bool get closeAfterLaunch => settings['close_after_launch'] != false;
+
   Future<void> _launch(Map app, {String? action}) async {
     try {
       await widget.core(action == null ? 'apps.launch' : 'apps.action', {
@@ -693,8 +695,8 @@ class AppsPageState extends State<AppsPage> {
         'action': ?action,
       });
       _clearFilter();
-      // On Omarchy the window steps aside after a start, as the bar popup did.
-      if (widget.desktop == 'omarchy') widget.onHide?.call();
+      // Settings › Close after starting an app (on by default).
+      if (closeAfterLaunch) widget.onHide?.call();
     } on ServiceError {
       _tell(trf('{0} could not be started.', [app['name']]));
     }
@@ -1647,7 +1649,7 @@ class AppsPageState extends State<AppsPage> {
     try {
       await widget.core(route, {'key': app['key'], ...extra});
       _clearFilter();
-      widget.onHide?.call();
+      if (closeAfterLaunch) widget.onHide?.call();
     } on ServiceError {
       _tell(trf('{0} could not be started.', [app['name']]));
     }
