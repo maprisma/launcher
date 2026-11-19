@@ -684,6 +684,15 @@ class _SettingsPageState extends State<SettingsPage> {
                       onChanged: (v) => _set('close_outside', v),
                     ),
                   ),
+                  _row(
+                    tr('Close after starting an app'),
+                    tr('The Launcher hides once it has started an app.'),
+                    Switch(
+                      key: const ValueKey('close-after-launch'),
+                      value: settings['close_after_launch'] != false,
+                      onChanged: (v) => _set('close_after_launch', v),
+                    ),
+                  ),
                   _Section('layout', tr('Layout'), Icons.dashboard_outlined),
                   _row(
                     tr('Layout when small'),
