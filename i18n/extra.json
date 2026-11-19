@@ -267,7 +267,11 @@
     "Glassy (blurred)": "Glas (unscharf)",
     "Solid": "Deckend",
     "Close after starting an app": "Nach dem Start einer App schließen",
-    "The Launcher hides once it has started an app.": "Der Launcher blendet sich aus, sobald er eine App gestartet hat."
+    "The Launcher hides once it has started an app.": "Der Launcher blendet sich aus, sobald er eine App gestartet hat.",
+    "App sources": "App-Quellen",
+    "Where Install apps and Ask AI look for apps: your package managers and public GitHub releases (only AppImages with a checksum are installed). The AUR is off until you choose it: community build scripts, not checked by the distribution.": "Wo „Apps installieren“ und „KI fragen“ nach Apps suchen: deine Paketverwaltungen und öffentliche GitHub-Releases (installiert werden nur AppImages mit Prüfsumme). Das AUR ist aus, bis du es wählst: Build-Skripte der Community, nicht von der Distribution geprüft.",
+    "No app source is enabled (Settings › App sources).": "Keine App-Quelle ist eingeschaltet (Einstellungen › App-Quellen).",
+    "GitHub is switched off as an app source. Switch it on in Settings › App sources.": "GitHub ist als App-Quelle ausgeschaltet. Schalte es unter Einstellungen › App-Quellen ein."
   },
   "es": {
     "\u0004Shortcuts of {0} app": [
@@ -537,7 +541,11 @@
     "Glassy (blurred)": "Cristal (desenfocado)",
     "Solid": "Opacas",
     "Close after starting an app": "Cerrar tras iniciar una aplicación",
-    "The Launcher hides once it has started an app.": "El Launcher se oculta en cuanto ha iniciado una aplicación."
+    "The Launcher hides once it has started an app.": "El Launcher se oculta en cuanto ha iniciado una aplicación.",
+    "App sources": "Fuentes de aplicaciones",
+    "Where Install apps and Ask AI look for apps: your package managers and public GitHub releases (only AppImages with a checksum are installed). The AUR is off until you choose it: community build scripts, not checked by the distribution.": "Dónde buscan aplicaciones «Instalar aplicaciones» y «Preguntar a la IA»: tus gestores de paquetes y las versiones públicas de GitHub (solo se instalan AppImages con suma de comprobación). El AUR está desactivado hasta que lo elijas: scripts de compilación de la comunidad, no revisados por la distribución.",
+    "No app source is enabled (Settings › App sources).": "No hay ninguna fuente de aplicaciones activada (Ajustes › Fuentes de aplicaciones).",
+    "GitHub is switched off as an app source. Switch it on in Settings › App sources.": "GitHub está desactivado como fuente de aplicaciones. Actívalo en Ajustes › Fuentes de aplicaciones."
   },
   "fr": {
     "\u0004Shortcuts of {0} app": [
@@ -807,7 +815,11 @@
     "Glassy (blurred)": "Verre (flouté)",
     "Solid": "Opaques",
     "Close after starting an app": "Fermer après le lancement d’une application",
-    "The Launcher hides once it has started an app.": "Le Launcher se masque dès qu’il a lancé une application."
+    "The Launcher hides once it has started an app.": "Le Launcher se masque dès qu’il a lancé une application.",
+    "App sources": "Sources d’applications",
+    "Where Install apps and Ask AI look for apps: your package managers and public GitHub releases (only AppImages with a checksum are installed). The AUR is off until you choose it: community build scripts, not checked by the distribution.": "Où « Installer des applications » et « Demander à l’IA » cherchent des applications : vos gestionnaires de paquets et les versions publiques sur GitHub (seules les AppImages avec somme de contrôle sont installées). L’AUR reste désactivé tant que vous ne le choisissez pas : scripts de construction communautaires, non vérifiés par la distribution.",
+    "No app source is enabled (Settings › App sources).": "Aucune source d’applications n’est activée (Paramètres › Sources d’applications).",
+    "GitHub is switched off as an app source. Switch it on in Settings › App sources.": "GitHub est désactivé comme source d’applications. Activez-le dans Paramètres › Sources d’applications."
   },
   "it": {
     "\u0004Shortcuts of {0} app": [
@@ -1077,7 +1089,11 @@
     "Glassy (blurred)": "Vetro (sfocato)",
     "Solid": "Opache",
     "Close after starting an app": "Chiudi dopo l’avvio di un’app",
-    "The Launcher hides once it has started an app.": "Il Launcher si nasconde appena ha avviato un’app."
+    "The Launcher hides once it has started an app.": "Il Launcher si nasconde appena ha avviato un’app.",
+    "App sources": "Origini delle app",
+    "Where Install apps and Ask AI look for apps: your package managers and public GitHub releases (only AppImages with a checksum are installed). The AUR is off until you choose it: community build scripts, not checked by the distribution.": "Dove «Installa app» e «Chiedi all’IA» cercano le app: i tuoi gestori di pacchetti e le release pubbliche su GitHub (si installano solo AppImage con checksum). L’AUR è spento finché non lo scegli: script di compilazione della comunità, non verificati dalla distribuzione.",
+    "No app source is enabled (Settings › App sources).": "Nessuna origine delle app è attiva (Impostazioni › Origini delle app).",
+    "GitHub is switched off as an app source. Switch it on in Settings › App sources.": "GitHub è spento come origine delle app. Accendilo in Impostazioni › Origini delle app."
   },
   "nl": {
     "\u0004Shortcuts of {0} app": [
@@ -1347,7 +1363,11 @@
     "Glassy (blurred)": "Glas (vervaagd)",
     "Solid": "Dekkend",
     "Close after starting an app": "Sluiten na het starten van een app",
-    "The Launcher hides once it has started an app.": "De Launcher verbergt zich zodra hij een app heeft gestart."
+    "The Launcher hides once it has started an app.": "De Launcher verbergt zich zodra hij een app heeft gestart.",
+    "App sources": "App-bronnen",
+    "Where Install apps and Ask AI look for apps: your package managers and public GitHub releases (only AppImages with a checksum are installed). The AUR is off until you choose it: community build scripts, not checked by the distribution.": "Waar ‘Apps installeren’ en ‘AI vragen’ naar apps zoeken: je pakketbeheerders en openbare GitHub-releases (alleen AppImages met een controlesom worden geïnstalleerd). De AUR staat uit tot je hem kiest: buildscripts van de community, niet gecontroleerd door de distributie.",
+    "No app source is enabled (Settings › App sources).": "Er staat geen app-bron aan (Instellingen › App-bronnen).",
+    "GitHub is switched off as an app source. Switch it on in Settings › App sources.": "GitHub staat uit als app-bron. Zet het aan in Instellingen › App-bronnen."
   },
   "pl": {
     "\u0004Shortcuts of {0} app": [
@@ -1622,7 +1642,11 @@
     "Glassy (blurred)": "Szkło (rozmyte)",
     "Solid": "Nieprzezroczyste",
     "Close after starting an app": "Zamknij po uruchomieniu aplikacji",
-    "The Launcher hides once it has started an app.": "Launcher ukrywa się, gdy tylko uruchomi aplikację."
+    "The Launcher hides once it has started an app.": "Launcher ukrywa się, gdy tylko uruchomi aplikację.",
+    "App sources": "Źródła aplikacji",
+    "Where Install apps and Ask AI look for apps: your package managers and public GitHub releases (only AppImages with a checksum are installed). The AUR is off until you choose it: community build scripts, not checked by the distribution.": "Gdzie „Instaluj aplikacje” i „Zapytaj AI” szukają aplikacji: w Twoich menedżerach pakietów i publicznych wydaniach na GitHubie (instalowane są tylko AppImage z sumą kontrolną). AUR jest wyłączony, dopóki go nie wybierzesz: skrypty budowania społeczności, niesprawdzane przez dystrybucję.",
+    "No app source is enabled (Settings › App sources).": "Żadne źródło aplikacji nie jest włączone (Ustawienia › Źródła aplikacji).",
+    "GitHub is switched off as an app source. Switch it on in Settings › App sources.": "GitHub jest wyłączony jako źródło aplikacji. Włącz go w Ustawienia › Źródła aplikacji."
   },
   "pt": {
     "\u0004Shortcuts of {0} app": [
@@ -1892,6 +1916,10 @@
     "Glassy (blurred)": "Vidro (desfocado)",
     "Solid": "Opacas",
     "Close after starting an app": "Fechar após iniciar uma aplicação",
-    "The Launcher hides once it has started an app.": "O Launcher oculta-se assim que iniciou uma aplicação."
+    "The Launcher hides once it has started an app.": "O Launcher oculta-se assim que iniciou uma aplicação.",
+    "App sources": "Fontes de aplicações",
+    "Where Install apps and Ask AI look for apps: your package managers and public GitHub releases (only AppImages with a checksum are installed). The AUR is off until you choose it: community build scripts, not checked by the distribution.": "Onde «Instalar aplicações» e «Perguntar à IA» procuram aplicações: os seus gestores de pacotes e as versões públicas no GitHub (só são instaladas AppImages com soma de verificação). O AUR fica desligado até o escolher: scripts de compilação da comunidade, não verificados pela distribuição.",
+    "No app source is enabled (Settings › App sources).": "Nenhuma fonte de aplicações está ligada (Definições › Fontes de aplicações).",
+    "GitHub is switched off as an app source. Switch it on in Settings › App sources.": "O GitHub está desligado como fonte de aplicações. Ligue-o em Definições › Fontes de aplicações."
   }
 }

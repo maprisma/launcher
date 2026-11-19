@@ -32,6 +32,37 @@ bool validPackage(String name) => _pkg.hasMatch(name) && !name.startsWith('-');
 /// A found package. [installed]: already on this system.
 typedef Found = Map<String, dynamic>;
 
+/// Found apps, best name matches first: a package or app name equal to one of
+/// [queries] (or a spacing/hyphen variant), then names starting with or
+/// containing one, then description-only hits. Equal matches keep their order
+/// (the managers' own relevance); with [aurLast], AUR results follow the
+/// official ones of the same match.
+List<Found> rankFound(List<Found> found, List<String> queries, {bool aurLast = false}) {
+  final terms = <String>{for (final q in queries) ...searchTerms(q)}.toList();
+  if (terms.isEmpty) return found;
+  int rank(Found f) {
+    final package = '${f['package'] ?? ''}';
+    // owner/repo and app ids (com.visualstudio.code): the last part counts too.
+    final last = package.split(RegExp(r'[/.]')).last;
+    return [
+      searchRank(package, terms),
+      searchRank(last, terms),
+      if (f['name'] is String) searchRank(f['name'] as String, terms),
+    ].reduce((a, b) => a < b ? a : b);
+  }
+
+  final keyed = [
+    for (var i = 0; i < found.length; i++)
+      (rank: rank(found[i]), aur: aurLast && found[i]['aur'] == true ? 1 : 0, index: i, f: found[i]),
+  ]..sort((a, b) {
+      final byRank = a.rank.compareTo(b.rank);
+      if (byRank != 0) return byRank;
+      final byAur = a.aur.compareTo(b.aur);
+      return byAur != 0 ? byAur : a.index.compareTo(b.index);
+    });
+  return [for (final k in keyed) k.f];
+}
+
 final class Managers {
   Managers(this.session);
   final Session session;

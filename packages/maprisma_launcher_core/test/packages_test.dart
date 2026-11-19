@@ -70,6 +70,34 @@ void main() {
     });
   });
 
+  test('rankFound: the app named in the queries comes first, even after a broad query (Install VS Code)', () {
+    Found f(String manager, String package, {String? name, bool aur = false}) =>
+        {'manager': manager, 'package': package, 'name': ?name, if (aur) 'aur': true};
+    // In search order: the broad "code" query floods pacman and Flatpak first.
+    final found = [
+      for (final junk in ['geocode-glib', 'icu', 'perl', 'abseil-cpp']) f('pacman', junk),
+      f('flatpak', 'com.belmoussaoui.Decoder', name: 'Decoder'),
+      f('aur', 'visual-studio-code-bin', aur: true),
+      f('pacman', 'vscodium'),
+      f('pacman', 'code'),
+      f('flatpak', 'com.visualstudio.code', name: 'Visual Studio Code'),
+      f('github', 'microsoft/vscode'),
+    ];
+    final ranked = rankFound(
+      found,
+      ['Install VS Code', 'visual-studio-code-bin', 'code', 'vscode', 'com.visualstudio.code', 'visual studio code'],
+      aurLast: true,
+    );
+    final top = ranked.take(5).map((r) => '${r['manager']}:${r['package']}').toList();
+    expect(top.sublist(0, 4).toSet(), {'pacman:code', 'flatpak:com.visualstudio.code', 'github:microsoft/vscode', 'aur:visual-studio-code-bin'});
+    // Same match: official before the AUR.
+    expect(top.indexOf('aur:visual-studio-code-bin'), 3);
+    expect(ranked, hasLength(found.length));
+    // Equal matches keep the managers' own order (description-only hits last).
+    expect(ranked.skip(ranked.length - 4).map((r) => r['package']), ['icu', 'perl', 'abseil-cpp', 'vscodium']);
+    expect(rankFound(found, const []), same(found));
+  });
+
   test('core: install only what a search found; the shown command; AUR off by default', () async {
     final home = Directory.systemTemp.createTempSync('am-pkg-');
     addTearDown(() => home.deleteSync(recursive: true));

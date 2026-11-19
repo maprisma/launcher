@@ -106,6 +106,44 @@ void main() {
     final refused = await call('packages.install_plan', {'manager': 'github', 'package': 'other/repo'});
     expect(refused['error'], isNotNull);
   });
+  test('GitHub as an app source: on by default, listed with the managers, off stops every GitHub lookup', () async {
+    final temp = Directory.systemTemp.createTempSync('github-off-');
+    addTearDown(() => temp.deleteSync(recursive: true));
+    final fetched = <String>[];
+    final core = CoreService(
+      environment: {'HOME': temp.path, 'PATH': '/nonexistent'},
+      githubReleases: GithubReleases(cacheDuration: Duration.zero, fetch: (path) async {
+        fetched.add(path);
+        return path.startsWith('/search/')
+            ? {
+                'items': [
+                  {'full_name': 'storytold/craft-launcher'},
+                ],
+              }
+            : {'assets': []};
+      }),
+    );
+    Future<Map> call(String method, Map<String, dynamic> params) async =>
+        jsonDecode(await core.handleAsync(jsonEncode({'id': 1, 'protocol': 1, 'method': method, 'params': params})))
+            as Map;
+    final managers = (await call('packages.managers', {}))['result']['managers'] as List;
+    expect(managers.singleWhere((m) => m['id'] == 'github')['enabled'], isTrue);
+    expect((await call('packages.search', {'query': 'craft'}))['result']['results'], isNotEmpty);
+    expect(fetched, isNotEmpty);
+
+    await call('settings.set', {'key': 'github_source', 'value': false});
+    fetched.clear();
+    final again = (await call('packages.managers', {}))['result']['managers'] as List;
+    expect(again.singleWhere((m) => m['id'] == 'github')['enabled'], isFalse);
+    final search = (await call('packages.search', {'query': 'craft'}))['result'] as Map;
+    expect(search['results'], isEmpty);
+    expect(search['github_unavailable'], isFalse);
+    final ask = await call('ask.run', {'request': 'install craft-launcher from github'});
+    expect(ask['error']['code'], 'github_off');
+    final plan = await call('packages.install_plan', {'manager': 'github', 'package': 'storytold/craft-launcher'});
+    expect(plan['error']['code'], 'not_found');
+    expect(fetched, isEmpty);
+  });
   test('verified download is installed, mismatches and overwrites are refused', () async {
     final temp = Directory.systemTemp.createTempSync('github-install-');
     addTearDown(() => temp.deleteSync(recursive: true));
