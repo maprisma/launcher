@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import 'skin.dart';
+
 Color? hexColor(Map colors, String key) {
   final value = colors[key];
   if (value is! String || !RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(value)) {
@@ -105,36 +107,38 @@ double cornerRadius(String setting, int? windowRounding) => switch (setting) {
 /// The desktop's palette (desktop.look colors) as a Material theme; an
 /// empty palette (generic desktops) follows the platform's light or dark. [fonts] (desktop.look
 /// `fonts`): the desktop's interface font for all text, its monospace font for [monoFont].
-ThemeData appTheme(Brightness platform, Map colors, double radius, {Map? fonts}) {
-  final background = hexColor(colors, 'background');
+ThemeData appTheme(Brightness platform, Map colors, double radius, {Map? fonts, String? skin}) {
+  final activeSkin = skinStyle(skin);
+  final effectiveColors = activeSkin == null ? colors : activeSkin.toDesktopColors();
+  final background = hexColor(effectiveColors, 'background');
   final brightness = background == null
       ? platform
       : (background.computeLuminance() < .5 ? Brightness.dark : Brightness.light);
   var scheme = ColorScheme.fromSeed(
-    seedColor: hexColor(colors, 'accent') ?? const Color(0xff3584e4),
+    seedColor: hexColor(effectiveColors, 'accent') ?? const Color(0xff3584e4),
     brightness: brightness,
   );
   if (background != null) {
-    final foreground = hexColor(colors, 'foreground') ?? scheme.onSurface;
+    final foreground = hexColor(effectiveColors, 'foreground') ?? scheme.onSurface;
     Color step(double amount) => Color.lerp(background, foreground, amount)!;
-    final accent = hexColor(colors, 'accent');
+    final accent = hexColor(effectiveColors, 'accent');
     scheme = scheme.copyWith(
       primary: accent ?? scheme.primary,
       // Text on the accent: black on a light accent, else white.
       onPrimary: accent == null ? null : (accent.computeLuminance() > .4 ? Colors.black : Colors.white),
       surface: background,
       onSurface: foreground,
-      onSurfaceVariant: hexColor(colors, 'muted') == null
+      onSurfaceVariant: hexColor(effectiveColors, 'muted') == null
           ? step(.6)
-          : Color.lerp(hexColor(colors, 'muted'), foreground, .35),
+          : Color.lerp(hexColor(effectiveColors, 'muted'), foreground, .35),
       surfaceContainerLowest: step(.02),
       surfaceContainerLow: step(.05),
       surfaceContainer: step(.08),
       surfaceContainerHigh: step(.11),
       surfaceContainerHighest: step(.14),
       outlineVariant: step(.18),
-      secondaryContainer: hexColor(colors, 'selection') ?? step(.2),
-      error: hexColor(colors, 'red') ?? scheme.error,
+      secondaryContainer: hexColor(effectiveColors, 'selection') ?? step(.2),
+      error: hexColor(effectiveColors, 'red') ?? scheme.error,
     );
   }
   final shape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius));
@@ -142,7 +146,7 @@ ThemeData appTheme(Brightness platform, Map colors, double radius, {Map? fonts})
   final control = BorderRadius.circular(sizes.control), small = BorderRadius.circular(sizes.small);
   final controlShape = RoundedRectangleBorder(borderRadius: control);
   final fg = scheme.onSurface, accent = scheme.primary;
-  return ThemeData(
+  final base = ThemeData(
     colorScheme: scheme,
     useMaterial3: true,
     fontFamily: fontFamily(fonts, 'ui'),
@@ -150,7 +154,7 @@ ThemeData appTheme(Brightness platform, Map colors, double radius, {Map? fonts})
     extensions: [
       sizes,
       AppFonts(mono: fontFamily(fonts, 'mono')),
-      markColorsFrom(colors),
+      markColorsFrom(effectiveColors),
     ],
     cardTheme: CardThemeData(
       color: scheme.surfaceContainerLow,
@@ -230,6 +234,7 @@ ThemeData appTheme(Brightness platform, Map colors, double radius, {Map? fonts})
       overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
     ),
   );
+  return applySkinToTheme(base, skin, radius: radius);
 }
 
 /// The slider's knob: 14 px, round, or square with Square corners (not a big block).

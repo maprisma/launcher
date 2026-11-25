@@ -110,6 +110,7 @@ final class ConfigStore {
 // --- settings.json ---------------------------------------------------------------
 
 const wideLayouts = ['folders', 'cards', 'icons', 'cube'];
+const appSkins = ['native', 'synthwave', 'cozy', 'terminal', 'disco', 'zen'];
 const languageCodes = ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl'];
 const managerIds = ['pacman', 'aur', 'flatpak', 'snap', 'apt', 'dnf', 'zypper'];
 const iconSizeChoices = {
@@ -163,6 +164,7 @@ final class Settings {
       'corners': const ['windows', 'slight', 'rounded', 'square'].contains(corners)
           ? corners
           : 'windows',
+      'skin': appSkins.contains(data['skin']) ? data['skin'] : 'native',
       'icon_sizes': iconSizes(data),
       'running_first': data['running_first'] == true,
       'view_buttons': data['view_buttons'] == true,
@@ -248,7 +250,7 @@ final class Settings {
   void reset() {
     final data = raw();
     for (final key in const [
-      'view', 'wide_layout', 'shown_layouts', 'corners', 'icon_sizes', 'app_icon_size',
+      'view', 'wide_layout', 'shown_layouts', 'corners', 'skin', 'icon_sizes', 'app_icon_size',
       'view_buttons', 'filter_field', 'running_first', 'language', 'screenshot_key', 'screenshot_folder', 'package_managers', 'window_mode', 'close_outside', 'close_after_launch', 'github_source', 'header_order', 'ai_enabled',
     ]) {
       data.remove(key);
@@ -273,6 +275,13 @@ final class Settings {
         stored = chosen.isEmpty ? [...wideLayouts] : chosen;
       case 'corners':
         if (!const ['windows', 'slight', 'rounded', 'square'].contains(value)) throw ArgumentError(key);
+        stored = value;
+      case 'skin':
+        if (!appSkins.contains(value)) throw ArgumentError(key);
+        if (value == 'native') {
+          store.writeJson('settings.json', {...raw()}..remove('skin'));
+          return;
+        }
         stored = value;
       case 'window_mode':
         if (!const ['auto', 'popup', 'window'].contains(value)) throw ArgumentError(key);

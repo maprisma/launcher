@@ -127,6 +127,26 @@ void main() {
     expect(settings.read()['corners'], 'windows');
   });
 
+  test('skin: defaults to native, omits native on save, normalizes unknown values, resets cleanly', () {
+    final settings = Settings(store);
+    expect(settings.read()['skin'], 'native');
+    for (final value in ['synthwave', 'cozy', 'terminal', 'disco', 'zen']) {
+      settings.set('skin', value);
+      expect(settings.read()['skin'], value);
+      expect(settings.raw()['skin'], value);
+    }
+    settings.set('skin', 'native');
+    expect(settings.read()['skin'], 'native');
+    expect(settings.raw().containsKey('skin'), isFalse);
+    expect(() => settings.set('skin', 'neon'), throwsArgumentError);
+    store.writeJson('settings.json', {...settings.raw(), 'skin': 'unknown'});
+    expect(settings.read()['skin'], 'native');
+    settings.set('skin', 'synthwave');
+    settings.reset();
+    expect(settings.read()['skin'], 'native');
+    expect(settings.raw().containsKey('skin'), isFalse);
+  });
+
   test('ask prompts: own list or null for the built-in ones; bad lists refused', () {
     final settings = Settings(store);
     expect(settings.read()['ask_prompts'], isNull);

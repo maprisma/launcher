@@ -8,6 +8,7 @@ import 'package:maprisma_launcher_core/maprisma_launcher_core.dart' show homeSho
 import 'backend.dart';
 import 'core_call.dart';
 import 'i18n.dart';
+import 'skin.dart';
 import 'theme.dart' show corners, cornerSizes, roundedRadius, slightRadius;
 import 'main.dart' show PopupGuard;
 
@@ -380,6 +381,35 @@ class _SettingsPageState extends State<SettingsPage> {
     onChanged: (v) => v == null ? null : onChanged(v),
   );
 
+  Widget _skinDropdown(String value, ValueChanged<String> onChanged) => DropdownButton<String>(
+    key: const ValueKey('app-skin'),
+    value: normalizeSkin(value),
+    isExpanded: true,
+    isDense: true,
+    underline: const SizedBox.shrink(),
+    borderRadius: BorderRadius.circular(corners(context)),
+    items: [
+      for (final id in appSkins)
+        DropdownMenuItem(
+          value: id,
+          child: Row(
+            children: [
+              if (skinStyle(id) case final st?) ...[
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(color: st.accent, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Flexible(child: Text(skinLabel(id, tr), overflow: TextOverflow.ellipsis)),
+            ],
+          ),
+        ),
+    ],
+    onChanged: (v) => v == null ? null : onChanged(v),
+  );
+
   /// The section chosen last, kept while the app runs.
   static String? _chosen;
   final _find = TextEditingController();
@@ -736,6 +766,11 @@ class _SettingsPageState extends State<SettingsPage> {
                       ('rounded', trf('Rounded ({0} px)', [roundedRadius])),
                       ('square', tr('Square')),
                     ], (v) => _set('corners', v)),
+                  ),
+                  _row(
+                    tr('App skin'),
+                    tr('Visual accent for cards and borders; Native keeps your desktop theme untouched.'),
+                    _skinDropdown(settings[skinKey] as String? ?? 'native', (v) => _set(skinKey, v)),
                   ),
                   _row(
                     tr('Layouts in the header'),

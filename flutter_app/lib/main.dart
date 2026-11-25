@@ -21,6 +21,7 @@ import 'i18n.dart';
 export 'apps_page.dart' show AppView, WideLayout;
 export 'core_call.dart';
 import 'terminal_page.dart';
+import 'skin.dart';
 import 'theme.dart';
 
 /// The runner's channel: "shown" (the window came back), "titlebar"
@@ -113,6 +114,7 @@ class MaprismaLauncherApp extends StatefulWidget {
 class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBindingObserver {
   late Map<String, dynamic> look = widget.look;
   late String cornersSetting = widget.settings['corners'] as String? ?? 'windows';
+  late String skinSetting = normalizeSkin(widget.settings[skinKey] as String?);
   late Map<String, dynamic> settings = widget.settings;
 
   /// Popup mode (Settings › Window): on Omarchy by default the window floats
@@ -304,13 +306,15 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
     }
   }
 
-  /// Settings › Corners and Language take effect at once.
+  /// Settings › Corners, App skin and Language take effect at once.
   void _onSettings(Map<String, dynamic> settings) {
     final wasPopup = popup;
     setState(() {
       this.settings = settings;
       cornersSetting = settings['corners'] as String? ?? 'windows';
+      skinSetting = normalizeSkin(settings[skinKey] as String?);
     });
+    _syncTitlebar();
     I18n.use(settings['language'] as String? ?? 'auto');
     // Settings › Window switched: the title bar comes back, or the popup floats.
     if (wasPopup != popup) {
@@ -403,7 +407,7 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
 
   void _syncTitlebar() {
     final platform = WidgetsBinding.instance.platformDispatcher.platformBrightness;
-    final dark = appTheme(platform, look['colors'] as Map? ?? {}, 12).brightness == Brightness.dark;
+    final dark = appTheme(platform, look['colors'] as Map? ?? {}, 12, skin: skinSetting).brightness == Brightness.dark;
     windowChannel.invokeMethod('titlebar', dark).ignore();
   }
 
@@ -426,7 +430,16 @@ class _MaprismaLauncherState extends State<MaprismaLauncherApp> with WidgetsBind
         builder: (context, child) => RepaintBoundary(key: _shotArea, child: _esc.wrap(child!)),
         title: 'Maprisma Launcher',
         debugShowCheckedModeBanner: false,
-        theme: withWindowAlpha(appTheme(MediaQuery.platformBrightnessOf(context), look['colors'] as Map? ?? {}, radius, fonts: look['fonts'] as Map?), alpha),
+        theme: withWindowAlpha(
+          appTheme(
+            MediaQuery.platformBrightnessOf(context),
+            look['colors'] as Map? ?? {},
+            radius,
+            fonts: look['fonts'] as Map?,
+            skin: skinSetting,
+          ),
+          alpha,
+        ),
         home: AppsPage(
           core: widget.core,
           desktop: '${look['desktop'] ?? ''}',
