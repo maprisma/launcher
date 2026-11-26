@@ -29,6 +29,8 @@ import 'package:maprisma_core_kit/process.dart';
 import 'package:path/path.dart' as p;
 
 import 'desktop_entries.dart';
+import 'groups.dart' as groups;
+import 'mcp.dart' show askAiManageToolNames, askAiManageToolsPrompt, askAiSafeSettings;
 import 'posix.dart';
 import 'shortcuts.dart' show keyMapKey, modOrder;
 
@@ -306,7 +308,7 @@ typedef LocalModel = ({String provider, String model, String host, int port});
 String localHelperId(LocalModel m) => 'pi:${m.provider}/${m.model}';
 
 const askTask = 'ask-ai';
-const maxQueries = 5, maxPicks = 3, maxSearchResults = 25;
+const maxQueries = 5, maxPicks = 3, maxSearchResults = 25, maxManageSteps = 20;
 const askTimeout = Duration(minutes: 4);
 const maxAnswerBytes = 256 * 1024;
 
@@ -483,12 +485,14 @@ String askPrompt({
   required List<Map> installed,
   required List<String> managers,
   List<Map> downloaded = const [],
+  List<Map> groups = const [],
   String? language,
 }) =>
     '$_rules\n\n'
-    'Installed apps (id, name, description, origin, update available, can be removed, hidden from the '
-    'launcher\'s list, global keyboard shortcuts that open it): '
+    'Installed apps (id, name, description, origin, group id, pinned to dock, update available, can be removed, '
+    'hidden from the launcher\'s list, global keyboard shortcuts that open it): '
     '${jsonEncode(installed)}\n'
+    'App groups (id, name, builtin): ${jsonEncode(groups)}\n'
     'Downloaded AppImages (local source, installable offline; search by their app name): ${jsonEncode(downloaded)}\n'
     'Package managers the user allows: ${jsonEncode(managers)}\n\n'
     '${_request(request, answer)}\n'
@@ -500,6 +504,14 @@ String askPrompt({
     'the user\'s phrase. Preserve partial names and offer close spelling corrections when useful; '
     'for named apps try spacing/hyphen variants. Never replace a named app with an unrelated alternative. '
     '${managers.contains('github') ? 'Public GitHub repositories are searched too; do not claim only package-manager installs are supported.' : 'GitHub is switched off as an app source.'}\n'
+    '{"action": "manage", "summary": "<one short plain sentence describing the changes>", '
+    '"steps": [{"tool": "<launcher MCP tool name>", "arguments": {...}}]}\n'
+    'when the user wants to organize Maprisma Launcher itself: create, rename, delete, reorder or collapse app '
+    'groups, move apps into groups, pin or unpin apps on the dock, or change launcher settings. In "apps", use '
+    'the short app ids (like "a0", "a3") from Installed apps. In "group" / "target", use an existing group id '
+    'from App groups (or "other"), or the name of a group created by an earlier step in "steps". You may chain '
+    'multiple steps (for example create a group, then move apps into it). Available launcher MCP tools:\n'
+    '${askAiManageToolsPrompt()}\n'
     '{"action": "remove", "apps": ["<ids of installed apps>"]}\n'
     '{"action": "update", "apps": ["<ids of installed apps with update: true>"]}\n'
     'Use update to answer which installed apps have updates, or to update named apps. Only apps with '
@@ -524,12 +536,12 @@ String askPrompt({
     'ALT>"], "key": "<a letter, digit or F1 to F12 the user named, or empty>"}\n'
     'when the user wants a new shortcut for an app or wants to change one.\n'
     '{"action": "explain", "apps": ["<ids of installed apps>"], "answer": "<short plain answer>"}\n'
-    'when the user asks what an installed app is or which installed app to use.\n'
+    'when the user asks what an installed app is, which installed app to use, or what groups exist.\n'
     '{"action": "clarify", "question": "<one short question>", "choices": ["<2 to 4 short answers>"]}\n'
     'when the request is too broad to act on.\n'
     '{"action": "redirect", "hint": "<short helpful explanation>"}\n'
-    'when Maprisma Launcher cannot do it (it only finds, installs, updates, removes, hides, unhides and '
-    'explains apps and manages their keyboard shortcuts).\n'
+    'when Maprisma Launcher cannot do it (it finds, installs, updates, removes, hides, unhides, organizes in '
+    'groups, pins to the dock, configures and explains apps, and manages their keyboard shortcuts).\n'
     '${_language(language)}';
 
 /// Call 2: the best real packages among what the search found.
@@ -601,7 +613,13 @@ List<String> _strings(Object? value, int max, [int limit = 80]) => [
 /// Call 1's answer, checked: only known actions, only installed ids.
 Map<String, dynamic> checkAsk(Map<String, dynamic>? answer, Set<String> ids) {
   final action = answer?['action'];
-  List<String> known(Object? v) => _strings(v, 50).where(ids.contains).toList();
+  List<String> known(Object? v, [int max = 50]) {
+    final seen = <String>{};
+    return [
+      for (final s in _strings(v, max))
+        if (ids.contains(s) && seen.add(s)) s,
+    ];
+  }
   switch (action) {
     case 'search':
       // Whole terms only: a cut name would search for something else.
@@ -613,6 +631,27 @@ Map<String, dynamic> checkAsk(Map<String, dynamic>? answer, Set<String> ids) {
       ];
       if (queries.isEmpty) return {'action': 'redirect', 'hint': ''};
       return {'action': 'search', 'queries': queries, 'installed': known(answer['installed'])};
+    case 'manage':
+      final rawSteps = answer!['steps'];
+      final steps = <Map<String, dynamic>>[];
+      if (rawSteps is List) {
+        for (final item in rawSteps.take(maxManageSteps)) {
+          if (item is! Map) continue;
+          final tool = item['tool'];
+          final args = item['arguments'];
+          if (tool is! String || !askAiManageToolNames.contains(tool) || args is! Map) {
+            continue;
+          }
+          final checked = _checkManageStep(tool, args, (v) => known(v, 200));
+          if (checked != null) steps.add({'tool': tool, 'arguments': checked});
+        }
+      }
+      if (steps.isEmpty) return {'action': 'redirect', 'hint': ''};
+      return {
+        'action': 'manage',
+        'summary': _line(answer['summary'], 600),
+        'steps': steps,
+      };
     case 'remove' || 'update' || 'hide' || 'unhide':
       final apps = known(answer!['apps']);
       return apps.isEmpty ? {'action': 'redirect', 'hint': ''} : {'action': action, 'apps': apps};
@@ -649,6 +688,71 @@ Map<String, dynamic> checkAsk(Map<String, dynamic>? answer, Set<String> ids) {
       return {'action': 'redirect', 'hint': _line(answer!['hint'], 600)};
     default:
       return {'action': 'redirect', 'hint': ''};
+  }
+}
+
+Map<String, dynamic>? _checkManageStep(
+  String tool,
+  Map args,
+  List<String> Function(Object?) known,
+) {
+  switch (tool) {
+    case 'launcher_groups_create':
+      final name = groups.cleanName(args['name']);
+      if (name.isEmpty) return null;
+      final apps = args.containsKey('apps') ? known(args['apps']) : const <String>[];
+      return {'name': name, if (apps.isNotEmpty) 'apps': apps};
+    case 'launcher_groups_rename':
+      final group = _line(args['group'], 80);
+      final name = groups.cleanName(args['name']);
+      if (group.isEmpty || name.isEmpty) return null;
+      return {'group': group, 'name': name};
+    case 'launcher_groups_delete':
+      final group = _line(args['group'], 80);
+      if (group.isEmpty) return null;
+      return {'group': group};
+    case 'launcher_groups_move_apps':
+      final apps = known(args['apps']);
+      final group = _line(args['group'], 80);
+      if (apps.isEmpty || group.isEmpty) return null;
+      return {
+        'apps': apps,
+        'group': group,
+        if (args['create'] == true) 'create': true,
+      };
+    case 'launcher_groups_reorder':
+      final group = _line(args['group'], 80);
+      if (group.isEmpty) return null;
+      final target = _line(args['target'], 80);
+      final delta = args['delta'];
+      if (target.isNotEmpty) {
+        return {'group': group, 'target': target, 'after': args['after'] == true};
+      }
+      if (delta == -1 || delta == 1) {
+        return {'group': group, 'delta': delta};
+      }
+      return null;
+    case 'launcher_groups_toggle':
+      final group = _line(args['group'], 80);
+      if (group.isEmpty) return null;
+      return {'group': group};
+    case 'launcher_dock_pin':
+      final apps = known(args['apps']);
+      final pinned = args['pinned'];
+      if (apps.isEmpty || pinned is! bool) return null;
+      return {'apps': apps, 'pinned': pinned};
+    case 'launcher_settings_set':
+      final key = args['key'];
+      if (key is! String || !askAiSafeSettings.contains(key) || !args.containsKey('value')) {
+        return null;
+      }
+      final val = args['value'];
+      if (val is! bool && val is! String && val is! int && val is! Map) {
+        return null;
+      }
+      return {'key': key, 'value': val};
+    default:
+      return null;
   }
 }
 

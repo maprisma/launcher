@@ -471,6 +471,7 @@ esac
         'packages.install',
         'apps.uninstall',
         'apps.hide',
+        'ask.manage_apply',
         'updates.flatpak',
         'updates.appimage',
         'updates.appimage_restore',
@@ -594,5 +595,54 @@ esac
       result: 'done',
     );
     expect(victim.readAsStringSync(), 'keep');
+  });
+
+  test('ask.manage_apply enforces launcher.groups rule, subset check, and logs outcomes', () async {
+    File('${home.path}/data/applications/other.desktop').writeAsStringSync(
+      '[Desktop Entry]\nType=Application\nName=OtherApp\nExec=/bin/true\n',
+    );
+    executable(p.join(home.path, 'bin/claude'), r'''#!/bin/sh
+prompt=$(/bin/cat)
+writer=$(printf '%s' "$prompt" | /bin/sed -n 's/.*"id":"\(a[0-9]*\)","name":"Writer".*/\1/p')
+printf '{"action":"manage","summary":"Create Work","steps":[{"tool":"launcher_groups_create","arguments":{"name":"Work","apps":["%s"]}}]}\n' "$writer"
+''');
+    final list = (await call('apps.list'))['result']['apps'] as List;
+    final writerKey = list.firstWhere((a) => a['name'] == 'Writer')['key'] as String;
+    final otherKey = list.firstWhere((a) => a['name'] == 'OtherApp')['key'] as String;
+
+    final proposed = await call('ask.run', {'helper': 'claude', 'request': 'group writer'});
+    expect(proposed['error'], isNull, reason: '$proposed');
+    final proposal = proposed['result']['proposal'] as String;
+    final step = (proposed['result']['steps'] as List).single as Map;
+
+    // Injecting an app that wasn't proposed is blocked.
+    final injected = await call('ask.manage_apply', {
+      'proposal': proposal,
+      'steps': [
+        {
+          'tool': 'launcher_groups_create',
+          'arguments': {'name': 'Work', 'apps': [writerKey, otherKey]},
+        },
+      ],
+    });
+    expect(injected['error']['code'], 'ask_ai_blocked');
+
+    // Switching launcher.groups off blocks execution.
+    rules({'actions': {'launcher.groups': false}});
+    final blocked = await call('ask.manage_apply', {
+      'proposal': proposal,
+      'steps': [{'tool': step['tool'], 'arguments': step['arguments']}],
+    });
+    expect(blocked['error']['code'], 'ask_ai_blocked');
+
+    // Re-enabling allows execution and logs done.
+    rules({});
+    final ok = await call('ask.manage_apply', {
+      'proposal': proposal,
+      'steps': [{'tool': step['tool'], 'arguments': step['arguments']}],
+    });
+    expect(ok['error'], isNull, reason: '$ok');
+    expect(readAskAiLog(session).first['action'], 'launcher.groups');
+    expect(readAskAiLog(session).first['result'], 'done');
   });
 }

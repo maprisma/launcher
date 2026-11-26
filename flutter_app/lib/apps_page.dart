@@ -170,6 +170,7 @@ class AppsPageState extends State<AppsPage> {
       aiEnabled &&
       askHelpers.any((h) => h['installed'] == true && h['signed_in'] == true);
   Timer? _poll;
+  String? _configStamp;
   int _columns = 1;
   int _asked = 0;
   final filter = TextEditingController();
@@ -261,6 +262,7 @@ class AppsPageState extends State<AppsPage> {
         _takeSettings(settings);
         loading = false;
       });
+      widget.onSettings?.call(settings);
       await _refreshRunning(always: true);
       unawaited(_checkUpdates());
       unawaited(_loadFacts());
@@ -276,6 +278,15 @@ class AppsPageState extends State<AppsPage> {
     if (loading && !always) return;
     try {
       final result = await widget.core('apps.running');
+      final stamp = result['config_stamp'] as String?;
+      if (stamp != null) {
+        final previous = _configStamp;
+        _configStamp = stamp;
+        if (previous != null && previous != stamp && !always) {
+          unawaited(_load());
+          return;
+        }
+      }
       final now = (result['running'] as List).cast<String>().toSet();
       final states = Map<String, String>.from(
         result['states'] as Map? ?? const {},

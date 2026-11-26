@@ -56,3 +56,4 @@ export 'src/shortcut_service.dart';
 export 'src/screenshot.dart';
 
 export 'src/ask_ai_rules.dart';
+export 'src/mcp.dart';

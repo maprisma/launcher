@@ -76,6 +76,9 @@ class _AskPageState extends State<AskPage> {
   final Set<String> installedHere = {};
   bool updatingAll = false;
   bool uninstallingAll = false;
+  bool applyingManage = false;
+  bool manageDone = false;
+  final Map<int, Set<String>> manageDeselected = {};
 
   /// Hidden or shown here, by key: the buttons follow at once.
   final Map<String, bool> hiddenNow = {};
@@ -378,6 +381,9 @@ class _AskPageState extends State<AskPage> {
       error = null;
       if (answer == null) {
         hiddenNow.clear(); // A new question: the apps as they are now.
+        manageDeselected.clear();
+        manageDone = false;
+        applyingManage = false;
       }
       if (answer == null) result = null;
       lastRequest = text;
@@ -1344,6 +1350,77 @@ class _AskPageState extends State<AskPage> {
             style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
           ),
         );
+      case 'manage':
+        final steps = [
+          for (final s in r['steps'] as List? ?? const [])
+            Map<String, dynamic>.from(s as Map),
+        ];
+        if ('${r['summary'] ?? ''}'.isNotEmpty) {
+          children.add(Text('${r['summary']}'));
+        }
+        if (steps.isEmpty) {
+          children.add(
+            Text(
+              r['already_done'] == true
+                  ? tr('Already done — nothing to change.')
+                  : tr('Nothing to change.'),
+            ),
+          );
+        } else {
+          final runnable = _selectedManageSteps(steps);
+          children.add(
+            Padding(
+              padding: const EdgeInsets.only(top: 8, right: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      tr('Proposed changes'),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  if (applyingManage)
+                    const Padding(
+                      padding: EdgeInsets.all(10),
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  else if (manageDone)
+                    Row(
+                      key: const ValueKey('manage-done'),
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.check_circle,
+                          color: markColors(context).running,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(tr('Done')),
+                      ],
+                    )
+                  else if (_allowed('launcher.groups'))
+                    FilledButton.icon(
+                      key: const ValueKey('manage-apply'),
+                      onPressed: runnable.isEmpty
+                          ? null
+                          : () => _applyManage(r, runnable),
+                      icon: const Icon(Icons.check, size: 16),
+                      label: Text(tr('Apply')),
+                    ),
+                ],
+              ),
+            ),
+          );
+          if (!_allowed('launcher.groups')) {
+            children.add(AskAiBlocked(core: widget.core));
+          }
+          for (final (index, step) in steps.indexed) {
+            children.add(_manageStepCard(scheme, index, step));
+          }
+        }
       default:
         final hint = '${r['hint'] ?? ''}';
         children.add(
@@ -1351,7 +1428,7 @@ class _AskPageState extends State<AskPage> {
             hint.isNotEmpty
                 ? hint
                 : tr(
-                    'Maprisma Launcher can find, install, update, remove and explain apps and manage their shortcuts.',
+                    'Maprisma Launcher can find, install, update, remove, organize and explain apps and manage their shortcuts.',
                   ),
           ),
         );
@@ -1404,6 +1481,182 @@ class _AskPageState extends State<AskPage> {
     } finally {
       if (mounted) setState(() => uninstallingAll = false);
     }
+  }
+
+  /// Build the MCP tool steps to run, omitting any apps the user unchecked.
+  List<Map<String, dynamic>> _selectedManageSteps(
+    List<Map<String, dynamic>> steps,
+  ) {
+    final out = <Map<String, dynamic>>[];
+    for (final (index, step) in steps.indexed) {
+      final tool = step['tool'] as String;
+      final args = Map<String, dynamic>.from(step['arguments'] as Map);
+      final rawApps = args['apps'];
+      if (rawApps is List) {
+        final skipped = manageDeselected[index] ?? const <String>{};
+        final kept = [
+          for (final k in rawApps.cast<String>())
+            if (!skipped.contains(k)) k,
+        ];
+        if ((tool == 'launcher_groups_move_apps' || tool == 'launcher_dock_pin') &&
+            kept.isEmpty) {
+          continue;
+        }
+        args['apps'] = kept;
+      }
+      out.add({'tool': tool, 'arguments': args});
+    }
+    return out;
+  }
+
+  Future<void> _applyManage(
+    Map<String, dynamic> r,
+    List<Map<String, dynamic>> steps,
+  ) async {
+    setState(() {
+      applyingManage = true;
+      error = null;
+    });
+    try {
+      await widget.core('ask.manage_apply', {
+        'steps': steps,
+        'proposal': ?r['proposal'],
+      });
+      if (mounted) {
+        setState(() => manageDone = true);
+      }
+    } on ServiceError catch (e) {
+      if (mounted) {
+        setState(
+          () => error = e.reason != null && e.reason!.isNotEmpty
+              ? tr(e.reason!)
+              : trf('That did not work ({0}).', [e.code]),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => applyingManage = false);
+    }
+  }
+
+  static IconData _manageIcon(String tool) => switch (tool) {
+    'launcher_groups_create' => Icons.create_new_folder_outlined,
+    'launcher_groups_rename' => Icons.drive_file_rename_outline,
+    'launcher_groups_delete' => Icons.delete_outline,
+    'launcher_groups_move_apps' => Icons.drive_file_move_outlined,
+    'launcher_groups_reorder' => Icons.swap_vert,
+    'launcher_groups_toggle' => Icons.unfold_less,
+    'launcher_dock_pin' => Icons.push_pin_outlined,
+    'launcher_settings_set' => Icons.tune,
+    _ => Icons.auto_awesome_outlined,
+  };
+
+  static String _manageTitle(Map<String, dynamic> step) {
+    final tool = step['tool'] as String;
+    final args = step['arguments'] as Map;
+    final groupName = '${step['group_name'] ?? args['group'] ?? args['name'] ?? ''}';
+    return switch (tool) {
+      'launcher_groups_create' => trf('Create group “{0}”', [groupName]),
+      'launcher_groups_rename' => trf('Rename group “{0}” to “{1}”', [
+        '${step['old_name'] ?? args['group'] ?? ''}',
+        groupName,
+      ]),
+      'launcher_groups_delete' => trf('Delete group “{0}”', [groupName]),
+      'launcher_groups_move_apps' => step['creates_group'] == true
+          ? trf('Create group “{0}” and move apps into it', [groupName])
+          : trf('Move apps to “{0}”', [groupName]),
+      'launcher_groups_reorder' => args['target'] != null
+          ? (args['after'] == true
+              ? trf('Place group “{0}” after “{1}”', [
+                  groupName,
+                  '${step['target_name'] ?? args['target']}',
+                ])
+              : trf('Place group “{0}” before “{1}”', [
+                  groupName,
+                  '${step['target_name'] ?? args['target']}',
+                ]))
+          : (args['delta'] == -1
+              ? trf('Move group “{0}” up', [groupName])
+              : trf('Move group “{0}” down', [groupName])),
+      'launcher_groups_toggle' => trf('Toggle group “{0}”', [groupName]),
+      'launcher_dock_pin' => args['pinned'] == true
+          ? tr('Pin to the dock')
+          : tr('Unpin from the dock'),
+      'launcher_settings_set' => trf('Change setting {0} to {1}', [
+        '${args['key']}',
+        '${args['value']}',
+      ]),
+      _ => tool,
+    };
+  }
+
+  Widget _manageStepCard(
+    ColorScheme scheme,
+    int index,
+    Map<String, dynamic> step,
+  ) {
+    final tool = step['tool'] as String;
+    final args = step['arguments'] as Map;
+    final appKeys = [
+      for (final k in args['apps'] as List? ?? const [])
+        if (k is String && widget.apps[k] != null) k,
+    ];
+    final skipped = manageDeselected[index] ?? const <String>{};
+    final allowed = _allowed('launcher.groups');
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ListTile(
+              dense: true,
+              leading: Icon(_manageIcon(tool), color: scheme.primary),
+              title: Text(
+                _manageTitle(step),
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              trailing: appKeys.isEmpty
+                  ? null
+                  : Text(
+                      trn('{0} app', '{0} apps', appKeys.length - skipped.length),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+            ),
+            for (final key in appKeys)
+              if (widget.apps[key] case final app?)
+                CheckboxListTile(
+                  dense: true,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: !skipped.contains(key),
+                  onChanged: (!allowed || manageDone || applyingManage)
+                      ? null
+                      : (checked) => setState(() {
+                          final set = manageDeselected.putIfAbsent(
+                            index,
+                            () => <String>{},
+                          );
+                          if (checked == true) {
+                            set.remove(key);
+                          } else {
+                            set.add(key);
+                          }
+                        }),
+                  secondary: AppIcon(app['icon_file'] as String?, size: 28),
+                  title: Text('${app['name']}'),
+                  subtitle: (app['description'] as String? ?? '').isEmpty
+                      ? null
+                      : Text(
+                          tr(app['description'] as String? ?? ''),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// A pick's source label: AUR, GitHub or the package manager.

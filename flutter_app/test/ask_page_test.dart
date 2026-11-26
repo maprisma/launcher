@@ -659,4 +659,100 @@ void main() {
       expect(voice.args.last, 'dictate --events --release --app-id com.maprisma.Launcher');
     });
   });
+
+  testWidgets('manage action shows Craft move plan, lets user uncheck an app, and applies with proposal', (tester) async {
+    Future<Map<String, dynamic>> manageCore(String method, [Map<String, dynamic> params = const {}]) async {
+      if (method == 'ask.run') {
+        asked.add({'method': method, ...params});
+        return {
+          'action': 'manage',
+          'summary': 'Move apps into Craft.',
+          'proposal': 'prop-craft-1',
+          'steps': [
+            {
+              'tool': 'launcher_groups_move_apps',
+              'group_name': 'Craft',
+              'arguments': {
+                'apps': ['k1', 'k2'],
+                'group': 'g3',
+              },
+            },
+          ],
+        };
+      }
+      if (method == 'ask.manage_apply') {
+        asked.add({'method': method, ...params});
+        return {'applied': [], 'groups': {}, 'settings': {}};
+      }
+      return fake(method, params);
+    }
+
+    asked.clear();
+    helpersReady = true;
+    await tester.pumpWidget(MaterialApp(home: AskPage(core: manageCore, apps: apps, actions: actions())));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'move craft apps to Craft');
+    await tester.tap(find.byTooltip('Ask'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Move apps into Craft.'), findsOneWidget);
+    expect(find.text('Move apps to “Craft”'), findsOneWidget);
+    expect(find.text('Pinta'), findsOneWidget);
+    expect(find.text('Code'), findsOneWidget);
+
+    // Uncheck Code before applying.
+    await tester.tap(find.text('Code'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('manage-apply')));
+    await tester.pumpAndSettle();
+
+    final applied = asked.where((r) => r['method'] == 'ask.manage_apply').single;
+    expect(applied['proposal'], 'prop-craft-1');
+    expect(applied['steps'], [
+      {
+        'tool': 'launcher_groups_move_apps',
+        'arguments': {
+          'apps': ['k1'],
+          'group': 'g3',
+        },
+      },
+    ]);
+    expect(find.byKey(const ValueKey('manage-done')), findsOneWidget);
+  });
+
+  testWidgets('manage action respects launcher.groups rule and disables Apply when blocked', (tester) async {
+    Future<Map<String, dynamic>> restrictedManage(String method, [Map<String, dynamic> params = const {}]) async {
+      if (method == 'ask.rules') {
+        return {'level': 'review', 'actions': {'launcher.groups': false}};
+      }
+      if (method == 'ask.run') {
+        return {
+          'action': 'manage',
+          'summary': 'Rename Googgle.',
+          'proposal': 'prop-rename-1',
+          'steps': [
+            {
+              'tool': 'launcher_groups_rename',
+              'old_name': 'Googgle',
+              'group_name': 'Google',
+              'arguments': {'group': 'g2', 'name': 'Google'},
+            },
+          ],
+        };
+      }
+      return fake(method, params);
+    }
+
+    helpersReady = true;
+    await tester.pumpWidget(MaterialApp(home: AskPage(core: restrictedManage, apps: apps, actions: actions())));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'rename Googgle to Google');
+    await tester.tap(find.byTooltip('Ask'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Rename group “Googgle” to “Google”'), findsOneWidget);
+    expect(find.byKey(const ValueKey('manage-apply')), findsNothing);
+    expect(find.text('Switched off in Maprisma Settings › AI'), findsOneWidget);
+  });
 }

@@ -26,6 +26,31 @@ final class ConfigStore {
 
   String path(String name) => p.join(dir, name);
 
+  /// Run [body] holding an exclusive flock on `config.lock` so concurrent
+  /// processes (GUI + MCP server) never lose each other's read-modify-write edits.
+  T withLock<T>(T Function() body) {
+    if (!Directory(dir).existsSync()) {
+      Directory(dir).createSync(recursive: true);
+      Process.runSync('chmod', ['700', dir]);
+    }
+    try {
+      return Posix.instance.withFlock(path('config.lock'), body);
+    } on FileSystemException {
+      return body();
+    }
+  }
+
+  /// Lightweight change token for groups/hidden/settings on disk so an open GUI
+  /// notices edits made by an external MCP session.
+  String stamp() {
+    final buf = StringBuffer();
+    for (final name in const ['groups.json', 'hidden.json', 'settings.json']) {
+      final s = FileStat.statSync(path(name));
+      buf.write('${s.type}:${s.modified.microsecondsSinceEpoch}:${s.size};');
+    }
+    return buf.toString();
+  }
+
   /// The JSON in [name], or null when missing, too large or not JSON.
   Object? readJson(String name, {int cap = maxConfigBytes}) =>
       readJsonFile(path(name), cap: cap);

@@ -3,11 +3,19 @@ import 'dart:io';
 
 import 'package:maprisma_launcher_core/maprisma_launcher_core.dart';
 
-/// maprisma-launcher-core scan [--as-launcher]: the app list as JSON (for the
-/// oracle: --as-launcher uses gnome-launcher's ids and cache folder).
+/// maprisma-launcher-core:
+///   scan [--as-launcher]     the app list as JSON (for the oracle)
+///   mcp [--config-dir PATH]  local stdio MCP server (JSON-RPC 2.0)
 Future<void> main(List<String> args) async {
+  if (args.isNotEmpty && (args.first == 'mcp' || args.first == '--mcp')) {
+    exitCode = await runLauncherMcpStdio(args);
+    return;
+  }
   if (args.isEmpty || args.first != 'scan') {
-    stderr.writeln('usage: maprisma-launcher-core scan [--as-launcher]');
+    stderr.writeln(
+      'usage: maprisma-launcher-core scan [--as-launcher]\n'
+      '       $launcherMcpUsage',
+    );
     exitCode = 2;
     return;
   }

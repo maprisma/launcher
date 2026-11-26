@@ -374,5 +374,139 @@ printf '%s\n' "$@" > "$HOME/hermes-argv.txt"; cat > "$HOME/hermes-stdin.txt"; ec
       final r = await call('ask.run', {'request': 'x', 'helper': 'codex'});
       expect(r['error']['code'], 'no_helper');
     });
+
+    test('Ask AI manage: moves Craft apps into Craft group and creates/renames groups via shared MCP tools', () async {
+      // Add Craft apps and a Craft group.
+      final appsDir = Directory(p.join(home.path, 'data/applications'));
+      File(p.join(appsDir.path, 'photocraft.desktop')).writeAsStringSync(
+        '[Desktop Entry]\nType=Application\nName=PhotoCraft\nExec=/bin/true\nCategories=Graphics;\n',
+      );
+      File(p.join(appsDir.path, 'vectorcraft.desktop')).writeAsStringSync(
+        '[Desktop Entry]\nType=Application\nName=VectorCraft\nExec=/bin/true\nCategories=Graphics;\n',
+      );
+      final added = await call('groups.add', {'name': 'Craft'});
+      final craftId = added['result']['result'] as String;
+
+      // Fake claude inspects installed apps + groups in the prompt and returns MCP manage steps.
+      File(p.join(bin, 'claude')).writeAsStringSync(r'''#!/bin/sh
+cat > "$HOME/manage-prompt.txt"
+photo=$(grep -o '"id":"a[0-9]*","name":"PhotoCraft"' "$HOME/manage-prompt.txt" | head -1 | cut -d'"' -f4)
+vector=$(grep -o '"id":"a[0-9]*","name":"VectorCraft"' "$HOME/manage-prompt.txt" | head -1 | cut -d'"' -f4)
+if grep -q '<request>can you move all craft apps to the Craft Group' "$HOME/manage-prompt.txt"; then
+  printf '{"action":"manage","summary":"Move Craft apps to Craft.","steps":[{"tool":"launcher_groups_move_apps","arguments":{"apps":["%s","%s","a999"],"group":"Craft"}}]}\n' "$photo" "$vector"
+elif grep -q '<request>create ArtCraft and move PhotoCraft' "$HOME/manage-prompt.txt"; then
+  printf '{"action":"manage","summary":"Create ArtCraft and move PhotoCraft.","steps":[{"tool":"launcher_groups_create","arguments":{"name":"ArtCraft"}},{"tool":"launcher_groups_move_apps","arguments":{"apps":["%s"],"group":"ArtCraft"}}]}\n' "$photo"
+else
+  echo '{"action":"manage","summary":"Rename Craft.","steps":[{"tool":"launcher_groups_rename","arguments":{"group":"Craft","name":"Craft Suite"}}]}'
+fi
+''');
+
+      await call('apps.list');
+      final res = await call('ask.run', {
+        'request': 'can you move all craft apps to the Craft Group',
+        'helper': 'claude',
+      });
+      expect(res['error'], isNull, reason: '$res');
+      // Prompt included App groups and each app's current group.
+      final promptText = File(p.join(home.path, 'manage-prompt.txt')).readAsStringSync();
+      expect(promptText, contains('"name":"Craft"'));
+      expect(promptText, contains('launcher_groups_move_apps'));
+
+      final r = res['result'] as Map;
+      expect(r['action'], 'manage');
+      expect(r['proposal'], isA<String>());
+      final steps = (r['steps'] as List).cast<Map>();
+      expect(steps, hasLength(1));
+      expect(steps.single['tool'], 'launcher_groups_move_apps');
+      expect(steps.single['group_name'], 'Craft');
+      final args = steps.single['arguments'] as Map;
+      expect(args['group'], craftId);
+      expect((args['apps'] as List), hasLength(2)); // a999 dropped
+
+      // Nothing changed before user clicks Apply.
+      final before = (await call('apps.list'))['result']['apps'] as List;
+      expect(before.firstWhere((a) => a['name'] == 'PhotoCraft')['group'], 'graphics');
+
+      // Apply via ask.manage_apply with the core proposal.
+      final applied = await call('ask.manage_apply', {
+        'proposal': r['proposal'],
+        'steps': [
+          {'tool': steps.single['tool'], 'arguments': args},
+        ],
+      });
+      expect(applied['error'], isNull, reason: '$applied');
+
+      final after = (await call('apps.list'))['result']['apps'] as List;
+      expect(after.firstWhere((a) => a['name'] == 'PhotoCraft')['group'], craftId);
+      expect(after.firstWhere((a) => a['name'] == 'VectorCraft')['group'], craftId);
+
+      // Asking again when already in Craft reports already_done with empty steps.
+      final again = await call('ask.run', {
+        'request': 'can you move all craft apps to the Craft Group',
+        'helper': 'claude',
+      });
+      expect(again['result']['steps'], isEmpty);
+      expect(again['result']['already_done'], isTrue);
+
+      // Chained create + move into the newly created group works!
+      final chained = await call('ask.run', {
+        'request': 'create ArtCraft and move PhotoCraft',
+        'helper': 'claude',
+      });
+      expect(chained['error'], isNull, reason: '$chained');
+      final chainSteps = (chained['result']['steps'] as List).cast<Map>();
+      expect(chainSteps, hasLength(2));
+      final appliedChain = await call('ask.manage_apply', {
+        'proposal': chained['result']['proposal'],
+        'steps': [
+          for (final s in chainSteps) {'tool': s['tool'], 'arguments': s['arguments']},
+        ],
+      });
+      expect(appliedChain['error'], isNull, reason: '$appliedChain');
+      final afterChain = (await call('apps.list'))['result']['apps'] as List;
+      final artCraftId = ((appliedChain['result']['groups'] as Map)['groups'] as List)
+          .cast<Map>()
+          .firstWhere((g) => g['name'] == 'ArtCraft')['id'];
+      expect(afterChain.firstWhere((a) => a['name'] == 'PhotoCraft')['group'], artCraftId);
+
+      // Rename group.
+      final renamed = await call('ask.run', {'request': 'rename Craft', 'helper': 'claude'});
+      final renStep = (renamed['result']['steps'] as List).single as Map;
+      final appliedRen = await call('ask.manage_apply', {
+        'proposal': renamed['result']['proposal'],
+        'steps': [{'tool': renStep['tool'], 'arguments': renStep['arguments']}],
+      });
+      expect(appliedRen['error'], isNull, reason: '$appliedRen');
+      expect(
+        ((appliedRen['result']['groups'] as Map)['groups'] as List)
+            .cast<Map>()
+            .firstWhere((g) => g['id'] == craftId)['name'],
+        'Craft Suite',
+      );
+    });
+
+    test('checkAsk manage drops unknown tools and unsafe settings', () {
+      expect(
+        checkAsk({
+          'action': 'manage',
+          'steps': [
+            {'tool': 'launcher_apps_launch', 'arguments': {'app': 'a0'}},
+            {'tool': 'launcher_settings_set', 'arguments': {'key': 'ai_enabled', 'value': false}},
+          ],
+        }, {'a0'})['action'],
+        'redirect',
+      );
+      final ok = checkAsk({
+        'action': 'manage',
+        'summary': 'Switch skin',
+        'steps': [
+          {'tool': 'launcher_settings_set', 'arguments': {'key': 'skin', 'value': 'zen'}},
+        ],
+      }, {'a0'});
+      expect(ok['action'], 'manage');
+      expect(ok['steps'], [
+        {'tool': 'launcher_settings_set', 'arguments': {'key': 'skin', 'value': 'zen'}},
+      ]);
+    });
   });
 }

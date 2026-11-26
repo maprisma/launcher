@@ -30,6 +30,7 @@ import 'icons.dart';
 import 'hyprland.dart';
 import 'cosmic_windows.dart';
 import 'kde_windows.dart';
+import 'mcp.dart';
 import 'plugins.dart';
 import 'launch.dart';
 import 'newapps.dart';
@@ -187,6 +188,7 @@ final class CoreService {
     'apps.facts': (_) async => {'facts': await _facts.all(_apps)},
     'apps.running': (_) async {
       final (names, exes) = processNames();
+      final stamp = store.stamp();
       // Hyprland (Omarchy or any other) knows the windows: "active" (open
       // windows) or "background".
       if (_hyprland.available) {
@@ -194,7 +196,7 @@ final class CoreService {
         final states = _hyprland.states(_apps, _clients, names, exes);
         _runStates = states;
         _running = states.keys.toSet();
-        return {'running': _running.toList(), 'states': states};
+        return {'running': _running.toList(), 'states': states, 'config_stamp': stamp};
       }
       if (_toplevels case final windows?) {
         final clients = await windows.clients();
@@ -203,12 +205,12 @@ final class CoreService {
           final states = cosmicStates(_apps, clients, names, exes);
           _runStates = states;
           _running = states.keys.toSet();
-          return {'running': _running.toList(), 'states': states};
+          return {'running': _running.toList(), 'states': states, 'config_stamp': stamp};
         }
       }
       _runStates = null;
       _running = runningApps(_apps, names, exes);
-      return {'running': _running.toList()};
+      return {'running': _running.toList(), 'config_stamp': stamp};
     },
     'apps.windows': (params) async {
       final app = _app(params);
@@ -548,12 +550,14 @@ final class CoreService {
     },
     'apps.hide': (params) async {
       final app = _app(params);
-      final hidden = loadHidden(store);
-      params['hidden'] == true
-          ? hidden.add(app['desktop_id'] as String)
-          : hidden.remove(app['desktop_id']);
-      saveHidden(store, hidden);
-      return {'hidden': hidden.contains(app['desktop_id'])};
+      final id = app['desktop_id'] as String;
+      final isHidden = store.withLock(() {
+        final hidden = loadHidden(store);
+        params['hidden'] == true ? hidden.add(id) : hidden.remove(id);
+        saveHidden(store, hidden);
+        return hidden.contains(id);
+      });
+      return {'hidden': isHidden};
     },
     'groups.get': (_) async => _groupsView(_loadGroups()),
     'groups.place': (params) => _editGroups((data) {
@@ -632,6 +636,7 @@ final class CoreService {
       return _askHelpers();
     },
     'ask.run': (params) async => _propose(await _askRun(params)),
+    'ask.manage_apply': (params) => _applyManage(params),
     'ask.rules': (_) async {
       final r = readAskAiRules(session);
       return {'level': r.level, 'actions': r.actions, 'sources': r.sources, 'folders': r.folders, 'broken': r.broken};
@@ -802,31 +807,37 @@ final class CoreService {
     'dock.state': (_) => _dockState(),
     'dock.set': (params) async {
       try {
-        dock.set(_string(params, 'key'), params['value']);
+        store.withLock(() => dock.set(_string(params, 'key'), params['value']));
       } on ArgumentError {
         throw ServiceError('bad_params');
       }
       return _dockState();
     },
     'dock.reset': (_) async {
-      dock.reset();
+      store.withLock(() => dock.reset());
       return _dockState();
     },
     'dock.pin': (params) async {
       final id = _app(params)['desktop_id'] as String;
-      params['pinned'] == false ? dock.unpin(id) : dock.pin(id);
-      return {'pinned': dock.pinned()};
+      final pinned = store.withLock(() {
+        params['pinned'] == false ? dock.unpin(id) : dock.pin(id);
+        return dock.pinned();
+      });
+      return {'pinned': pinned};
     },
     'dock.move': (params) async {
       final id = _string(params, 'id'), target = _string(params, 'target');
-      final ids = dock.pinned();
-      if (!ids.contains(id) || !ids.contains(target)) {
-        throw ServiceError('not_found');
-      }
-      dock.setPinned(
-        movePinned(ids, id, target, after: params['after'] == true),
-      );
-      return {'pinned': dock.pinned()};
+      final pinned = store.withLock(() {
+        final ids = dock.pinned();
+        if (!ids.contains(id) || !ids.contains(target)) {
+          throw ServiceError('not_found');
+        }
+        dock.setPinned(
+          movePinned(ids, id, target, after: params['after'] == true),
+        );
+        return dock.pinned();
+      });
+      return {'pinned': pinned};
     },
     'dock.items': (params) async {
       if (params['rescan'] == true || _listed.isEmpty) {
@@ -913,21 +924,25 @@ final class CoreService {
       return {'started': true};
     },
     'settings.get': (_) async => settings.read(),
-    'settings.reset': (_) async {
+    'settings.reset': (_) async => store.withLock(() {
       settings.reset();
       return settings.read();
-    },
+    }),
     'settings.set': (params) async {
       try {
-        settings.set(_string(params, 'key'), params['value']);
+        final Map<String, dynamic> updated = store.withLock(() {
+          settings.set(_string(params, 'key'), params['value']);
+          return settings.read();
+        });
+        return updated;
       } on ArgumentError {
         throw ServiceError('bad_params');
       }
-      return settings.read();
     },
   });
 
   final _proposals = <String, ({Set<String> actions, String target, String? source})>{};
+  final _manageProposals = <String, List<Map<String, dynamic>>>{};
 
   String _proposal(Set<String> actions, String target, [String? source]) {
     final random = Random.secure();
@@ -944,6 +959,7 @@ final class CoreService {
       'hide' || 'unhide' || 'list_hidden' => 'launcher.hide',
       'shortcuts' || 'add_shortcut' || 'remove_shortcut' => 'launcher.shortcuts',
       'update' => 'launcher.update',
+      'manage' => 'launcher.groups',
       _ => null,
     };
     if (action == 'launcher.install') {
@@ -951,6 +967,16 @@ final class CoreService {
         ...Map<String, dynamic>.from(raw),
         'proposal': _proposal({action!}, '${raw['package']}', '${raw['manager']}'),
       }];
+    } else if (action == 'launcher.groups') {
+      final steps = [
+        for (final s in r['steps'] as List? ?? const [])
+          Map<String, dynamic>.from(s as Map),
+      ];
+      if (steps.isNotEmpty) {
+        final id = _proposal({'launcher.groups'}, 'manage');
+        _manageProposals[id] = steps;
+        r['proposal'] = id;
+      }
     } else if (action != null) {
       r['proposals'] = {for (final key in r['apps'] as List? ?? [])
         '$key': _proposal({action}, '$key')};
@@ -965,6 +991,7 @@ final class CoreService {
     'packages.install' => 'launcher.install',
     'apps.uninstall' => 'launcher.remove',
     'apps.hide' => 'launcher.hide',
+    'ask.manage_apply' => 'launcher.groups',
     'shortcuts.set' || 'shortcuts.remove' || 'shortcuts.disable' || 'shortcuts.restore' => 'launcher.shortcuts',
     'updates.flatpak' || 'updates.appimage' || 'updates.appimage_restore' => 'launcher.update',
     'updates.system' => 'launcher.update_system',
@@ -982,7 +1009,15 @@ final class CoreService {
     if (action == null || !params.containsKey('proposal')) return [];
     final targets = params['action'] == 'uninstall_all'
         ? (params['_ask_targets'] as List? ?? params['keys'] as List? ?? []).map((e) => '$e').toList()
-        : [action == 'launcher.install' ? '${params['package']}' : action == 'launcher.update_system' ? 'system' : '${params['key']}'];
+        : [
+            action == 'launcher.install'
+                ? '${params['package']}'
+                : action == 'launcher.update_system'
+                ? 'system'
+                : action == 'launcher.groups'
+                ? 'manage'
+                : '${params['key']}',
+          ];
     return [for (final target in targets) (
       id: params['proposal'] is Map ? '${(params['proposal'] as Map)[target]}' : '${params['proposal']}',
       action: action,
@@ -998,11 +1033,64 @@ final class CoreService {
     }
   }
 
+  static bool _manageStepAllowed(Map<String, dynamic> requested, Map<String, dynamic> proposed) {
+    if (requested['tool'] != proposed['tool']) return false;
+    final reqArgs = requested['arguments'];
+    final propArgs = proposed['arguments'];
+    if (reqArgs is! Map || propArgs is! Map) return false;
+    final tool = requested['tool'] as String;
+    if (tool == 'launcher_groups_move_apps' ||
+        tool == 'launcher_dock_pin' ||
+        tool == 'launcher_groups_create') {
+      // Allow the user in the review UI to uncheck individual apps, never add new ones.
+      final propApps = (propArgs['apps'] as List? ?? const []).cast<String>().toSet();
+      final reqApps = (reqArgs['apps'] as List? ?? const []);
+      if (reqApps.any((a) => a is! String || !propApps.contains(a))) return false;
+      if ((tool == 'launcher_groups_move_apps' || tool == 'launcher_dock_pin') &&
+          reqApps.isEmpty) {
+        return false;
+      }
+      final reqRest = Map<String, dynamic>.from(reqArgs)..remove('apps');
+      final propRest = Map<String, dynamic>.from(propArgs)..remove('apps');
+      return jsonEncode(reqRest) == jsonEncode(propRest);
+    }
+    return jsonEncode(reqArgs) == jsonEncode(propArgs);
+  }
+
   void _checkProposal(String method, Map<String, dynamic> params) {
     for (final step in _steps(method, params)) {
       final p = _proposals[step.id];
-      if (p == null || !p.actions.contains(step.action) || p.target != step.target ||
-          p.source != step.source || !askAiAllowed(session, step.action, source: step.source)) {
+      var ok = p != null &&
+          p.actions.contains(step.action) &&
+          p.target == step.target &&
+          p.source == step.source &&
+          askAiAllowed(session, step.action, source: step.source);
+      if (ok && method == 'ask.manage_apply') {
+        final proposedSteps = _manageProposals[step.id];
+        final rawSteps = params['steps'];
+        if (proposedSteps == null || rawSteps is! List || rawSteps.isEmpty) {
+          ok = false;
+        } else {
+          // Each requested step must match a distinct proposed step (in order).
+          var pi = 0;
+          for (final rs in rawSteps) {
+            if (rs is! Map) {
+              ok = false;
+              break;
+            }
+            final req = Map<String, dynamic>.from(rs);
+            while (pi < proposedSteps.length && !_manageStepAllowed(req, proposedSteps[pi])) {
+              pi++;
+            }
+            if (pi >= proposedSteps.length) {
+              ok = false;
+              break;
+            }
+            pi++;
+          }
+        }
+      }
+      if (!ok) {
         _logSteps(method, params, 'blocked');
         throw ServiceError('ask_ai_blocked', 'Switched off in Maprisma Settings › AI');
       }
@@ -1012,10 +1100,41 @@ final class CoreService {
     }
   }
 
+  Future<Map<String, dynamic>> _applyManage(Map<String, dynamic> params) async {
+    final rawSteps = params['steps'];
+    if (rawSteps is! List || rawSteps.isEmpty || rawSteps.length > maxManageSteps) {
+      throw ServiceError('bad_params');
+    }
+    final applied = <Map<String, dynamic>>[];
+    for (final item in rawSteps) {
+      if (item is! Map) throw ServiceError('bad_params');
+      final tool = item['tool'];
+      final rawArgs = item['arguments'];
+      if (tool is! String || !askAiManageToolNames.contains(tool) || rawArgs is! Map) {
+        throw ServiceError('bad_params');
+      }
+      final args = Map<String, dynamic>.from(rawArgs);
+      if (tool == 'launcher_settings_set' && !askAiSafeSettings.contains(args['key'])) {
+        throw ServiceError('bad_params');
+      }
+      try {
+        final out = await callLauncherMcpTool(this, tool, args);
+        applied.add({'tool': tool, 'result': out});
+      } on FormatException catch (e) {
+        throw ServiceError('bad_params', e.message);
+      }
+    }
+    return {
+      'applied': applied,
+      'groups': _groupsView(_loadGroups()),
+      'settings': settings.read(),
+    };
+  }
+
   Map<String, Future<Map<String, dynamic>> Function(Map<String, dynamic>)> _guardRoutes(
       Map<String, Future<Map<String, dynamic>> Function(Map<String, dynamic>)> routes) =>
-    routes.map((method, route) => MapEntry(method, (params) async {
-      params.remove('_ask_targets');
+    routes.map((method, route) => MapEntry(method, (rawParams) async {
+      final params = Map<String, dynamic>.of(rawParams)..remove('_ask_targets');
       _checkProposal(method, params);
       try {
         final result = await route(params);
@@ -1090,6 +1209,8 @@ final class CoreService {
     return app;
   }
 
+  groups.GroupData loadGroupsData() => _loadGroups();
+
   groups.GroupData _loadGroups() {
     final data = store.readJson('groups.json');
     return groups.cleanPage(data is Map ? data['apps'] : null, desktop.origins);
@@ -1131,7 +1252,7 @@ final class CoreService {
 
   Future<Map<String, dynamic>> _editGroups(
     dynamic Function(groups.GroupData) edit,
-  ) async {
+  ) async => store.withLock(() {
     final data = _loadGroups();
     Object? result;
     try {
@@ -1141,7 +1262,7 @@ final class CoreService {
     }
     _saveGroups(data);
     return {..._groupsView(data), 'result': ?result};
-  }
+  });
 
   Future<IconTheme> _iconTheme() async {
     final name = await desktop.iconTheme();
@@ -1453,6 +1574,8 @@ final class CoreService {
     final keys = _apps.keys.toList();
     final ids = {for (var i = 0; i < keys.length; i++) 'a$i': keys[i]};
     final hidden = loadHidden(store);
+    final groupData = _loadGroups();
+    final pinnedSet = dock.pinned().toSet();
     final defaults = desktop.defaultDesktops();
     final availableFlatpaks = _updatesView()['flatpaks'] as Map;
     // The keys that open each app now (any source), so "remove Super + B" finds its app.
@@ -1468,6 +1591,8 @@ final class CoreService {
                   ? '${app['description']}'.substring(0, 80)
                   : app['description'],
               'origin': desktop.origin(app, defaults),
+              'group': groups.groupOf(app, groupData),
+              if (pinnedSet.contains(app['desktop_id'])) 'pinned': true,
               if ((_updates['apps'] as Map).containsKey(app['desktop_path']) ||
                   (_updates['appimages'] as Map).containsKey(e.value) ||
                   availableFlatpaks.containsKey(e.value))
@@ -1484,6 +1609,15 @@ final class CoreService {
               'shortcuts': ?keysNow[e.value],
             },
     ];
+    final promptGroups = <Map>[
+      for (final g in groupData['groups'] as List)
+        {
+          'id': g['id'],
+          'name': groups.displayName(g['id'] as String, groupData),
+          if (groups.builtinNames.containsKey(g['id'])) 'builtin': true,
+        },
+      {'id': groups.other, 'name': 'Other', 'builtin': true},
+    ];
     final managers = _enabledManagers();
     final downloaded = readAskAiRules(session).folders['downloads'] == false ? <Found>[] : await downloadedAppImages(session);
     String text;
@@ -1495,6 +1629,7 @@ final class CoreService {
           request: request,
           answer: answer,
           installed: facts(const []),
+          groups: promptGroups,
           downloaded: [
             for (final f in downloaded)
               {
@@ -1603,6 +1738,13 @@ final class CoreService {
           'queries': first['queries'],
           'github_unavailable': combined.githubUnavailable,
         };
+      case 'manage':
+        return _prepareManagePlan(
+          first,
+          toKeys,
+          groupData,
+          pinnedSet,
+        );
       case 'remove' || 'update' || 'explain':
         return {...first, 'apps': toKeys(first['apps'])};
       // Hide only what shows, unhide only what is hidden; each still needs the user's click.
@@ -1647,6 +1789,184 @@ final class CoreService {
       default:
         return first;
     }
+  }
+
+  /// Turn a checked Ask AI `manage` answer into validated MCP tool steps with
+  /// display metadata (resolved group names, app keys, no-op filtering).
+  Map<String, dynamic> _prepareManagePlan(
+    Map<String, dynamic> first,
+    List<String> Function(Object?) toKeys,
+    groups.GroupData groupData,
+    Set<String> pinnedSet,
+  ) {
+    final steps = <Map<String, dynamic>>[];
+    final virtualGroups = <String, String>{}; // lower -> clean display name
+    var skippedNoops = 0;
+
+    for (final raw in first['steps'] as List? ?? const []) {
+      if (raw is! Map) continue;
+      final tool = raw['tool'] as String;
+      final args = Map<String, dynamic>.from(raw['arguments'] as Map);
+      switch (tool) {
+        case 'launcher_groups_create':
+          final name = groups.cleanName(args['name']);
+          if (name.isEmpty) continue;
+          final appKeys = toKeys(args['apps']);
+          final existing = resolveGroupRef(name, groupData);
+          if (existing != null) {
+            // Group already exists: if apps were given, convert to a move into it.
+            final toMove = [
+              for (final k in appKeys)
+                if (_apps[k] != null && groups.groupOf(_apps[k]!, groupData) != existing) k,
+            ];
+            if (toMove.isNotEmpty) {
+              steps.add({
+                'tool': 'launcher_groups_move_apps',
+                'arguments': {'apps': toMove, 'group': existing},
+                'group_name': groups.displayName(existing, groupData),
+              });
+            } else if (appKeys.isNotEmpty) {
+              skippedNoops++;
+            }
+            continue;
+          }
+          if (groups.nameTaken(groupData, name, null) ||
+              virtualGroups.containsKey(name.toLowerCase())) {
+            continue;
+          }
+          virtualGroups[name.toLowerCase()] = name;
+          steps.add({
+            'tool': tool,
+            'arguments': {'name': name, if (appKeys.isNotEmpty) 'apps': appKeys},
+            'group_name': name,
+          });
+
+        case 'launcher_groups_rename':
+          final gid = resolveGroupRef('${args['group']}', groupData);
+          final newName = groups.cleanName(args['name']);
+          if (gid == null || gid == groups.other || newName.isEmpty) continue;
+          final oldName = groups.displayName(gid, groupData);
+          if (oldName == newName) {
+            skippedNoops++;
+            continue;
+          }
+          if (groups.nameTaken(groupData, newName, gid)) continue;
+          steps.add({
+            'tool': tool,
+            'arguments': {'group': gid, 'name': newName},
+            'old_name': oldName,
+            'group_name': newName,
+          });
+
+        case 'launcher_groups_delete':
+          final gid = resolveGroupRef('${args['group']}', groupData);
+          if (gid == null || gid == groups.other) continue;
+          steps.add({
+            'tool': tool,
+            'arguments': {'group': gid},
+            'group_name': groups.displayName(gid, groupData),
+          });
+
+        case 'launcher_groups_move_apps':
+          final appKeys = toKeys(args['apps']);
+          if (appKeys.isEmpty) continue;
+          final groupRef = '${args['group']}';
+          final existing = resolveGroupRef(groupRef, groupData);
+          if (existing != null) {
+            final toMove = [
+              for (final k in appKeys)
+                if (_apps[k] != null && groups.groupOf(_apps[k]!, groupData) != existing) k,
+            ];
+            if (toMove.isEmpty) {
+              skippedNoops++;
+              continue;
+            }
+            steps.add({
+              'tool': tool,
+              'arguments': {'apps': toMove, 'group': existing},
+              'group_name': groups.displayName(existing, groupData),
+            });
+          } else if (virtualGroups.containsKey(groupRef.trim().toLowerCase())) {
+            final vName = virtualGroups[groupRef.trim().toLowerCase()]!;
+            steps.add({
+              'tool': tool,
+              'arguments': {'apps': appKeys, 'group': vName},
+              'group_name': vName,
+            });
+          } else {
+            final cleaned = groups.cleanName(groupRef);
+            if (cleaned.isEmpty || groups.nameTaken(groupData, cleaned, null)) continue;
+            virtualGroups[cleaned.toLowerCase()] = cleaned;
+            steps.add({
+              'tool': tool,
+              'arguments': {'apps': appKeys, 'group': cleaned, 'create': true},
+              'group_name': cleaned,
+              'creates_group': true,
+            });
+          }
+
+        case 'launcher_groups_reorder':
+          final gid = resolveGroupRef('${args['group']}', groupData);
+          if (gid == null || gid == groups.other) continue;
+          if (args['target'] case final String targetRef) {
+            final tid = resolveGroupRef(targetRef, groupData);
+            if (tid == null || tid == groups.other || tid == gid) continue;
+            final after = args['after'] == true;
+            steps.add({
+              'tool': tool,
+              'arguments': {'group': gid, 'target': tid, 'after': after},
+              'group_name': groups.displayName(gid, groupData),
+              'target_name': groups.displayName(tid, groupData),
+            });
+          } else if (args['delta'] == -1 || args['delta'] == 1) {
+            steps.add({
+              'tool': tool,
+              'arguments': {'group': gid, 'delta': args['delta']},
+              'group_name': groups.displayName(gid, groupData),
+            });
+          }
+
+        case 'launcher_groups_toggle':
+          final gid = resolveGroupRef('${args['group']}', groupData);
+          if (gid == null) continue;
+          steps.add({
+            'tool': tool,
+            'arguments': {'group': gid},
+            'group_name': groups.displayName(gid, groupData),
+          });
+
+        case 'launcher_dock_pin':
+          final pinned = args['pinned'] == true;
+          final appKeys = [
+            for (final k in toKeys(args['apps']))
+              if (_apps[k] != null &&
+                  pinnedSet.contains(_apps[k]!['desktop_id']) != pinned)
+                k,
+          ];
+          if (appKeys.isEmpty) {
+            skippedNoops++;
+            continue;
+          }
+          steps.add({
+            'tool': tool,
+            'arguments': {'apps': appKeys, 'pinned': pinned},
+          });
+
+        case 'launcher_settings_set':
+          final key = args['key'] as String;
+          if (!askAiSafeSettings.contains(key)) continue;
+          steps.add({
+            'tool': tool,
+            'arguments': {'key': key, 'value': args['value']},
+          });
+      }
+    }
+    return {
+      'action': 'manage',
+      'summary': first['summary'] ?? '',
+      'steps': steps,
+      if (steps.isEmpty && skippedNoops > 0) 'already_done': true,
+    };
   }
 
   /// A chosen icon's file: ours (when still there) or the theme's.
@@ -2200,5 +2520,6 @@ final class CoreService {
     }
     _terms.clear();
     _proposals.clear();
+    _manageProposals.clear();
   }
 }

@@ -31,6 +31,11 @@ const List<AskAiItem> askAiActions = [
     app: 'launcher',
     label: 'Change keyboard shortcuts',
   ),
+  (
+    id: 'launcher.groups',
+    app: 'launcher',
+    label: 'Organize groups and settings',
+  ),
   (id: 'theme.apply', app: 'theme', label: 'Apply a theme or wallpaper'),
   (id: 'theme.install', app: 'theme', label: 'Install themes from the catalog'),
   (id: 'theme.edit', app: 'theme', label: 'Create and save custom themes'),

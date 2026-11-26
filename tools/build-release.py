@@ -14,6 +14,7 @@ The AUR package maprisma-launcher-bin and the AppImage are made from it (packagi
     tools/build-release.py
 """
 import hashlib
+import os
 import re
 import shutil
 import subprocess
@@ -25,6 +26,29 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 APP_ID = 'com.maprisma.Launcher'
 BINARY = 'maprisma-launcher'
+
+
+def resolve_dart() -> str:
+    candidates = []
+    root = os.environ.get('FLUTTER_ROOT')
+    if root:
+        candidates.append(Path(root) / 'bin/cache/dart-sdk/bin/dart')
+    for name in ('flutter', 'dart'):
+        located = shutil.which(name)
+        if located:
+            resolved = Path(located).resolve()
+            candidates.extend(parent / 'bin/cache/dart-sdk/bin/dart' for parent in resolved.parents)
+            if name == 'dart':
+                candidates.append(resolved)
+    for candidate in candidates:
+        try:
+            binary = candidate.resolve(strict=True)
+            with binary.open('rb') as handle:
+                if handle.read(4) == b'\x7fELF' and os.access(binary, os.X_OK):
+                    return str(binary)
+        except OSError:
+            continue
+    sys.exit('Native Dart SDK not found; put flutter/dart on PATH or set FLUTTER_ROOT')
 
 
 def version() -> str:
@@ -60,6 +84,11 @@ def main():
         bundle = stage / 'build/linux/x64/release/bundle'
         if not (bundle / BINARY).is_file():
             sys.exit(f'no {BINARY} in the bundle')
+        core = stage.parent / 'packages/maprisma_launcher_core'
+        dart = resolve_dart()
+        subprocess.run([dart, 'pub', 'get', '--offline'], cwd=core, check=True)
+        subprocess.run([dart, 'compile', 'exe', 'bin/maprisma_launcher_core.dart', '-o',
+                        str(bundle / 'lib/maprisma-launcher-core')], cwd=core, check=True)
         subprocess.run(['cargo', 'build', '--release', '--offline'],
                        cwd=ROOT / 'cosmic-windows', check=True)
         shutil.copy2(ROOT / 'cosmic-windows/target/release/maprisma-launcher-windows', bundle)

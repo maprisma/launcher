@@ -51,7 +51,9 @@ final class GroupError implements Exception {
 typedef GroupData = Map<String, dynamic>;
 
 GroupData defaultPage() => {
-  'groups': [for (final id in builtinOrder) {'id': id, 'name': ''}],
+  'groups': <Map<String, dynamic>>[
+    for (final id in builtinOrder) {'id': id, 'name': ''},
+  ],
   'members': <String, String>{},
   'collapsed': <String>[],
   'order': <String>[],

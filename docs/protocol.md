@@ -14,7 +14,7 @@ A request is `{"id", "protocol": 1, "method", "params"}`, the answer `{"id", "re
 | `apps.sections` | `view` (groups, origin), `keys` (the shown entries, in order) | `sections` [{`id`, `keys`}], plus the groups |
 | `apps.hide` | `proposal`?, `key`, `hidden` | `hidden` |
 | `apps.facts` | — | `facts`: {app key: size, package, version, … (details.app_facts)} |
-| `apps.running` | — | `running` (app keys); on Omarchy and COSMIC also `states` {key: `active` (open windows) or `background`} |
+| `apps.running` | — | `running` (app keys), `config_stamp` (groups/hidden/settings disk stamp for live reload); on Omarchy and COSMIC also `states` {key: `active` (open windows) or `background`} |
 | `apps.windows` | `key` | `windows` (the app's Hyprland or COSMIC windows: `address`, `title`, `workspace`; empty on desktops without a window source) |
 | `apps.close` | `key`, `address`? (one window `apps.windows` listed; none: all) | `closed` (how many of the app's windows were asked to close, as their ✕); `not_available` without Hyprland/COSMIC window management |
 | `window.focus` | `address` (one `apps.windows` just listed) | `focused`; `not_found`, `focus_failed` |
@@ -45,7 +45,8 @@ A request is `{"id", "protocol": 1, "method", "params"}`, the answer `{"id", "re
 | `ai.helper.set` | `helper` (`auto` or an id matching `^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,160}$`) | writes the shared choice (other keys kept; tmp + rename, folder 0700, file 0600) and answers as `ask.helpers`; `bad_params`, `write_failed` |
 | `ask.rules` | — | current shared rules: `level`, `actions`, `sources`, `folders`, `broken`; reads again on each call |
 | `ask.settings` | — | `started`: detached `maprisma-settings --page ai`, argv without a shell |
-| `ask.run` | `helper` (optional for an explicit GitHub request), `request`, `answer`?, `language`? | explicit GitHub listing/install requests or repository URLs search public repository names and descriptions (an installed helper may suggest close spelling corrections, checked lexically): picks include repositories without installers (`installable: false`, Open via `open.url`); compatible checksummed AppImage picks have `installable: true`, `manager: github`, `repository`, `asset`, `url`, `sha256`; `source: github`; API errors: `github_failed`. General searches include GitHub too (`github_unavailable` on a partial failure). Web discovery (below): `web: true`, `web_found` [{`site`?, `repository`}]; an install answer with no picks carries `web_search` `off` / `unsupported`. Otherwise the checked answer: `action` install (`picks`, `installed`, `summary`), remove / update / explain / hide / unhide (`apps`), list_hidden (`apps`: the hidden ones, from the core), shortcuts (`apps`; none named: every app with a shortcut, from the core), remove_shortcut (`apps`, `shortcut` label to mark), add_shortcut (`apps`: one, `mods`, `key`? — a proposal the shortcut card presets), update_system, clarify (`question`, `choices`), redirect (`hint`); `no_helper`, `helper_failed` (with the reason) |
+| `ask.run` | `helper` (optional for an explicit GitHub request), `request`, `answer`?, `language`? | explicit GitHub listing/install requests or repository URLs search public repository names and descriptions (an installed helper may suggest close spelling corrections, checked lexically): picks include repositories without installers (`installable: false`, Open via `open.url`); compatible checksummed AppImage picks have `installable: true`, `manager: github`, `repository`, `asset`, `url`, `sha256`; `source: github`; API errors: `github_failed`. General searches include GitHub too (`github_unavailable` on a partial failure). Web discovery (below): `web: true`, `web_found` [{`site`?, `repository`}]; an install answer with no picks carries `web_search` `off` / `unsupported`. Otherwise the checked answer: `action` install (`picks`, `installed`, `summary`), `manage` (`summary`, `steps`: validated internal MCP tool calls for groups/dock/settings, `proposal`, `already_done`?), remove / update / explain / hide / unhide (`apps`), list_hidden (`apps`: the hidden ones, from the core), shortcuts (`apps`; none named: every app with a shortcut, from the core), remove_shortcut (`apps`, `shortcut` label to mark), add_shortcut (`apps`: one, `mods`, `key`? — a proposal the shortcut card presets), update_system, clarify (`question`, `choices`), redirect (`hint`); `no_helper`, `helper_failed` (with the reason) |
+| `ask.manage_apply` | `proposal`?, `steps` ([{`tool`, `arguments`}]) | applies validated Ask AI internal management steps via the shared MCP tool dispatcher (creating/renaming/deleting/reordering/toggling groups, moving apps into groups, pinning/unpinning dock apps, or changing safe launcher settings); gated by `launcher.groups` when `proposal` is present; returns `applied`, `groups`, `settings` |
 | `ask.cancel` / `ask.signin` | — / `command` | `cancelled` / `started` (the helper's login in a terminal; `bad_params` for a catalog agent, which has no login here) |
 | `icons.search` | `key`, `query` | `theme` [{`name`, `file`}], `online` [{`collection`, `slug`, `url`}] |
 | `icons.preview` | `url` (one just found), `color`? | `file` |
@@ -150,7 +151,8 @@ proposal as `op`. Other steps accept a single string id.
 Mapping: installs → `launcher.install` (sources pacman/aur/apt/dnf/zypper/flatpak/
 snap/github/local); uninstall → `launcher.remove`; per-app updates and restore →
 `launcher.update`; whole-system update → `launcher.update_system`; hide/unhide →
-`launcher.hide`; all four shortcut changes → `launcher.shortcuts`. All action
+`launcher.hide`; all four shortcut changes → `launcher.shortcuts`; internal
+group/dock/setting organization (`ask.manage_apply`) → `launcher.groups`. All action
 switches in a proposal must allow execution. `ask.rules` supplies the GUI's
 current display state; disabled actions stay visible with the shared-settings
 link. Execution always checks the latest state independently of that display.
@@ -177,3 +179,20 @@ terminal handoff logs `started`. Embedded-terminal polling records known
 Detached terminal outcomes remain `started` because they cannot be observed.
 Merely displaying a disabled action or cancelling an unexecuted review creates
 no log entry.
+
+## MCP server (stdio)
+
+`maprisma-launcher mcp [--config-dir PATH]` (which execs bundled `lib/maprisma-launcher-core mcp`)
+and `maprisma-launcher-core mcp [--config-dir PATH]` expose a local JSON-RPC 2.0 MCP server over
+stdin/stdout (`protocolVersion: "2024-11-05"`, 256 KiB max line length, `additionalProperties: false`).
+Config mutations share `config.lock` (`flock`) with the GUI, and `apps.running` includes `config_stamp`
+so an open Launcher window reloads changes automatically.
+
+Tools (15): `launcher_apps_list`, `launcher_apps_hide`, `launcher_apps_launch`, `launcher_groups_list`,
+`launcher_groups_create`, `launcher_groups_rename`, `launcher_groups_delete`, `launcher_groups_move_apps`,
+`launcher_groups_reorder`, `launcher_groups_toggle`, `launcher_dock_state`, `launcher_dock_pin`,
+`launcher_shortcuts_list`, `launcher_settings_get`, `launcher_settings_set`.
+
+Ask AI's `manage` action shares the internal-management subset of these tools (`launcher_groups_*`,
+`launcher_dock_pin`, `launcher_settings_set`) and executes reviewed proposals through the same
+dispatcher via `ask.manage_apply`.
