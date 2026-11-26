@@ -6,7 +6,7 @@ import 'backend.dart';
 import 'core_call.dart';
 import 'i18n.dart';
 import 'install_page.dart';
-import 'mic_button.dart';
+import 'package:maprisma_ui/voice.dart';
 import 'shortcut_page.dart';
 import 'theme.dart';
 

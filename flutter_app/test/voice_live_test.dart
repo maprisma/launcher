@@ -5,7 +5,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:maprisma_launcher/voice_input.dart';
+import 'package:maprisma_ui/voice.dart';
 
 void main() {
   final live = Platform.environment['MAPRISMA_LIVE_TESTS'] == '1';

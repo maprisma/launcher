@@ -14,7 +14,7 @@ import 'dart:io';
 import 'package:ffi/ffi.dart';
 import 'package:path/path.dart' as p;
 
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'desktop_entries.dart';
 import 'posix.dart';
 import 'shlex.dart';
@@ -120,7 +120,7 @@ final class Admin {
     final pkexec = session.which('pkexec');
     if (pkexec == null || !Posix.instance.executable('/usr/bin/true')) return false;
     final out = await readBoundedText([pkexec, '/usr/bin/true'],
-        timeout: const Duration(minutes: 3), environment: session.environment);
+        timeout: const Duration(minutes: 3), environment: session.environment, includeParentEnvironment: false);
     return out != null;
   }
 
@@ -169,7 +169,7 @@ final class Admin {
     final gsettings = session.which('gsettings');
     if (gsettings == null) return '';
     final out = await readBoundedText([gsettings, 'get', 'org.gnome.desktop.interface', key],
-        maxBytes: 4096, timeout: const Duration(seconds: 2), environment: session.environment);
+        maxBytes: 4096, timeout: const Duration(seconds: 2), environment: session.environment, includeParentEnvironment: false);
     var value = (out ?? '').trim();
     value = value.replaceAll(RegExp(r"^'+|'+$"), '');
     return RegExp(r'^[\w.+-]{1,64}$').hasMatch(value) ? value : '';

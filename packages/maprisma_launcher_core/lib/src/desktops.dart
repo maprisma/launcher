@@ -8,7 +8,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:toml/toml.dart';
 
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'desktop_entries.dart';
 import 'hypr_session.dart';
 import 'launch.dart';
@@ -695,6 +695,7 @@ final class GenericDesktop extends Desktop {
             maxBytes: 4096,
             timeout: const Duration(seconds: 2),
             environment: env,
+            includeParentEnvironment: false,
           );
     _roundingAt = now;
     return _rounding = parseHyprRounding(text);

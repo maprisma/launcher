@@ -15,7 +15,7 @@ import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'desktop_entries.dart';
 import 'posix.dart';
 import 'running.dart';
@@ -133,7 +133,7 @@ final class Tray {
     if (busctl == null) return null;
     // `--` ends busctl's options: nothing from the bus can become one.
     return readBoundedText([busctl, '--user', '--json=short', '--timeout=1.5', '--', ...args],
-        maxBytes: maxBytes, timeout: const Duration(seconds: 2), environment: session.environment);
+        maxBytes: maxBytes, timeout: const Duration(seconds: 2), environment: session.environment, includeParentEnvironment: false);
   }
 
   Future<Object?> _call(List<String> args) async {

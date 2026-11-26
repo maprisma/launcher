@@ -14,7 +14,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'config.dart';
 import 'desktop_entries.dart';
 import 'posix.dart';

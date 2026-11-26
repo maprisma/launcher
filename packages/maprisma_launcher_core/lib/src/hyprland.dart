@@ -11,7 +11,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'desktop_entries.dart';
 import 'hypr_session.dart';
 import 'running.dart';
@@ -141,6 +141,7 @@ final class Hyprland {
       maxBytes: 4 * 1024 * 1024,
       timeout: const Duration(seconds: 2),
       environment: session.environment,
+      includeParentEnvironment: false,
     );
   }
 

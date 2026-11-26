@@ -24,11 +24,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:maprisma_core_kit/ai.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'package:path/path.dart' as p;
 
-import 'bounded.dart';
 import 'desktop_entries.dart';
-import 'helpers_catalog.dart';
 import 'posix.dart';
 import 'shortcuts.dart' show keyMapKey, modOrder;
 
@@ -236,6 +236,7 @@ Future<List<({String provider, String model})>?> piListedModels(Session session)
     maxBytes: 256 * 1024,
     timeout: const Duration(seconds: 5),
     environment: session.environment,
+    includeParentEnvironment: false,
   );
   if (out == null) return null; // Not read now: the caller keeps what it had.
   final found = <({String provider, String model})>[];
@@ -826,6 +827,7 @@ final class AskRunner {
       [systemctl, '--user', 'start', '--no-block', unit],
       timeout: const Duration(seconds: 10),
       environment: session.environment,
+      includeParentEnvironment: false,
     );
     if (started == null) throw StateError('Could not start $unit.');
     for (var i = 0; i < 120; i++) {

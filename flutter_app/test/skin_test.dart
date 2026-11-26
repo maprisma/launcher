@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:maprisma_launcher/settings_page.dart';
 import 'package:maprisma_launcher/skin.dart';
 import 'package:maprisma_launcher/theme.dart';
-import 'package:maprisma_launcher/window_style.dart';
+import 'package:maprisma_ui/window_style.dart';
 
 void main() {
   test('appSkins order and normalizeSkin', () {

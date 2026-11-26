@@ -9,7 +9,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'desktop_entries.dart';
 import 'posix.dart';
 import 'shlex.dart';

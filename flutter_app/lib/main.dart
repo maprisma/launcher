@@ -6,15 +6,16 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:maprisma_core_kit/files.dart' show privateFilesMessageFormatter;
 import 'package:maprisma_launcher_core/maprisma_launcher_core.dart' show saveScreenshotNote, saveScreenshotTo, screenshotFolder;
+import 'package:maprisma_ui/voice.dart' show VoiceInput;
+import 'package:maprisma_ui/window.dart';
+import 'package:maprisma_ui/window_style.dart';
 
 import 'apps_page.dart';
 import 'backend.dart';
 import 'core_call.dart';
 import 'dock_app.dart';
-import 'esc_close.dart';
-import 'window_size.dart';
-import 'window_style.dart';
 import 'window_shots.dart';
 import 'i18n.dart';
 
@@ -69,6 +70,8 @@ Future<void> main(List<String> args) async {
   // `maprisma-launcher --dock`: the dock, a process of its own (dock_app.dart).
   if (args.contains('--dock')) return runDock();
   WidgetsFlutterBinding.ensureInitialized();
+  privateFilesMessageFormatter = trf;
+  VoiceInput.formatMessage = trf;
   final backend = await Backend.start();
   final look = await backend.call('desktop.look').catchError((_) => <String, dynamic>{});
   final settings = await backend.call('settings.get').catchError((_) => <String, dynamic>{});

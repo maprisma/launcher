@@ -9,7 +9,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'desktop_entries.dart';
 import 'updates.dart';
 import 'search_terms.dart';
@@ -106,6 +106,7 @@ final class Managers {
       timeout: const Duration(seconds: 30),
       okCodes: ok,
       environment: {...session.environment, 'LC_ALL': 'C'},
+      includeParentEnvironment: false,
     );
     // Exit 1 means "nothing found" for pacman and the AUR helpers.
     return switch (id) {
@@ -117,6 +118,7 @@ final class Managers {
         maxBytes: 2 * 1024 * 1024,
         timeout: const Duration(seconds: 30),
         environment: {...session.environment, 'LC_ALL': 'C'},
+        includeParentEnvironment: false,
       )),
       'dnf' => parseDnfSearch(await run(['search', '-q', '--', query], ok: {0, 1})),
       'zypper' => parseZypperSearch(await run(['-n', '--no-refresh', 'search', '--', query], ok: {0, 104})),
@@ -165,6 +167,7 @@ final class Managers {
         maxBytes: 64 * 1024,
         timeout: const Duration(seconds: 5),
         environment: {...session.environment, 'LC_ALL': 'C'},
+        includeParentEnvironment: false,
       );
       final line = (out ?? '').trim().split('\n').first.trim();
       return line.isEmpty ? null : line;
@@ -232,6 +235,7 @@ final class Managers {
       maxBytes: 1024 * 1024,
       timeout: const Duration(seconds: 5),
       environment: {...session.environment, 'LC_ALL': 'C'},
+      includeParentEnvironment: false,
     );
     return parseRequiredBy(out);
   }

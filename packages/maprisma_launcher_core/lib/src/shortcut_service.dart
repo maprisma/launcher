@@ -9,7 +9,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'config.dart';
 import 'desktop_entries.dart';
 import 'desktops.dart';
@@ -42,7 +42,13 @@ Future<String?> boundedRun(
   List<String> argv, {
   Duration timeout = const Duration(seconds: 3),
   Map<String, String>? environment,
-}) => readBoundedText(argv, maxBytes: 4 * 1024 * 1024, timeout: timeout, environment: environment);
+}) => readBoundedText(
+  argv,
+  maxBytes: 4 * 1024 * 1024,
+  timeout: timeout,
+  environment: environment,
+  includeParentEnvironment: environment == null,
+);
 
 /// boundedRun in the session's environment.
 Runner sessionRun(Session session) =>
@@ -267,6 +273,7 @@ final class HyprBackend implements ShortcutBackend {
     final out = await readBoundedText(
       [program, ...command.skip(1)],
       environment: env,
+      includeParentEnvironment: false,
       timeout: const Duration(seconds: 2),
     );
     final lines = (out ?? '').trim().split('\n');

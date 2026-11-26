@@ -10,7 +10,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'desktop_entries.dart';
 import 'posix.dart';
 
@@ -112,7 +112,7 @@ final class ShellPlugins {
     final shell = session.which('omarchy-shell');
     if (shell == null) return [];
     final out = await readBoundedText([shell, 'shell', 'listPlugins'],
-        maxBytes: 512 * 1024, timeout: const Duration(seconds: 2), environment: session.environment);
+        maxBytes: 512 * 1024, timeout: const Duration(seconds: 2), environment: session.environment, includeParentEnvironment: false);
     Object? listed;
     try {
       listed = out == null ? null : jsonDecode(out);
@@ -161,7 +161,7 @@ final class ShellPlugins {
     final shell = session.which('omarchy-shell');
     if (shell == null || !pluginIdRe.hasMatch(id)) return false;
     final out = await readBoundedText([shell, 'shell', 'summon', id, '{}'],
-        maxBytes: 4096, timeout: const Duration(seconds: 3), environment: session.environment);
+        maxBytes: 4096, timeout: const Duration(seconds: 3), environment: session.environment, includeParentEnvironment: false);
     return out?.trim() == 'ok';
   }
 
@@ -171,13 +171,13 @@ final class ShellPlugins {
     final command = session.which(placed ? 'omarchy-plugin-enable' : 'omarchy-plugin-disable');
     if (command == null) return false;
     final out = await readBoundedText([command, id, if (placed && section != null) section],
-        maxBytes: 64 * 1024, timeout: const Duration(seconds: 20), environment: session.environment);
+        maxBytes: 64 * 1024, timeout: const Duration(seconds: 20), environment: session.environment, includeParentEnvironment: false);
     return out != null;
   }
 
   Future<String?> _git(String dir, List<String> args, {Duration timeout = const Duration(seconds: 5)}) =>
       readBoundedText([session.which('git') ?? 'git', '-C', dir, ...args],
-          maxBytes: 256 * 1024, timeout: timeout, environment: _gitEnv);
+          maxBytes: 256 * 1024, timeout: timeout, environment: _gitEnv, includeParentEnvironment: false);
 
   /// plugin_removal_note: what `omarchy plugin remove` does with the folder,
   /// and whether work would be lost (it deletes git checkouts outright).
@@ -204,7 +204,7 @@ final class ShellPlugins {
     final command = session.which('omarchy-plugin-remove');
     if (command == null || !removable(id)) return false;
     final out = await readBoundedText([command, id, '--yes'],
-        maxBytes: 64 * 1024, timeout: const Duration(seconds: 60), environment: session.environment);
+        maxBytes: 64 * 1024, timeout: const Duration(seconds: 60), environment: session.environment, includeParentEnvironment: false);
     return out != null;
   }
 
@@ -226,7 +226,7 @@ final class ShellPlugins {
     final omarchy = session.which('omarchy');
     if (omarchy == null) return (false, 'no omarchy command');
     final (code, output) = await runBounded([omarchy, 'plugin', 'update', id, '--yes'],
-        maxBytes: 64 * 1024, timeout: const Duration(seconds: 180), environment: _gitEnv);
+        maxBytes: 64 * 1024, timeout: const Duration(seconds: 180), environment: _gitEnv, includeParentEnvironment: false);
     if (code == 0) return (true, '');
     // The command's last line says why (local changes, validation …).
     final lines = [for (final l in output.split('\n')) if (l.trim().isNotEmpty) l.trim()];

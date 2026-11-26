@@ -9,7 +9,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'appimage_updates.dart';
 import 'desktop_entries.dart';
 import 'origins.dart';
@@ -211,6 +211,7 @@ final class AppFacts {
         // pacman -Qo exits with the number of paths it found no owner for.
         okCodes: const {},
         environment: {...session.environment, 'LC_ALL': 'C'},
+        includeParentEnvironment: false,
       ),
     );
   }
@@ -229,6 +230,7 @@ final class AppFacts {
         maxBytes: 1024 * 1024,
         timeout: const Duration(seconds: 20),
         environment: session.environment,
+        includeParentEnvironment: false,
       ),
     );
   }

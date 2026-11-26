@@ -9,7 +9,7 @@ import 'package:convert/convert.dart';
 import 'package:path/path.dart' as p;
 
 import 'appimages.dart';
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'desktop_entries.dart';
 import 'origins.dart' show programPath;
 import 'posix.dart';
@@ -235,6 +235,7 @@ final class AppImageUpdates {
       maxBytes: 4096,
       timeout: const Duration(seconds: 5),
       environment: session.environment,
+      includeParentEnvironment: false,
     );
     return parseAppImageUpdateInfo(out);
   }

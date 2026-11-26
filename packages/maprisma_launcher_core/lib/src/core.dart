@@ -15,7 +15,7 @@ import 'local_appimages.dart';
 import 'apps.dart';
 import 'ai_choice.dart';
 import 'ask_ai.dart';
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'appimage_updates.dart';
 import 'config.dart';
 import 'desktop_entries.dart';
@@ -2057,6 +2057,7 @@ final class CoreService {
           argv,
           timeout: const Duration(seconds: 60),
           environment: session.environment,
+          includeParentEnvironment: false,
         );
         if (out == null) throw ServiceError('uninstall_failed');
         return {'done': true};

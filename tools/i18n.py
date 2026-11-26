@@ -33,6 +33,9 @@ DYNAMIC = [
     "Command-line tool, opens in a terminal",
     "Enter a name.", "A group with this name exists already.", "That is the most groups there can be.",
     "Too many entries.",
+    # Shared maprisma_ui strings translated via tr() (MicButton, windowStyleChoices).
+    "Dictate", "Stop and insert", "Listening…", "Dictation is not available: {0}",
+    "Solid", "Transparent", "Glassy (blurred)", "Follow the desktop",
 ]
 
 _STR = r"""(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)")"""

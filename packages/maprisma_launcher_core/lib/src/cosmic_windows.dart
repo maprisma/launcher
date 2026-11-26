@@ -5,7 +5,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as p;
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'desktop_entries.dart';
 import 'running.dart';
 import 'shlex.dart';
@@ -115,6 +115,7 @@ final class CosmicWindows extends ToplevelWindows {
       maxBytes: 4 * 1024 * 1024,
       timeout: const Duration(seconds: 3),
       environment: session.environment,
+      includeParentEnvironment: false,
     );
     try {
       final value = text == null ? null : jsonDecode(text);

@@ -6,7 +6,7 @@ import 'dart:io';
 import 'package:dbus/dbus.dart';
 import 'package:path/path.dart' as p;
 
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'desktop_entries.dart';
 import 'protocol.dart' show ServiceError;
 import 'shortcuts.dart';
@@ -426,7 +426,7 @@ final class KdeSettings implements KeySettings {
     final id = [c, '_launch', 'Maprisma Launcher', name];
     for (var attempt = 0; ; attempt++) {
       if (sycoca != null) {
-        await readBoundedText([sycoca], maxBytes: 64 * 1024, timeout: const Duration(seconds: 30), environment: session.environment);
+        await readBoundedText([sycoca], maxBytes: 64 * 1024, timeout: const Duration(seconds: 30), environment: session.environment, includeParentEnvironment: false);
       }
       await globalAccel.doRegister(id);
       await globalAccel.setForeignShortcutKeys(id, [

@@ -1,9 +1,28 @@
 /// App Manager's core.
 library;
 
+export 'package:maprisma_core_kit/ai.dart'
+    show
+        CatalogHelper,
+        HelpersCatalog,
+        argvPromptMax,
+        catalogAskArgv,
+        findHelperCommand,
+        helperPrompt,
+        helpersCatalog,
+        helpersCatalogMax,
+        miseShims,
+        parseHelpersCatalog,
+        pickHelpersCatalog,
+        plainHelperName,
+        shippedHelpersCatalog,
+        shippedHelpersJson,
+        systemHelpersCatalog,
+        systemHelpersPath;
+export 'package:maprisma_core_kit/process.dart';
+
 export 'src/apps.dart';
 export 'src/appimages.dart';
-export 'src/bounded.dart';
 export 'src/cli_tools.dart';
 export 'src/desktop_entries.dart';
 export 'src/hypr_session.dart';
@@ -24,7 +43,6 @@ export 'src/facts.dart';
 export 'src/packages.dart';
 export 'src/ask_ai.dart';
 export 'src/ai_choice.dart';
-export 'src/helpers_catalog.dart';
 export 'src/icons.dart' hide aliases, host;
 export 'src/hyprland.dart';
 export 'src/plugins.dart';

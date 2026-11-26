@@ -6,7 +6,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-import 'bounded.dart';
+import 'package:maprisma_core_kit/process.dart';
 import 'desktop_entries.dart';
 
 final _updateLine = RegExp(r'^([A-Za-z0-9@._+-]{1,128}) (\S{1,64}) -> (\S{1,64})$');
@@ -48,6 +48,7 @@ final class UpdateCheck {
         timeout: const Duration(seconds: 90),
         okCodes: const {0, 2},
         environment: session.environment,
+        includeParentEnvironment: false,
       ));
     }
     Future<Map<String, (String, String)>> aur() async {
@@ -61,6 +62,7 @@ final class UpdateCheck {
           timeout: const Duration(seconds: 90),
           okCodes: const {0, 1},
           environment: session.environment,
+          includeParentEnvironment: false,
         ));
       }
       return {};
@@ -85,6 +87,7 @@ final class UpdateCheck {
       timeout: const Duration(seconds: 20),
       okCodes: const {},
       environment: _cEnv,
+      includeParentEnvironment: false,
     ));
   }
 
@@ -98,6 +101,7 @@ final class UpdateCheck {
       maxBytes: 1024 * 1024,
       timeout: const Duration(seconds: 90),
       environment: session.environment,
+      includeParentEnvironment: false,
     ));
     if (available.isEmpty) return {};
     final installed = parseFlatpakLines(await readBoundedText(
@@ -105,6 +109,7 @@ final class UpdateCheck {
       maxBytes: 1024 * 1024,
       timeout: const Duration(seconds: 20),
       environment: session.environment,
+      includeParentEnvironment: false,
     ));
     return {for (final e in available.entries) e.key: (installed[e.key] ?? '', e.value)};
   }
@@ -142,6 +147,7 @@ final class UpdateCheck {
       maxBytes: 64 * 1024,
       timeout: const Duration(seconds: 600),
       environment: _cEnv,
+      includeParentEnvironment: false,
     );
     return out == null ? (false, 'flatpak update failed') : (true, '');
   }
