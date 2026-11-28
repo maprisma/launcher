@@ -45,7 +45,7 @@ import 'updates.dart';
 import 'protocol.dart';
 import 'shortcuts.dart' show defaultMods;
 
-const coreVersion = '0.5.2';
+const coreVersion = '0.5.3';
 
 /// An entry's stable key: its desktop file, else its kind and id.
 String appKey(Map app) {
